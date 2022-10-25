@@ -1,4 +1,17 @@
-# Getting Started with Create React App
+# Warholizer
+
+![Screenshot](screenshot.png)
+
+Try it out at https://warholizer.jonashw.dev/
+
+Instructions:
+
+1. Paste an interesting image from your clipboard
+2. Play with the settings
+3. Print on a laser printer
+4. Paste into your sketchbook and have fun.  (Transparent media work best on top)
+
+## Technical Details
 
 This project was bootstrapped with [Create React App](https://github.com/facebook/create-react-app).
 
