@@ -1,0 +1,36 @@
+.frame {
+  position: relative;
+}
+.frame > img {
+  display:block;
+  bottom:0;
+}
+
+@page {
+  size: auto;
+  margin: 0;
+}
+
+@media print {
+  body {
+    margin: 0;
+  }
+  html, body {
+    /* limit printing to first page */
+    height:100%; 
+    margin: 0 !important; 
+    padding: 0 !important;
+    overflow: hidden;
+  }
+  #settings-table {
+    display:none;
+  }
+    .frame {
+        break-inside: avoid;
+        page-break-inside: avoid;
+    }
+    .frame > img  {
+        break-inside: avoid;
+        page-break-inside:avoid;
+    }
+}
