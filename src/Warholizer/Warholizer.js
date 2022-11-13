@@ -36,52 +36,79 @@ const Warholizer = ({
     effect();
   }, [threshold,imgSrc,thresholdIsInEffect])
 
+  const fileToDataUrl = file => new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.readAsDataURL(file);
+    reader.onload = () => resolve(reader.result);
+    reader.onerror = error => reject(error);
+  });
+
+  const onFileChange = async e => {
+    var files = Array.from(e.target.files);
+    if (files.length !== 1) {
+      return;
+    }
+    let dataUrl = await fileToDataUrl(files[0]);
+    setImgSrc(dataUrl);
+  };
+
   return (
     <div>
       <table id="settings-table">
-        <tr>
-          <th>Row size</th>
-          <td>
-            <input type="range" min="2" max="20" defaultValue={rowSize} onChange={e => setRowSize(parseInt(e.target.value))}/>
-            ({rowSize})
-          </td>
-        </tr>
-        <tr>
-          <th>
-            B/W threshold
-          </th>
-          <td>
-						<input type="checkbox" defaultChecked={thresholdIsInEffect} onChange={e => setThresholdIsInEffect(!!e.target.checked)} />
-            <input disabled={!thresholdIsInEffect} type="range" min="0" max="255" defaultValue={threshold} onChange={e => setThreshold(parseInt(e.target.value))}/>
-            ({threshold})
-          </td>
-        </tr>
-        <tr>
-          <th>BG colors</th>
-          <td>
-          {bgcolorOptions.map(o => 
-            <label>
-              <input
-                type="radio"
-                name="bgcolor"
-                value={o.label}
-                defaultChecked={selectedBGColorOption === o}
-                onChange={e => {
-                  if(!e.target.checked){
-                    return;
-                  }
-                  setSelectedBGColorOption(o);
-                }}
-              />
-              {o.label}
-            </label>)}
+        <tbody>
+          <tr>
+            <th>
+              File upload
+            </th>
+            <td>
+              <input type="file" onChange={onFileChange} accept="image/*"/>
+              (or just paste an image from your clipboard)
             </td>
-        </tr>
+          </tr>
+          <tr>
+            <th>Row size</th>
+            <td>
+              <input type="range" min="1" max="20" defaultValue={rowSize} onChange={e => setRowSize(parseInt(e.target.value))}/>
+              ({rowSize})
+            </td>
+          </tr>
+          <tr>
+            <th>
+              B/W threshold
+            </th>
+            <td>
+              <input type="checkbox" defaultChecked={thresholdIsInEffect} onChange={e => setThresholdIsInEffect(!!e.target.checked)} />
+              <input disabled={!thresholdIsInEffect} type="range" min="0" max="255" defaultValue={threshold} onChange={e => setThreshold(parseInt(e.target.value))}/>
+              ({threshold})
+            </td>
+          </tr>
+          <tr>
+            <th>BG colors</th>
+            <td>
+            {bgcolorOptions.map(o => 
+              <label key={o.label}>
+                <input
+                  type="radio"
+                  name="bgcolor"
+                  value={o.label}
+                  defaultChecked={selectedBGColorOption === o}
+                  onChange={e => {
+                    if(!e.target.checked){
+                      return;
+                    }
+                    setSelectedBGColorOption(o);
+                  }}
+                />
+                {o.label}
+              </label>)}
+              </td>
+          </tr>
+        </tbody>
       </table>
       
       <div style={{"display":"flex", "flexWrap":"wrap"}}>
         {Array(300).fill(processedImgSrc).map((src,i) => 
-        	<div className="frame" style={{
+        	<div key={i} className="frame" style={{
               width:`${100/rowSize}%`,
               backgroundColor: selectedBGColorOption.getColor(i)
           }}>
