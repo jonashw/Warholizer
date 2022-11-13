@@ -1,7 +1,7 @@
 .frame {
   position: relative;
 }
-.frame > img {
+.frame > .img {
   display:block;
   bottom:0;
 }
@@ -12,6 +12,13 @@
 }
 
 @media print {
+  * {
+    /* Browsers tend to ignore background images when printing... that would break our app! */
+    /* reference: https://stackoverflow.com/questions/6670151/how-can-i-force-browsers-to-print-background-images-in-css */
+    -webkit-print-color-adjust: exact !important;   /* Chrome, Safari 6 – 15.3, Edge */
+    color-adjust: exact !important;                 /* Firefox 48 – 96 */
+    print-color-adjust: exact !important;           /* Firefox 97+, Safari 15.4+ */
+}
   body {
     margin: 0;
   }
@@ -29,7 +36,7 @@
         break-inside: avoid;
         page-break-inside: avoid;
     }
-    .frame > img  {
+    .frame > .img  {
         break-inside: avoid;
         page-break-inside:avoid;
     }

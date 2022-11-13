@@ -12,6 +12,7 @@ const Warholizer = ({
   let [imgSrc,setImgSrc] = React.useState(initialImgSrc);
 	let [thresholdIsInEffect, setThresholdIsInEffect] = React.useState(initialThresholdIsInEffect === undefined ? true : initialThresholdIsInEffect)
   let [processedImgSrc,setProcessedImgSrc] = React.useState(imgSrc);
+  let [imgDimensions,setImageDimensions] = React.useState({width:100,height:100});
   const [rowSize, setRowSize] = React.useState(initialRowSize || 5);
   const [threshold, setThreshold] = React.useState(initialThreshold || 122);
   const colors = ["#ffff00", "#ff00ff", "#00ff00","#6666ff"];
@@ -31,10 +32,24 @@ const Warholizer = ({
   React.useEffect(() => {
     const effect = async () => {
       let bw = await applyImageThreshold(threshold, imgSrc);
-      setProcessedImgSrc(thresholdIsInEffect ? bw : imgSrc);
+      let src = thresholdIsInEffect ? bw : imgSrc;
+      setProcessedImgSrc(src);
     }
     effect();
   }, [threshold,imgSrc,thresholdIsInEffect])
+
+  React.useEffect(() => {
+    if(!processedImgSrc){
+      return;
+    }
+    var memoryImg = document.createElement('img');
+    memoryImg.onload = () => {
+      var width = memoryImg.width;
+      var height = memoryImg.height;
+      setImageDimensions({width,height});
+    };
+    memoryImg.src = processedImgSrc;
+  },[processedImgSrc])
 
   const fileToDataUrl = file => new Promise((resolve, reject) => {
     const reader = new FileReader();
@@ -105,17 +120,26 @@ const Warholizer = ({
           </tr>
         </tbody>
       </table>
-      
+
+      <style>
+        {`
+        .frame > .img {
+          background-image: url(${processedImgSrc});
+          height: ${imgDimensions.height}px;
+          width: ${imgDimensions.width}px;
+          max-width:100%;
+          mix-blend-mode:darken;
+          background-size:contain;
+        }
+      `}</style>
+
       <div style={{"display":"flex", "flexWrap":"wrap"}}>
-        {Array(300).fill(processedImgSrc).map((src,i) => 
+        {Array(100).fill(processedImgSrc).map((src,i) => 
         	<div key={i} className="frame" style={{
               width:`${100/rowSize}%`,
               backgroundColor: selectedBGColorOption.getColor(i)
           }}>
-            <img alt={src} key={i} src={src} style={{
-              maxWidth:'100%',
-              mixBlendMode:'darken'
-            }}/>
+            <div className="img" key={i}/>
           </div>
         )}
       </div>
