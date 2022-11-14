@@ -30,7 +30,7 @@ const ImageGrid = ({
       setScale(
         Math.min(
         windowSize.height/(paper.height+50),
-        windowSize.width/(paper.width+50)));
+        windowSize.width/(paper.height+50)));
     }, [
       img,
       getBackgroundColor,

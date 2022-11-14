@@ -59,7 +59,7 @@ const Warholizer = ({
     <div>
       <FloatingActionButton 
         i={1}
-        className={"btn " + (settingsVisible ? "btn-outline-secondary" : "btn-secondary")}
+        className={"btn " + (settingsVisible ? "btn-light" : "btn-secondary")}
         onClick={() => setSettingsVisible(!settingsVisible  ) }
       >
         <img alt="print" src={settingsVisible?"/settings.svg":"/settings-white.svg"} style={{width:'1.5em'}}/>
@@ -71,7 +71,7 @@ const Warholizer = ({
       >
         <img alt="print" src="/print-white.svg" style={{width:'1.5em'}}/>
       </FloatingActionButton>
-      <OffCanvas title="Settings" style={{background:'rgba(255,255,255,0.95'}} open={settingsVisible} setOpen={setSettingsVisible} >
+      <OffCanvas title="Warholizer Settings" style={{background:'rgba(255,255,255,0.95'}} open={settingsVisible} setOpen={setSettingsVisible} >
 
         {processedImg 
           ?
@@ -124,7 +124,7 @@ const Warholizer = ({
         </div>
         <label className="form-label">Background Colors</label>
         {bgcolorOptions.map((o,i) =>
-          <div className="form-check">
+          <div className="form-check" key={i}>
             <input
               className="form-check-input"
               type="radio"
@@ -147,7 +147,7 @@ const Warholizer = ({
 
         <label className="form-label">Paper</label>
         {Object.values(PAPER).map(p =>
-          <div className="form-check">
+          <div className="form-check" key={p.cssSize}>
             <input
               className="form-check-input"
               id={"form-paper-" + p.cssSize}

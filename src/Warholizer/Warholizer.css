@@ -1,3 +1,6 @@
+body {
+  background: #212529;
+}
 .frame {
   position: relative;
   mix-blend-mode: darken;
@@ -6,13 +9,6 @@
   display:block;
   bottom:0;
 }
-
-/*
-  #settings-table {
-    position: fixed;
-    z-index: 100;
-  }
-  */
 
 .centralizer { 
   display:flex;
