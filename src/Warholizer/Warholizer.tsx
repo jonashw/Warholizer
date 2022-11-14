@@ -67,28 +67,34 @@ const Warholizer = ({
         <img alt="print" src="/print-white.svg" style={{width:'1.5em'}}/>
       </FloatingActionButton>
       <OffCanvas title="Settings" style={{background:'rgba(255,255,255,0.95'}} open={settingsVisible} setOpen={setSettingsVisible} >
-        <div className="mb-3">
-          <label htmlFor="formFileUpload" className="form-label">
-            File Upload
-            <br/>(or just paste an image from your clipboard)
-          </label>
-          <input type="file" id="formFileUpload" onChange={async e => {
-            var files = Array.from(e.target.files || []);
-            if (files.length !== 1) {
-              return;
-            }
-            let dataUrl: string | ArrayBuffer = await fileToDataUrl(files[0]);
-            setImgSrc(dataUrl.toString());
-          }} accept="image/*" />
-        </div>
-        <div className="mb-3">
-          <label htmlFor="formRowLength" className="form-label">
-            Row Length ({rowSize})
-          </label>
-          <input type="range" min="1" max="10"
-          className="form-range"
-          id="formRowLength" defaultValue={rowSize} onChange={e => setRowSize(parseInt(e.target.value))} />
-        </div>
+
+        {processedImg 
+          ?
+          <div className="mb-3">
+            <img src={processedImg.dataUrl} style={{maxWidth:'100%'}}/>
+            <a href="" onClick={e => {
+              e.preventDefault();
+              setProcessedImg(undefined);
+            }}>
+              Clear
+            </a>
+          </div>
+        : 
+          <div className="mb-3">
+            <label htmlFor="formFileUpload" className="form-label">
+              File Upload
+              <br/>(or just paste an image from your clipboard)
+            </label>
+            <input type="file" id="formFileUpload" onChange={async e => {
+              var files = Array.from(e.target.files || []);
+              if (files.length !== 1) {
+                return;
+              }
+              let dataUrl: string | ArrayBuffer = await fileToDataUrl(files[0]);
+              setImgSrc(dataUrl.toString());
+            }} accept="image/*" />
+          </div>
+        }
         <div className="form-check form-switch mb-3">
           <input className="form-check-input" type="checkbox" defaultChecked={thresholdIsInEffect} onChange={e => setThresholdIsInEffect(!!e.target.checked)} id="formThresholdOn"/>
           <label className="form-check-label" htmlFor="formThresholdOn">
@@ -103,6 +109,14 @@ const Warholizer = ({
           <input id="formThreshold" className="form-range" disabled={!thresholdIsInEffect} type="range" min="0" max="255" defaultValue={threshold} onChange={e => setThreshold(parseInt(e.target.value))} />
         </div>}
 
+        <div className="mb-3">
+          <label htmlFor="formRowLength" className="form-label">
+            Row Length ({rowSize})
+          </label>
+          <input type="range" min="1" max="10"
+          className="form-range"
+          id="formRowLength" defaultValue={rowSize} onChange={e => setRowSize(parseInt(e.target.value))} />
+        </div>
         <label className="form-label">Background Colors</label>
         {bgcolorOptions.map((o,i) =>
           <div className="form-check">
@@ -125,7 +139,6 @@ const Warholizer = ({
             </label>
           </div>)
         }
-
 
         <label className="form-label">Paper</label>
         {Object.values(PAPER).map(p =>
