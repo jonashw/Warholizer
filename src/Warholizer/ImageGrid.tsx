@@ -14,8 +14,7 @@ const ImageGrid = ({
         {`
         .frame > .img {
           background-image: url(${img.dataUrl});
-          height: ${img.height}px;
-          width: ${img.width}px;
+          aspect-ratio: ${(img.width/img.height)};
           max-width:100%;
           mix-blend-mode:darken;
           background-size:contain;
