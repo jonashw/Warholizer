@@ -8,6 +8,17 @@ import FloatingActionButton from './FloatingActionButton';
 import { PAPER, Paper } from './Paper';
 import OffCanvas from './OffCanvas';
 
+const colors = ["#ffff00", "#ff00ff", "#00ff00","#6666ff"];
+
+const randomColors = Array(100).fill(undefined).map(_ => 
+  colors[Math.floor(Math.random() * colors.length)]);
+
+const bgcolorOptions: {label: string, getColor: (i: number) => string}[] = [
+  {label: 'None', getColor: i => 'transparent'},
+  {label: 'Sequential', getColor: i => colors[i % colors.length]},
+  {label: 'Random', getColor: i => randomColors[Math.floor(i % randomColors.length)]}
+];
+
 const Warholizer = ({
 	initialImgSrc,
 	initialThreshold,
@@ -25,12 +36,6 @@ const Warholizer = ({
   let [processedImg,setProcessedImg] = React.useState<ImagePayload|undefined>();
   const [rowSize, setRowSize] = React.useState(initialRowSize || 5);
   const [threshold, setThreshold] = React.useState(initialThreshold || 122);
-  const colors = ["#ffff00", "#ff00ff", "#00ff00","#6666ff"];
-  let bgcolorOptions: {label: string, getColor: (i: number) => string}[] = [
-    {label: 'None', getColor: i => 'transparent'},
-    {label: 'Sequential', getColor: i => colors[i % colors.length]},
-    {label: 'Random', getColor: i => colors[Math.floor(Math.random() * colors.length)]}
-  ];
   const [selectedBGColorOption, setSelectedBGColorOption] = React.useState(bgcolorOptions[0]);
   const [settingsVisible,setSettingsVisible] = React.useState(false);
 
