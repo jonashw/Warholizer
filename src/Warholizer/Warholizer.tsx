@@ -4,6 +4,7 @@ import {applyImageThreshold,ImagePayload} from './applyImageThreshold';
 import "./Warholizer.css";
 import ImageGrid from './ImageGrid';
 import fileToDataUrl from '../fileToDataUrl';
+import FloatingActionButton from './FloatingActionButton';
 
 const Warholizer = ({
 	initialImgSrc,
@@ -47,6 +48,14 @@ const Warholizer = ({
 
   return (
     <div>
+      <FloatingActionButton 
+        className="btn btn-success"
+        onClick={() => window.print() }
+      >
+        <span style={{filter:'saturate(0)'}}>
+          <img alt="print" src="/print-white.svg" style={{width:'1.5em'}}/>
+        </span>
+      </FloatingActionButton>
       <table id="settings-table">
         <tbody>
           <tr>
