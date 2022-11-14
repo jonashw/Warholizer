@@ -76,8 +76,8 @@ const Warholizer = ({
         {processedImg 
           ?
           <div className="mb-3">
-            <img src={processedImg.dataUrl} style={{maxWidth:'100%'}}/>
-            <a href="" onClick={e => {
+            <img src={processedImg.dataUrl} style={{maxWidth:'100%'}} alt="preview"/>
+            <a href="/" onClick={e => {
               e.preventDefault();
               setProcessedImg(undefined);
             }}>
