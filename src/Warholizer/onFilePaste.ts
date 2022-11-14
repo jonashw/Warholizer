@@ -1,5 +1,5 @@
-const onFilePaste = (element, onData) => {
-  window.addEventListener('paste', event => {
+const onFilePaste = (onData: (data: string|ArrayBuffer) => void): void => {
+  document.addEventListener('paste', (event: ClipboardEvent) => {
     var items = event.clipboardData?.items || [];
     console.log(JSON.stringify(items)); // will give you the mime types
     for (let index in items) {
@@ -12,12 +12,15 @@ const onFilePaste = (element, onData) => {
         var reader = new FileReader();
         reader.onload = function(event){
           // data url!
-          onData(event.target.result);
+          if(event.target?.result){
+            onData(event.target.result);
+          }
         };
         reader.readAsDataURL(blob);
       }
     }
   });
+  return;
 }
 
 export default onFilePaste;

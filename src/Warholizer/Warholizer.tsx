@@ -30,8 +30,8 @@ const Warholizer = ({
   const [selectedBGColorOption, setSelectedBGColorOption] = React.useState(bgcolorOptions[0]);
 
   React.useEffect(() => {
-    onFilePaste(window, (data: string) => {
-      setImgSrc(data);
+    onFilePaste((data: ArrayBuffer | string) => {
+      setImgSrc(data.toString());
     });
   }, []);
 
