@@ -1,22 +1,28 @@
 import React from 'react';
 import onFilePaste from './onFilePaste';
-import applyImageThreshold from './applyImageThreshold';
+import {applyImageThreshold,ImagePayload} from './applyImageThreshold';
 import "./Warholizer.css";
+import ImageGrid from './ImageGrid';
+import fileToDataUrl from '../fileToDataUrl';
 
 const Warholizer = ({
 	initialImgSrc,
 	initialThreshold,
 	initialRowSize,
 	initialThresholdIsInEffect
+} : {
+  initialImgSrc: string;
+  initialThreshold: number;
+  initialRowSize: number;
+  initialThresholdIsInEffect: boolean | undefined;
 }) => {
-  let [imgSrc,setImgSrc] = React.useState(initialImgSrc);
-	let [thresholdIsInEffect, setThresholdIsInEffect] = React.useState(initialThresholdIsInEffect === undefined ? true : initialThresholdIsInEffect)
-  let [processedImgSrc,setProcessedImgSrc] = React.useState(imgSrc);
-  let [imgDimensions,setImageDimensions] = React.useState({width:100,height:100});
+  let [imgSrc,setImgSrc] = React.useState<string>(initialImgSrc);
+	let [thresholdIsInEffect, setThresholdIsInEffect] = React.useState<boolean>(initialThresholdIsInEffect === undefined ? true : initialThresholdIsInEffect)
+  let [processedImg,setProcessedImg] = React.useState<ImagePayload|undefined>();
   const [rowSize, setRowSize] = React.useState(initialRowSize || 5);
   const [threshold, setThreshold] = React.useState(initialThreshold || 122);
   const colors = ["#ffff00", "#ff00ff", "#00ff00","#6666ff"];
-  let bgcolorOptions = [
+  let bgcolorOptions: {label: string, getColor: (i: number) => string}[] = [
     {label: 'None', getColor: i => 'transparent'},
     {label: 'Sequential', getColor: i => colors[i % colors.length]},
     {label: 'Random', getColor: i => colors[Math.floor(Math.random() * colors.length)]}
@@ -24,48 +30,20 @@ const Warholizer = ({
   const [selectedBGColorOption, setSelectedBGColorOption] = React.useState(bgcolorOptions[0]);
 
   React.useEffect(() => {
-    onFilePaste(window, data => {
+    onFilePaste(window, (data: string) => {
       setImgSrc(data);
     });
   }, []);
 
   React.useEffect(() => {
     const effect = async () => {
-      let bw = await applyImageThreshold(threshold, imgSrc);
-      let src = thresholdIsInEffect ? bw : imgSrc;
-      setProcessedImgSrc(src);
+      const img = await applyImageThreshold(threshold, imgSrc);
+      const src = thresholdIsInEffect ? img.modified : img.original;
+      setProcessedImg(src);
     }
     effect();
   }, [threshold,imgSrc,thresholdIsInEffect])
 
-  React.useEffect(() => {
-    if(!processedImgSrc){
-      return;
-    }
-    var memoryImg = document.createElement('img');
-    memoryImg.onload = () => {
-      var width = memoryImg.width;
-      var height = memoryImg.height;
-      setImageDimensions({width,height});
-    };
-    memoryImg.src = processedImgSrc;
-  },[processedImgSrc])
-
-  const fileToDataUrl = file => new Promise((resolve, reject) => {
-    const reader = new FileReader();
-    reader.readAsDataURL(file);
-    reader.onload = () => resolve(reader.result);
-    reader.onerror = error => reject(error);
-  });
-
-  const onFileChange = async e => {
-    var files = Array.from(e.target.files);
-    if (files.length !== 1) {
-      return;
-    }
-    let dataUrl = await fileToDataUrl(files[0]);
-    setImgSrc(dataUrl);
-  };
 
   return (
     <div>
@@ -76,7 +54,14 @@ const Warholizer = ({
               File upload
             </th>
             <td>
-              <input type="file" onChange={onFileChange} accept="image/*"/>
+              <input type="file" onChange={async e => {
+                var files = Array.from(e.target.files || []);
+                if (files.length !== 1) {
+                  return;
+                }
+                let dataUrl: string | ArrayBuffer = await fileToDataUrl(files[0]);
+                setImgSrc(dataUrl.toString());
+              }} accept="image/*"/>
               (or just paste an image from your clipboard)
             </td>
           </tr>
@@ -120,29 +105,13 @@ const Warholizer = ({
           </tr>
         </tbody>
       </table>
-
-      <style>
-        {`
-        .frame > .img {
-          background-image: url(${processedImgSrc});
-          height: ${imgDimensions.height}px;
-          width: ${imgDimensions.width}px;
-          max-width:100%;
-          mix-blend-mode:darken;
-          background-size:contain;
-        }
-      `}</style>
-
-      <div style={{"display":"flex", "flexWrap":"wrap"}}>
-        {Array(100).fill(processedImgSrc).map((src,i) => 
-        	<div key={i} className="frame" style={{
-              width:`${100/rowSize}%`,
-              backgroundColor: selectedBGColorOption.getColor(i)
-          }}>
-            <div className="img" key={i}/>
-          </div>
-        )}
-      </div>
+      {processedImg && 
+        <ImageGrid
+          img={processedImg}
+          rowSize={rowSize}
+          getBackgroundColor={selectedBGColorOption.getColor} 
+        />
+      }
     </div>
   );
 };
