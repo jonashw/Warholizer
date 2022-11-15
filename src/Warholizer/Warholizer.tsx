@@ -1,12 +1,14 @@
 import React from 'react';
 import onFilePaste from './onFilePaste';
-import {applyImageThreshold,ImagePayload} from './applyImageThreshold';
+import {applyImageThreshold,ImagePayload,crop as cropImg, Cropping} from './ImageUtil';
 import "./Warholizer.css";
 import PrintPreview from './PrintPreview';
 import fileToDataUrl from '../fileToDataUrl';
 import FloatingActionButton from './FloatingActionButton';
 import { PAPER, Paper } from './Paper';
 import OffCanvas from './OffCanvas';
+import ReactCrop, { Crop } from 'react-image-crop'
+import 'react-image-crop/dist/ReactCrop.css'
 
 const colors = ["#ffff00", "#ff00ff", "#00ff00","#6666ff"];
 
@@ -30,18 +32,27 @@ const Warholizer = ({
   initialRowSize: number;
   initialThresholdIsInEffect: boolean | undefined;
 }) => {
+
+  const [cropping, setCropping] = React.useState<Cropping>({
+    crop: {x:0,y:0,width:0,height:0,unit:'px'},
+    adjustRatio: {x:1, y:1}
+  });
   let [paper,setPaper] = React.useState<Paper>(PAPER.LETTER_PORTRAIT);
   let [imgSrc,setImgSrc] = React.useState<string>(initialImgSrc);
 	let [thresholdIsInEffect, setThresholdIsInEffect] = React.useState<boolean>(initialThresholdIsInEffect === undefined ? true : initialThresholdIsInEffect)
-  let [processedImg,setProcessedImg] = React.useState<ImagePayload|undefined>();
+  let [colorAdjustedImg,setColorAdjustedImg] = React.useState<ImagePayload|undefined>();
+  let [croppedImg,setCroppedImg] = React.useState<ImagePayload|undefined>();
   const [rowSize, setRowSize] = React.useState(initialRowSize || 5);
   const [threshold, setThreshold] = React.useState(initialThreshold || 122);
   const [selectedBGColorOption, setSelectedBGColorOption] = React.useState(bgcolorOptions[0]);
   const [settingsVisible,setSettingsVisible] = React.useState(false);
+  const [wholeTilesOnly,setWholeTilesOnly] = React.useState(true);
+  const cropImgRef = React.createRef<HTMLImageElement>();
 
   React.useEffect(() => {
     onFilePaste((data: ArrayBuffer | string) => {
       setImgSrc(data.toString());
+      console.log('image paste');
     });
   }, []);
 
@@ -49,11 +60,28 @@ const Warholizer = ({
     const effect = async () => {
       const img = await applyImageThreshold(threshold, imgSrc);
       const src = thresholdIsInEffect ? img.modified : img.original;
-      setProcessedImg(src);
+      setColorAdjustedImg(src);
+      console.log('image threshold');
     }
     effect();
-  }, [threshold,imgSrc,thresholdIsInEffect])
+  }, [threshold,imgSrc,thresholdIsInEffect]);
 
+  React.useEffect(() => {
+    const effect = async () => {
+      if(!colorAdjustedImg){
+        setCroppedImg(undefined);
+        return;
+      }
+      const img = 
+        !cropping || cropping.crop.width === 0 || cropping.crop.height === 0
+        ? colorAdjustedImg
+        : await cropImg(colorAdjustedImg, cropping);
+      setCroppedImg(img);
+      console.log('crop');
+      //console.log('crop',img);
+    }
+    effect();
+  }, [colorAdjustedImg,cropping]);
 
   return (
     <div>
@@ -71,15 +99,34 @@ const Warholizer = ({
       >
         <img alt="print" src="/print-white.svg" style={{width:'1.5em'}}/>
       </FloatingActionButton>
-      <OffCanvas title="Warholizer Settings" style={{background:'rgba(255,255,255,0.95'}} open={settingsVisible} setOpen={setSettingsVisible} >
 
-        {processedImg 
+      <OffCanvas title="Warholizer Settings" style={{background:'rgba(255,255,255,0.95'}} open={settingsVisible} setOpen={setSettingsVisible} >
+        {colorAdjustedImg && cropping
           ?
           <div className="mb-3">
-            <img src={processedImg.dataUrl} style={{maxWidth:'100%'}} alt="preview"/>
+            <ReactCrop crop={cropping.crop} onChange={c => {
+              /* The ReactCrop component pays no mind to the automatic scaling that may occur when cropping a large image.
+              ** Its coordinate space respects the scaled image, not the original.  
+              ** We should retain the original for optimal quality in our end artwork, so we must provide x/y adjustment ratios
+              ** to enable accurate cropping of the original image.  */
+              if(!cropImgRef.current){
+                return;
+              }
+              let img = cropImgRef.current;
+              setCropping({
+                crop: c,
+                adjustRatio: {
+                  x: img.naturalWidth/img.width,
+                  y: img.naturalHeight/img.height
+                }
+              });
+            }}>
+              <img src={colorAdjustedImg.dataUrl} alt="preview" ref={cropImgRef}/>
+            </ReactCrop>
+
             <a href="/" onClick={e => {
               e.preventDefault();
-              setProcessedImg(undefined);
+              setColorAdjustedImg(undefined);
             }}>
               Clear
             </a>
@@ -122,6 +169,14 @@ const Warholizer = ({
           className="form-range"
           id="formRowLength" defaultValue={rowSize} onChange={e => setRowSize(parseInt(e.target.value))} />
         </div>
+
+        <div className="form-check form-switch mb-3">
+          <input className="form-check-input" type="checkbox" defaultChecked={wholeTilesOnly} onChange={e => setWholeTilesOnly(!!e.target.checked)} id="formWholeTilesOnly"/>
+          <label className="form-check-label" htmlFor="formWholeTilesOnly">
+            Whole rows only
+          </label>
+        </div>
+
         <label className="form-label">Background Colors</label>
         {bgcolorOptions.map((o,i) =>
           <div className="form-check" key={i}>
@@ -169,12 +224,13 @@ const Warholizer = ({
         
       </OffCanvas>
       
-      {processedImg && 
+      {croppedImg && 
         <div className="centralizer">
           <PrintPreview
             paper={paper}
-            img={processedImg}
+            img={croppedImg}
             rowSize={rowSize}
+            wholeTilesOnly={wholeTilesOnly}
             getBackgroundColor={selectedBGColorOption.getColor} 
           />
         </div>

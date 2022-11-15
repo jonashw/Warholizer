@@ -1,4 +1,39 @@
+import { Crop } from "react-image-crop";
+
+export type Cropping = {crop: Crop, adjustRatio: {x: number, y: number}};
 export type ImagePayload = {dataUrl: string; width:number; height: number};
+export const crop = (img: ImagePayload, cropping: Cropping): Promise<ImagePayload> => 
+  new Promise((resolve,reject) => {
+    let myImage = new Image();
+    myImage.onload = () => {
+      let c = document.createElement('canvas');
+      let crop = cropping.crop;
+      let ar = cropping.adjustRatio;
+      c.width = crop.width*ar.x;
+      c.height = crop.height*ar.y;
+      document.body.append(c);
+      let ctx = c.getContext('2d')!;
+      ctx.drawImage(
+        myImage,
+        crop.x * ar.x, //sx
+        crop.y * ar.y, //sy
+        c.width, //sw
+        c.height,//sh
+        0,//dx
+        0,//dy
+        c.width,//dw
+        c.height//dh
+      );
+      resolve({
+        dataUrl: c.toDataURL(),
+        width: c.width,
+        height: c.height
+      });
+      //c.remove();
+    };
+    myImage.src = img.dataUrl;
+  });
+
 export const applyImageThreshold = (
   threshold: number,
   imgUrl: string

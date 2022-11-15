@@ -1,5 +1,5 @@
 import React from "react";
-import { ImagePayload } from "./applyImageThreshold";
+import { ImagePayload } from "./ImageUtil";
 import { Paper } from "./Paper";
 import useWindowSize from "./useWindowSize";
 import "./PrintPreview.css";
@@ -8,12 +8,14 @@ const ImageGrid = ({
     img,
     rowSize,
     getBackgroundColor,
-    paper
+    paper,
+    wholeTilesOnly
   }:{
     img:ImagePayload,
     rowSize: number,
     getBackgroundColor: (i: number) => string | undefined,
-    paper: Paper
+    paper: Paper,
+    wholeTilesOnly: boolean
   }) => {
     const [WH,setWH] = React.useState({w:0,h:0});
     const [scale,setScale] = React.useState(.6);
@@ -62,7 +64,7 @@ const ImageGrid = ({
         transform:`scale(${scale})`,
         transformOrigin:'0 0',
         width:canvasW + 'px',
-        height:(canvasH - (canvasH%h)) + 'px',
+        height: (wholeTilesOnly ? canvasH - (canvasH%h) : canvasH) + 'px',
         backgroundImage: `url(${img.dataUrl})`,
         backgroundSize: `${w}px ${h}px`
       }}
