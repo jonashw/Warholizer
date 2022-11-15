@@ -46,7 +46,7 @@ const Warholizer = ({
   const [threshold, setThreshold] = React.useState(initialThreshold || 122);
   const [selectedBGColorOption, setSelectedBGColorOption] = React.useState(bgcolorOptions[0]);
   const [settingsVisible,setSettingsVisible] = React.useState(false);
-  const [wholeTilesOnly,setWholeTilesOnly] = React.useState(true);
+  const [wholeTilesOnly,setWholeTilesOnly] = React.useState(false);
   const cropImgRef = React.createRef<HTMLImageElement>();
 
   React.useEffect(() => {
@@ -104,6 +104,19 @@ const Warholizer = ({
         {colorAdjustedImg && cropping
           ?
           <div className="mb-3">
+            <div className="form-check form-switch mb-3">
+              <input className="form-check-input" type="checkbox" defaultChecked={thresholdIsInEffect} onChange={e => setThresholdIsInEffect(!!e.target.checked)} id="formThresholdOn"/>
+              <label className="form-check-label" htmlFor="formThresholdOn">
+                Make black &amp; White 
+              </label>
+            </div>
+            {!!thresholdIsInEffect && <div className="mb-3">
+              <label htmlFor="formThreshold" className="form-label">
+                Black &amp; White threshold
+                ({threshold})
+              </label>
+              <input id="formThreshold" className="form-range" disabled={!thresholdIsInEffect} type="range" min="0" max="255" defaultValue={threshold} onChange={e => setThreshold(parseInt(e.target.value))} />
+            </div>}
             <ReactCrop crop={cropping.crop} onChange={c => {
               /* The ReactCrop component pays no mind to the automatic scaling that may occur when cropping a large image.
               ** Its coordinate space respects the scaled image, not the original.  
@@ -147,19 +160,6 @@ const Warholizer = ({
             }} accept="image/*" />
           </div>
         }
-        <div className="form-check form-switch mb-3">
-          <input className="form-check-input" type="checkbox" defaultChecked={thresholdIsInEffect} onChange={e => setThresholdIsInEffect(!!e.target.checked)} id="formThresholdOn"/>
-          <label className="form-check-label" htmlFor="formThresholdOn">
-            Make black &amp; White 
-          </label>
-        </div>
-        {!!thresholdIsInEffect && <div className="mb-3">
-          <label htmlFor="formThreshold" className="form-label">
-            Black &amp; White threshold
-            ({threshold})
-          </label>
-          <input id="formThreshold" className="form-range" disabled={!thresholdIsInEffect} type="range" min="0" max="255" defaultValue={threshold} onChange={e => setThreshold(parseInt(e.target.value))} />
-        </div>}
 
         <div className="mb-3">
           <label htmlFor="formRowLength" className="form-label">
