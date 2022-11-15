@@ -7,7 +7,7 @@ import fileToDataUrl from '../fileToDataUrl';
 import FloatingActionButton from './FloatingActionButton';
 import { PAPER, Paper } from './Paper';
 import OffCanvas from './OffCanvas';
-import ReactCrop, { Crop } from 'react-image-crop'
+import ReactCrop from 'react-image-crop'
 import 'react-image-crop/dist/ReactCrop.css'
 
 const colors = ["#ffff00", "#ff00ff", "#00ff00","#6666ff"];
