@@ -1,6 +1,6 @@
 import React from 'react';
 import onFilePaste from './onFilePaste';
-import {applyImageThreshold,ImagePayload,crop as cropImg, Cropping} from './ImageUtil';
+import {applyImageThreshold,ImagePayload,crop as cropImg, Cropping, text, load} from './ImageUtil';
 import "./Warholizer.css";
 import PrintPreview from './PrintPreview';
 import fileToDataUrl from '../fileToDataUrl';
@@ -32,15 +32,16 @@ const Warholizer = ({
   initialRowSize: number;
   initialThresholdIsInEffect: boolean | undefined;
 }) => {
-
-  const [cropping, setCropping] = React.useState<Cropping>({
+  const [fontPreviewText, setFontPreviewText] = React.useState<string>('');
+  const defaultCropping: Cropping = {
     crop: {x:0,y:0,width:0,height:0,unit:'px'},
     adjustRatio: {x:1, y:1}
-  });
+  };
+  const [cropping, setCropping] = React.useState<Cropping>(defaultCropping);
   let [paper,setPaper] = React.useState<Paper>(PAPER.LETTER_PORTRAIT);
-  let [imgSrc,setImgSrc] = React.useState<string>(initialImgSrc);
 	let [thresholdIsInEffect, setThresholdIsInEffect] = React.useState<boolean>(initialThresholdIsInEffect === undefined ? true : initialThresholdIsInEffect)
   let [colorAdjustedImg,setColorAdjustedImg] = React.useState<ImagePayload|undefined>();
+  let [originalImg,setOriginalImg] = React.useState<ImagePayload|undefined>();
   let [croppedImg,setCroppedImg] = React.useState<ImagePayload|undefined>();
   const [rowSize, setRowSize] = React.useState(initialRowSize || 5);
   const [threshold, setThreshold] = React.useState(initialThreshold || 122);
@@ -48,23 +49,63 @@ const Warholizer = ({
   const [settingsVisible,setSettingsVisible] = React.useState(false);
   const [wholeTilesOnly,setWholeTilesOnly] = React.useState(false);
   const cropImgRef = React.createRef<HTMLImageElement>();
+  const [fonts,setFonts] = React.useState<string[]>([]);
 
   React.useEffect(() => {
-    onFilePaste((data: ArrayBuffer | string) => {
-      setImgSrc(data.toString());
+    const effect = async () => {
+      let img = await load(initialImgSrc);
+      setOriginalImg(img);
+    }
+    effect();
+  }, [initialImgSrc]);
+
+  React.useEffect(() => {
+    const effect = async () => {
+      let r = await fetch('/fonts.json');
+      let data: string[] = await r.json();
+      setFonts(data.filter(f => document.fonts.check(`16px "${f}"`)));
+    }
+    effect();
+  }, []);
+
+  React.useEffect(() => {
+    onFilePaste(async (data: ArrayBuffer | string) => {
+      let img = await load(data.toString());
+      setOriginalImg(img);
       console.log('image paste');
     });
   }, []);
 
   React.useEffect(() => {
+    if(!originalImg){ 
+      setCropping(defaultCropping);
+      return;
+    }
+    setCropping({
+      adjustRatio:{x:1,y:1},
+      crop: {
+        x:0,
+        y:0,
+        width:originalImg.width,
+        height: originalImg.height,
+        unit: 'px'
+      }
+    })
+  },[originalImg]);
+
+  React.useEffect(() => {
     const effect = async () => {
-      const img = await applyImageThreshold(threshold, imgSrc);
+      if(!originalImg){
+        setColorAdjustedImg(undefined);
+        return;
+      }
+      const img = await applyImageThreshold(threshold, originalImg);
       const src = thresholdIsInEffect ? img.modified : img.original;
       setColorAdjustedImg(src);
       console.log('image threshold');
     }
     effect();
-  }, [threshold,imgSrc,thresholdIsInEffect]);
+  }, [threshold,originalImg,thresholdIsInEffect]);
 
   React.useEffect(() => {
     const effect = async () => {
@@ -139,10 +180,70 @@ const Warholizer = ({
 
             <a href="/" onClick={e => {
               e.preventDefault();
-              setColorAdjustedImg(undefined);
+              setOriginalImg(undefined);
             }}>
               Clear
             </a>
+            <div className="my-3">
+              <label htmlFor="formRowLength" className="form-label">
+                Row Length ({rowSize})
+              </label>
+              <input type="range" min="1" max="10"
+              className="form-range"
+              id="formRowLength" defaultValue={rowSize} onChange={e => setRowSize(parseInt(e.target.value))} />
+            </div>
+
+            <div className="form-check form-switch mb-3">
+              <input className="form-check-input" type="checkbox" defaultChecked={wholeTilesOnly} onChange={e => setWholeTilesOnly(!!e.target.checked)} id="formWholeTilesOnly"/>
+              <label className="form-check-label" htmlFor="formWholeTilesOnly">
+                Whole rows only
+              </label>
+            </div>
+
+            <label className="form-label">Paper</label>
+            {Object.values(PAPER).map(p =>
+              <div className="form-check" key={p.cssSize}>
+                <input
+                  className="form-check-input"
+                  id={"form-paper-" + p.cssSize}
+                  type="radio"
+                  name="paper"
+                  value={p.label}
+                  defaultChecked={paper === p}
+                  onChange={e => {
+                    if (!e.target.checked) {
+                      return;
+                    }
+                    setPaper(p);
+                  }}
+                />
+                <label htmlFor={"form-paper-" + p.cssSize} className="form-label">
+                  {p.label}
+                </label>
+              </div>)} 
+
+            <label className="form-label">Background Colors</label>
+            {bgcolorOptions.map((o,i) =>
+              <div className="form-check" key={i}>
+                <input
+                  className="form-check-input"
+                  type="radio"
+                  id={'form-bgcolor-' + i}
+                  value={o.label} 
+                  name="bgcolor"
+                  defaultChecked={selectedBGColorOption === o}
+                  onChange={e => {
+                    if (!e.target.checked) {
+                      return;
+                    }
+                    setSelectedBGColorOption(o);
+                  }}
+                />
+                <label className="form-check-label" htmlFor={'form-bgcolor-' + i}>
+                  {o.label}
+                </label>
+              </div>)
+            }
           </div>
         : 
           <div className="mb-3">
@@ -156,71 +257,40 @@ const Warholizer = ({
                 return;
               }
               let dataUrl: string | ArrayBuffer = await fileToDataUrl(files[0]);
-              setImgSrc(dataUrl.toString());
+              setOriginalImg(await load(dataUrl.toString()));
             }} accept="image/*" />
+            <div className="mt-3">
+              <label htmlFor="formFileUpload" className="form-label">
+                Text and font
+              </label>
+              <input
+                id="formText"
+                className="form-control"
+                type="text" value={fontPreviewText} onChange={e => {
+                  e.preventDefault();
+                  setFontPreviewText(e.target.value);
+                }}
+              />
+              <div style={{maxHeight:'200px', overflowY:'auto', border:'1px solid #ddd', background:'white'}}>
+              {fonts.map((f,fi) => 
+                <div
+                  style={{fontFamily:f,fontSize:'24px', textAlign:'center'}}
+                  key={f} 
+                  onClick={async _ => {
+                    //setFonts(fonts => fonts.filter((_,ffi) => ffi !== fi));
+                    let textToDraw = !!fontPreviewText ? fontPreviewText : f;
+                    let img = await text(` ${textToDraw} `, f, 320);
+                    setCropping(defaultCropping);
+                    setOriginalImg(img);
+                  }}
+                >
+                  {!!fontPreviewText ? fontPreviewText : f}
+                </div>)}
+              </div>
+            </div>
           </div>
         }
 
-        <div className="mb-3">
-          <label htmlFor="formRowLength" className="form-label">
-            Row Length ({rowSize})
-          </label>
-          <input type="range" min="1" max="10"
-          className="form-range"
-          id="formRowLength" defaultValue={rowSize} onChange={e => setRowSize(parseInt(e.target.value))} />
-        </div>
-
-        <div className="form-check form-switch mb-3">
-          <input className="form-check-input" type="checkbox" defaultChecked={wholeTilesOnly} onChange={e => setWholeTilesOnly(!!e.target.checked)} id="formWholeTilesOnly"/>
-          <label className="form-check-label" htmlFor="formWholeTilesOnly">
-            Whole rows only
-          </label>
-        </div>
-
-        <label className="form-label">Background Colors</label>
-        {bgcolorOptions.map((o,i) =>
-          <div className="form-check" key={i}>
-            <input
-              className="form-check-input"
-              type="radio"
-              id={'form-bgcolor-' + i}
-              value={o.label} 
-              name="bgcolor"
-              defaultChecked={selectedBGColorOption === o}
-              onChange={e => {
-                if (!e.target.checked) {
-                  return;
-                }
-                setSelectedBGColorOption(o);
-              }}
-            />
-            <label className="form-check-label" htmlFor={'form-bgcolor-' + i}>
-              {o.label}
-            </label>
-          </div>)
-        }
-
-        <label className="form-label">Paper</label>
-        {Object.values(PAPER).map(p =>
-          <div className="form-check" key={p.cssSize}>
-            <input
-              className="form-check-input"
-              id={"form-paper-" + p.cssSize}
-              type="radio"
-              name="paper"
-              value={p.label}
-              defaultChecked={paper === p}
-              onChange={e => {
-                if (!e.target.checked) {
-                  return;
-                }
-                setPaper(p);
-              }}
-            />
-            <label htmlFor={"form-paper-" + p.cssSize} className="form-label">
-              {p.label}
-            </label>
-          </div>)} 
         
       </OffCanvas>
       
