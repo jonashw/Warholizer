@@ -33,10 +33,10 @@ const Warholizer = ({
   initialThresholdIsInEffect: boolean | undefined;
 }) => {
   const [fontPreviewText, setFontPreviewText] = React.useState<string>('');
-  const defaultCropping: Cropping = {
+  const defaultCropping: Cropping = React.useMemo(() => ({
     crop: {x:0,y:0,width:0,height:0,unit:'px'},
     adjustRatio: {x:1, y:1}
-  };
+  }),[]);
   const [cropping, setCropping] = React.useState<Cropping>(defaultCropping);
   let [paper,setPaper] = React.useState<Paper>(PAPER.LETTER_PORTRAIT);
 	let [thresholdIsInEffect, setThresholdIsInEffect] = React.useState<boolean>(initialThresholdIsInEffect === undefined ? true : initialThresholdIsInEffect)
@@ -91,7 +91,7 @@ const Warholizer = ({
         unit: 'px'
       }
     })
-  },[originalImg]);
+  },[originalImg,defaultCropping]);
 
   React.useEffect(() => {
     const effect = async () => {
