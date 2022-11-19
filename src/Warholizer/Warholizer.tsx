@@ -9,6 +9,7 @@ import { PAPER, Paper } from './Paper';
 import OffCanvas from './OffCanvas';
 import ReactCrop from 'react-image-crop'
 import 'react-image-crop/dist/ReactCrop.css'
+import Fonts from './Fonts';
 
 const colors = ["#ffff00", "#ff00ff", "#00ff00","#6666ff"];
 
@@ -61,9 +62,8 @@ const Warholizer = ({
 
   React.useEffect(() => {
     const effect = async () => {
-      let r = await fetch('/fonts.json');
-      let data: string[] = await r.json();
-      setFonts(data.filter(f => document.fonts.check(`16px "${f}"`)));
+      let fonts: string[] = await Fonts.loadAll();
+      setFonts(fonts);
     }
     effect();
   }, []);
