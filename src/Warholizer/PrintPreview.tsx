@@ -41,12 +41,13 @@ const ImageGrid = ({
       paper
     ]);
 
+    const infinityAsZero = (n: number): number => n === Infinity ? 0 : n;
     let {w,h} = WH;
     const canvasW = w*rowSize;
     const canvasH = canvasW/paper.AR;
-    const colSize = Math.ceil(canvasH/h) || 0;
+    const colSize = infinityAsZero(Math.ceil(canvasH/h) || 0);
     const tileCount = rowSize*colSize;
-    //console.log({rowSize,colSize,tileCount})
+    //console.log({h,rowSize,colSize,tileCount})
 
     return <div style={{
       height: (paper.height * scale)+'px',
@@ -73,7 +74,7 @@ const ImageGrid = ({
       }}
       >
         <div style={{"display":"flex", "flexWrap":"wrap"}}>
-          {Array(tileCount).fill(null).map((_,i) => 
+          {Array(Math.max(1,tileCount)).fill(null).map((_,i) => 
             <div key={i} className="frame" style={{
                 width:`${w}px`,
                 height:`${h}px`,

@@ -77,20 +77,7 @@ const Warholizer = ({
   }, []);
 
   React.useEffect(() => {
-    if(!originalImg){ 
-      setCropping(defaultCropping);
-      return;
-    }
-    setCropping({
-      adjustRatio:{x:1,y:1},
-      crop: {
-        x:0,
-        y:0,
-        width:originalImg.width,
-        height: originalImg.height,
-        unit: 'px'
-      }
-    })
+    setCropping(defaultCropping);
   },[originalImg,defaultCropping]);
 
   React.useEffect(() => {
