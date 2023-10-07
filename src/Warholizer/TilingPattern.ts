@@ -5,14 +5,20 @@ export type Offset = Position;
 export type TilingPattern = {
   id: string,
   label: string,
-  getStyle: (w: number,h: number) => string,
-  splits: ('x'|'y')[]
+  splits: ('x'|'y')[],
+  nthRow: string,
+  nthCol: string,
+  offsetDimension: string,
+  offset: (w: number, h: number) => number
 };
-const normal = {
+const normal: TilingPattern = {
   id: 'Normal',
   label: 'Normal', 
   splits: [],
-  getStyle: (w: number,h:number) => ''
+  nthRow:'n',
+  nthCol:'n',
+  offsetDimension: 'x',
+  offset: (w:number ,h:number ) => 0
 };
 export const tilingPatterns: TilingPattern[] = [
   normal,
@@ -20,13 +26,19 @@ export const tilingPatterns: TilingPattern[] = [
     id: 'HalfDrop',
     label: 'Half Drop',
     splits:['x','y'],
-    getStyle: (w,h) => `.frame:nth-child(2n) { background-position-y: -${h/2}px; }`
+    nthRow:'n',
+    nthCol:'2n',
+    offsetDimension: 'y',
+    offset: (w:number ,h:number ) => h/2
   },
   {
     id: 'HalfBrick',
     label: 'Half Brick',
     splits:['y','x'],
-    getStyle: (w,h) => `.row:nth-child(2n) > .frame { background-position-x: -${w/2}px; }`
+    nthRow:'2n',
+    nthCol:'n',
+    offsetDimension: 'x',
+    offset: (w:number ,h:number ) => w/2
   }
 ];
 export const TILINGPATTERN = tilingPatterns.reduce((dict,tp) => {

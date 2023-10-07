@@ -40,6 +40,7 @@ const ImageGrid = ({
       img,
       getBackgroundColor,
       windowSize,
+
       rowSize,
       paper
     ]);
@@ -63,13 +64,21 @@ const ImageGrid = ({
             margin: 0;
             size: ${paper.cssSize}
           }
-          .frame {
+          .frame,
+          .frame .img {
+            width:${w}px;
+            height:${h}px;
+          }
+          .frame .img {
             background-image: url(${img.dataUrl});
             background-size: ${w}px ${h}px;
-              width:${w}px;
-              height:${h}px;
           }
-          ${tilingPattern.getStyle(w,h)}
+          .canvas-row {
+            display: flex;
+          }
+          .canvas-row:nth-child(${tilingPattern.nthRow}) > .frame:nth-child(${tilingPattern.nthCol}) > .img {
+            background-position-${tilingPattern.offsetDimension}: -${tilingPattern.offset(w,h)}px;
+          }
         `}
       </style>
       <div 
@@ -82,12 +91,14 @@ const ImageGrid = ({
       }}
       >
         {Array(colSize).fill(undefined).map((_,c) => 
-          <div className="row" key={c}>
+          <div className="canvas-row" key={c}>
             {Array(rowSize).fill(undefined).map((_,r) =>
-              <div className="frame"
-              style={{
-                backgroundColor: getBackgroundColor(c*rowSize + r)
-              }}>
+              <div
+                key={r}
+                className="frame" 
+                style={{ backgroundColor: getBackgroundColor(c*rowSize + r) }}
+              >
+                <div className="img"/>
               </div>
             )}
           </div>

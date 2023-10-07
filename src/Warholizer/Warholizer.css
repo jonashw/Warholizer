@@ -1,12 +1,9 @@
 body {
   background: #212529;
 }
-.frame {
-  position: relative;
-  mix-blend-mode: darken;
-}
 .frame > .img {
   display:block;
+  mix-blend-mode: darken;
   bottom:0;
 }
 
