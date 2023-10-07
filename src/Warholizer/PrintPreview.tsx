@@ -50,8 +50,6 @@ const ImageGrid = ({
     const canvasW = w*rowSize;
     const canvasH = canvasW/paper.AR;
     const colSize = infinityAsZero(Math.ceil(canvasH/h) || 0);
-    const tileCount = rowSize*colSize;
-    //console.log({h,rowSize,colSize,tileCount})
 
     return <div style={{
       height: (paper.height * scale)+'px',

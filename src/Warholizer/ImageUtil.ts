@@ -198,12 +198,10 @@ const split = (aabb: AABB, s: Split): [AABB,AABB] => {
     case 'x': return splitX(aabb);
     case 'y': return splitY(aabb);
     default:
-      const _exhaustiveCheck: never = s;
+      s as never;
       throw new Error("Invalid case: " + s);
   }
 };
-
-type Swap = {source: AABB, destination: AABB};
 
 export const adjustTiling = (inputImg: ImagePayload, tp: TilingPattern): Promise<ImagePayload> => 
 tp.splits.length === 0 

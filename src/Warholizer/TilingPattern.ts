@@ -1,5 +1,3 @@
-import { ImagePayload } from "./ImageUtil";
-
 export type Position = {x:number, y: number };
 export type Offset = Position;
 export type TilingPattern = {

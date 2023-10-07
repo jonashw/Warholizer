@@ -1,6 +1,6 @@
 import React from 'react';
 import onFilePaste from './onFilePaste';
-import {applyImageThreshold,ImagePayload,crop as cropImg, Cropping, text, load, adjustTiling} from './ImageUtil';
+import {applyImageThreshold,ImagePayload,crop as cropImg, Cropping, text, load } from './ImageUtil';
 import "./Warholizer.css";
 import PrintPreview from './PrintPreview';
 import fileToDataUrl from '../fileToDataUrl';
@@ -10,7 +10,7 @@ import OffCanvas from './OffCanvas';
 import ReactCrop from 'react-image-crop'
 import 'react-image-crop/dist/ReactCrop.css'
 import Fonts from './Fonts';
-import {Position, Offset, TilingPattern, tilingPatterns, defaultTilingPattern,  TILINGPATTERN} from './TilingPattern';
+import { tilingPatterns, defaultTilingPattern,  TILINGPATTERN} from './TilingPattern';
 
 const colors = ["#ffff00", "#ff00ff", "#00ff00","#6666ff"];
 
