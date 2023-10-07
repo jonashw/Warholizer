@@ -3,19 +3,22 @@ import { ImagePayload } from "./ImageUtil";
 import { Paper } from "./Paper";
 import useWindowSize from "./useWindowSize";
 import "./PrintPreview.css";
+import { TilingPattern } from "./TilingPattern";
 
 const ImageGrid = ({
     img,
     rowSize,
     getBackgroundColor,
     paper,
-    wholeTilesOnly
+    wholeTilesOnly,
+    tilingPattern
   }:{
     img:ImagePayload,
     rowSize: number,
     getBackgroundColor: (i: number) => string | undefined,
     paper: Paper,
-    wholeTilesOnly: boolean
+    wholeTilesOnly: boolean,
+    tilingPattern: TilingPattern
   }) => {
     const [WH,setWH] = React.useState({w:0,h:0});
     const [scale,setScale] = React.useState(.6);
@@ -56,10 +59,17 @@ const ImageGrid = ({
     }} className="print-preview">
       <style>
         {`
-        @page {
-          margin: 0;
-          size: ${paper.cssSize}
-        }
+          @page {
+            margin: 0;
+            size: ${paper.cssSize}
+          }
+          .frame {
+            background-image: url(${img.dataUrl});
+            background-size: ${w}px ${h}px;
+              width:${w}px;
+              height:${h}px;
+          }
+          ${tilingPattern.getStyle(w,h)}
         `}
       </style>
       <div 
@@ -68,22 +78,20 @@ const ImageGrid = ({
         transform:`scale(${scale})`,
         transformOrigin:'0 0',
         width:canvasW + 'px',
-        height: (wholeTilesOnly ? canvasH - (canvasH%h) : canvasH) + 'px',
-        backgroundImage: `url(${img.dataUrl})`,
-        backgroundSize: `${w}px ${h}px`
+        height: (wholeTilesOnly ? canvasH - (canvasH%h) : canvasH) + 'px'
       }}
       >
-        <div style={{"display":"flex", "flexWrap":"wrap"}}>
-          {Array(Math.max(1,tileCount)).fill(null).map((_,i) => 
-            <div key={i} className="frame" style={{
-                width:`${w}px`,
-                height:`${h}px`,
-                backgroundColor: getBackgroundColor(i)
-            }}>
-              <div className="img" key={i}/>
-            </div>
-          )}
-        </div>
+        {Array(colSize).fill(undefined).map((_,c) => 
+          <div className="row" key={c}>
+            {Array(rowSize).fill(undefined).map((_,r) =>
+              <div className="frame"
+              style={{
+                backgroundColor: getBackgroundColor(c*rowSize + r)
+              }}>
+              </div>
+            )}
+          </div>
+        )}
       </div>
     </div>
   }

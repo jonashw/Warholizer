@@ -1,6 +1,6 @@
 import React from 'react';
 import onFilePaste from './onFilePaste';
-import {applyImageThreshold,ImagePayload,crop as cropImg, Cropping, text, load} from './ImageUtil';
+import {applyImageThreshold,ImagePayload,crop as cropImg, Cropping, text, load, adjustTiling} from './ImageUtil';
 import "./Warholizer.css";
 import PrintPreview from './PrintPreview';
 import fileToDataUrl from '../fileToDataUrl';
@@ -10,6 +10,7 @@ import OffCanvas from './OffCanvas';
 import ReactCrop from 'react-image-crop'
 import 'react-image-crop/dist/ReactCrop.css'
 import Fonts from './Fonts';
+import {Position, Offset, TilingPattern, tilingPatterns, defaultTilingPattern,  TILINGPATTERN} from './TilingPattern';
 
 const colors = ["#ffff00", "#ff00ff", "#00ff00","#6666ff"];
 
@@ -42,6 +43,7 @@ const Warholizer = ({
   let [paper,setPaper] = React.useState<Paper>(PAPER.LETTER_PORTRAIT);
 	let [thresholdIsInEffect, setThresholdIsInEffect] = React.useState<boolean>(initialThresholdIsInEffect === undefined ? true : initialThresholdIsInEffect)
   let [colorAdjustedImg,setColorAdjustedImg] = React.useState<ImagePayload|undefined>();
+  const [tilingPatternId,setTilingPatternId] = React.useState<string>(defaultTilingPattern.id);
   let [originalImg,setOriginalImg] = React.useState<ImagePayload|undefined>();
   let [croppedImg,setCroppedImg] = React.useState<ImagePayload|undefined>();
   const [rowSize, setRowSize] = React.useState(initialRowSize || 5);
@@ -104,12 +106,16 @@ const Warholizer = ({
         !cropping || cropping.crop.width === 0 || cropping.crop.height === 0
         ? colorAdjustedImg
         : await cropImg(colorAdjustedImg, cropping);
-      setCroppedImg(img);
+
+      const tileAdjustedImage = 
+        img;//await adjustTiling(img, TILINGPATTERN[tilingPatternId]);
+
+      setCroppedImg(tileAdjustedImage);
       console.log('crop');
       //console.log('crop',img);
     }
     effect();
-  }, [colorAdjustedImg,cropping]);
+  }, [colorAdjustedImg,cropping,tilingPatternId]);
 
   return (
     <div>
@@ -132,6 +138,28 @@ const Warholizer = ({
         {colorAdjustedImg && cropping
           ?
           <div className="mb-3">
+            <label className="form-label">Tiling Pattern</label>
+            {tilingPatterns.map(tp =>
+              <div className="form-check" key={tp.label}>
+                <input
+                  className="form-check-input"
+                  id={"form-tiling-pattern-" + tp.id}
+                  type="radio"
+                  name="tiling-pattern"
+                  value={tp.label}
+                  defaultChecked={tilingPatternId === tp.id}
+                  onChange={e => {
+                    if (!e.target.checked) {
+                      return;
+                    }
+                    setTilingPatternId(tp.id);
+                  }}
+                />
+                <label htmlFor={"form-tiling-pattern-" + tp.id} className="form-label">
+                  {tp.label}
+                </label>
+              </div>)} 
+
             <div className="form-check form-switch mb-3">
               <input className="form-check-input" type="checkbox" defaultChecked={thresholdIsInEffect} onChange={e => setThresholdIsInEffect(!!e.target.checked)} id="formThresholdOn"/>
               <label className="form-check-label" htmlFor="formThresholdOn">
@@ -284,6 +312,7 @@ const Warholizer = ({
       {croppedImg && 
         <div className="centralizer">
           <PrintPreview
+            tilingPattern={TILINGPATTERN[tilingPatternId]}
             paper={paper}
             img={croppedImg}
             rowSize={rowSize}
