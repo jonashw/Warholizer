@@ -56,8 +56,10 @@ const mirror: TilingPattern = {
   id: 'Mirror',
   label: 'Mirror',
   operations: [
-    { type:'flip',rowSelector:'odd', colSelector:'odd', x: false, y: false },
-    { type:'flip',rowSelector:'n', colSelector:'even' , x: true , y: false },
+    { type:'flip',rowSelector:'odd' , colSelector:'odd' , x: false, y: false },
+    { type:'flip',rowSelector:'odd' , colSelector:'even', x: true , y: false },
+    { type:'flip',rowSelector:'even', colSelector:'odd' , x: false, y: true  },
+    { type:'flip',rowSelector:'even', colSelector:'even', x: true , y: true  },
   ]
 };
 const normal: TilingPattern = {
