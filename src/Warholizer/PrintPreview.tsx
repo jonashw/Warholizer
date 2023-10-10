@@ -74,6 +74,11 @@ const ImageGrid = ({
           .canvas-row {
             display: flex;
           }
+          ${tilingPattern.flips.map(f => `
+            .canvas-row:nth-child(${f.rowSelector}) .frame:nth-child(${f.colSelector}) > .img {
+              transform: scale(${f.x ? -1 : 1},${f.y ? -1 : 1});
+            }
+          `).join('\n')}
           .canvas-row:nth-child(${tilingPattern.nthRow}) > .frame:nth-child(${tilingPattern.nthCol}) > .img {
             background-position-${tilingPattern.offsetDimension}: -${tilingPattern.offset(w,h)}px;
           }
