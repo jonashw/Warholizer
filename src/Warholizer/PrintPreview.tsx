@@ -74,14 +74,26 @@ const ImageGrid = ({
           .canvas-row {
             display: flex;
           }
-          ${tilingPattern.flips.map(f => `
-            .canvas-row:nth-child(${f.rowSelector}) .frame:nth-child(${f.colSelector}) > .img {
-              transform: scale(${f.x ? -1 : 1},${f.y ? -1 : 1});
+          ${tilingPattern.operations.map(o => {
+            switch(o.type){
+              case 'flip':
+                return `
+                  .canvas-row:nth-child(${o.rowSelector}) .frame:nth-child(${o.colSelector}) > .img {
+                    transform: scale(${o.x ? -1 : 1},${o.y ? -1 : 1});
+                  }
+                `;
+              case 'offset':
+                return `
+                  .canvas-row:nth-child(${o.rowSelector}) > .frame:nth-child(${o.colSelector}) > .img {
+                    background-position-${o.dimension}: -${o.amount(w,h)}px;
+                  }
+                `;
+              default:
+                o as never;
+                throw new Error('unexpected case of operation');
+              
             }
-          `).join('\n')}
-          .canvas-row:nth-child(${tilingPattern.nthRow}) > .frame:nth-child(${tilingPattern.nthCol}) > .img {
-            background-position-${tilingPattern.offsetDimension}: -${tilingPattern.offset(w,h)}px;
-          }
+          }).join('\n')}
         `}
       </style>
       <div 
