@@ -3,7 +3,6 @@ export type Offset = Position;
 export type TilingPattern = {
   id: string,
   label: string,
-  splits: ('x'|'y')[],
   nthRow: string,
   nthCol: string,
   offsetDimension: string,
@@ -12,7 +11,6 @@ export type TilingPattern = {
 const normal: TilingPattern = {
   id: 'Normal',
   label: 'Normal', 
-  splits: [],
   nthRow:'n',
   nthCol:'n',
   offsetDimension: 'x',
@@ -23,7 +21,6 @@ export const tilingPatterns: TilingPattern[] = [
   {
     id: 'HalfDrop',
     label: 'Half Drop',
-    splits:['x','y'],
     nthRow:'n',
     nthCol:'2n',
     offsetDimension: 'y',
@@ -32,7 +29,6 @@ export const tilingPatterns: TilingPattern[] = [
   {
     id: 'HalfBrick',
     label: 'Half Brick',
-    splits:['y','x'],
     nthRow:'2n',
     nthCol:'n',
     offsetDimension: 'x',

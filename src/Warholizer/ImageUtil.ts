@@ -1,5 +1,4 @@
 import { Crop } from "react-image-crop";
-import { TilingPattern } from "./TilingPattern";
 
 export type Cropping = {crop: Crop, adjustRatio: {x: number, y: number}};
 export type ImagePayload = {dataUrl: string; width:number; height: number};
@@ -167,73 +166,5 @@ export const applyImageThreshold = (
     return {
       original: originalImg,
       modified: {dataUrl: c.toDataURL(), width, height}
-    };
-  });
-
-type Split = 'x'|'y';
-type AABB = {x:number, y:number, w: number, h: number};
-const splitX = (aabb: AABB): [AABB,AABB] => {
-  let w = aabb.w/2;
-  let h = aabb.h;
-  let y = aabb.y;
-  let x = aabb.x;
-  return [
-    {x, y, w, h},
-    {x: x+w, y, w, h},
-  ];
-}
-const splitY = (aabb: AABB): [AABB,AABB] => {
-  let h = aabb.h/2;
-  let w = aabb.w;
-  let y = aabb.y;
-  let x = aabb.y;
-  return [
-    {x, y, w, h},
-    {x, y: y+h, w, h},
-  ];
-}
-
-const split = (aabb: AABB, s: Split): [AABB,AABB] => {
-  switch(s){
-    case 'x': return splitX(aabb);
-    case 'y': return splitY(aabb);
-    default:
-      s as never;
-      throw new Error("Invalid case: " + s);
-  }
-};
-
-export const adjustTiling = (inputImg: ImagePayload, tp: TilingPattern): Promise<ImagePayload> => 
-tp.splits.length === 0 
-? Promise.resolve(inputImg) 
-: editImage(inputImg.dataUrl, (outputImg, canvas, ctx) => {
-    //TODO: manipulate the canvas via ctx
-    let aabb = {x:0,y:0,w:outputImg.width, h:outputImg.height};
-    let swaps = tp.splits.reduce((swaps,s) => {
-      if(swaps.length === 0){
-        return [];
-      }
-      let lastSwap = swaps[swaps.length-1];
-      let [a,b] = split(lastSwap.source, s);
-      return [
-        ...swaps.slice(0,swaps.length-2),
-        {source: a, destination: b},
-        {source: b, destination: a}
-      ];
-    }, [{source:aabb, destination: aabb}]);
-    canvas.width = outputImg.width;
-    canvas.height = outputImg.height;
-    ctx.drawImage(outputImg,0,0);
-    for(let swap of swaps){
-      let s = swap.source;
-      let d = swap.destination;
-      ctx.drawImage(outputImg,
-        s.x, s.y, s.w, s.h,
-        d.x, d.y, d.w, d.h);
-    }
-    return {
-      dataUrl: canvas.toDataURL(),
-      width: inputImg.width,
-      height: inputImg.height
     };
   });
