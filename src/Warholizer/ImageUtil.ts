@@ -145,8 +145,63 @@ export const crop = (img: ImagePayload, cropping: Cropping): Promise<ImagePayloa
     };
   });
 
-export const applyImageThreshold = (
-  threshold: number,
+export type ValueRange = {
+  min: number,
+  max: number,
+  value: number
+};
+
+type RangeState = {ranges: ValueRange[], min: number, max: number};
+
+export const thresholdsToRanges = (
+  ts: number[]
+): ValueRange[] => {
+  let thresholds = ts.sort((a,b) => a-b).filter(t => 0 <= t && t <=255);
+  let rangeState = thresholds.reduce((state,threshold,i) => {
+    let isFirst = i === 0;
+    let isLast = i === (thresholds.length-1);
+    return {
+      ...state,
+      min: threshold+1,
+      ranges: [
+        ...state.ranges,
+        ...(
+          isLast
+          ? [
+            {
+              min: state.min,
+              max: threshold,
+              value: isFirst ? 0 : state.min + ((threshold - state.min)/2)
+            },
+            {
+              min: threshold+1,
+              max: 255,
+              value: 255
+            }
+          ] : [
+            {
+              min: state.min,
+              max: threshold,
+              value: 
+                isFirst
+                ? 0 
+                : isLast
+                ? 255
+                : state.min + ((threshold - state.min)/2)
+            }
+          ])
+      ]
+    };
+  }, {
+    min:0,
+    max:255,
+    ranges: []
+  } as RangeState);
+  return rangeState.ranges;
+}
+
+export const applyImageValueRanges = (
+  ranges: ValueRange[],
   originalImg: ImagePayload
 ): Promise<{
   modified:ImagePayload,
@@ -157,11 +212,16 @@ export const applyImageThreshold = (
     c.width = img.width;
     c.height = img.height;
     ctx.drawImage(img,0,0);
-    var d = ctx.getImageData(0, 0, width, height);
+    let d = ctx.getImageData(0, 0, width, height);
     for (var i=0; i<d.data.length; i+=4) { // 4 is for RGBA channels
-        // R=G=B=R>T?255:0
-        d.data[i] = d.data[i+1] = d.data[i+2] = d.data[i+1] > threshold ? 255 : 0;
+      let value = ranges.reduce((v,range) => 
+        range.min < v && v <= range.max
+        ? range.value
+        : v
+      , d.data[i]);
+      d.data[i] = d.data[i+1] = d.data[i+2] = value; 
     }
+    console.log({ranges});
     ctx.putImageData(d,0,0);
     return {
       original: originalImg,

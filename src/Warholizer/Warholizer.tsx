@@ -1,6 +1,6 @@
 import React from 'react';
 import onFilePaste from './onFilePaste';
-import {applyImageThreshold,ImagePayload,crop as cropImg, Cropping, text, load } from './ImageUtil';
+import {applyImageValueRanges,ImagePayload,crop as cropImg, Cropping, text, load, thresholdsToRanges, ValueRange } from './ImageUtil';
 import "./Warholizer.css";
 import PrintPreview from './PrintPreview';
 import fileToDataUrl from '../fileToDataUrl';
@@ -47,8 +47,9 @@ const Warholizer = ({
   let [originalImg,setOriginalImg] = React.useState<ImagePayload|undefined>();
   let [croppedImg,setCroppedImg] = React.useState<ImagePayload|undefined>();
   const [rowSize, setRowSize] = React.useState(initialRowSize || 5);
-  const [threshold, setThreshold] = React.useState(initialThreshold || 122);
+  const [thresholds, setThresholds] = React.useState<number[]>([initialThreshold || 122]);
   const [selectedBGColorOption, setSelectedBGColorOption] = React.useState(bgcolorOptions[0]);
+  const [ranges,setRanges] = React.useState<ValueRange[]>([]);
 
   const offCanvasIsVisible = (id: string) => !!offCanvasVisible[id];
 
@@ -95,17 +96,25 @@ const Warholizer = ({
 
   React.useEffect(() => {
     const effect = async () => {
+      const ranges = thresholdsToRanges(thresholds);
+      setRanges(ranges);
+    }
+    effect();
+  }, [thresholds]);
+
+  React.useEffect(() => {
+    const effect = async () => {
       if(!originalImg){
         setColorAdjustedImg(undefined);
         return;
       }
-      const img = await applyImageThreshold(threshold, originalImg);
+      const img = await applyImageValueRanges(ranges, originalImg);
       const src = thresholdIsInEffect ? img.modified : img.original;
       setColorAdjustedImg(src);
       console.log('image threshold');
     }
     effect();
-  }, [threshold,originalImg,thresholdIsInEffect]);
+  }, [ranges,originalImg,thresholdIsInEffect]);
 
   React.useEffect(() => {
     const effect = async () => {
@@ -173,6 +182,7 @@ const Warholizer = ({
 
       {fabs.map((fab,i) => 
         <FloatingActionButton 
+          key={i}
           i={fabs.length-i}
           className={"btn " + (offCanvasIsVisible(fab.id) ? "btn-light" : "btn-secondary")}
           onClick={() => toggleOffCanvas(fab.id) }
@@ -355,16 +365,35 @@ const Warholizer = ({
           <div className="form-check form-switch mb-3">
             <input className="form-check-input" type="checkbox" defaultChecked={thresholdIsInEffect} onChange={e => setThresholdIsInEffect(!!e.target.checked)} id="formThresholdOn"/>
             <label className="form-check-label" htmlFor="formThresholdOn">
-              Make black &amp; White 
+              Make Grayscale
             </label>
           </div>
           {!!thresholdIsInEffect && <div className="mb-3">
-            <label htmlFor="formThreshold" className="form-label">
-              Black &amp; White threshold
-              ({threshold})
-            </label>
-            <input id="formThreshold" className="form-range" disabled={!thresholdIsInEffect} type="range" min="0" max="255" defaultValue={threshold} onChange={e => setThreshold(parseInt(e.target.value))} />
+            {thresholds.map((threshold,t) => 
+              <div key={t}>
+                <label htmlFor="formThreshold" className="form-label">
+                  Value Threshold
+                  ({threshold})
+                </label>
+                <button onClick={() => {
+                  setThresholds(thresholds.filter((_,ti) => ti !== t));
+                }} className="btn btn-outline-danger btn-sm float-end">
+                  Remove
+                </button>
+                <input id="formThreshold" className="form-range" disabled={!thresholdIsInEffect} type="range" min="0" max="255" defaultValue={threshold} 
+                  onChange={e => {
+                    let newThresholds = [...thresholds];
+                    newThresholds[t] = parseInt(e.target.value);
+                    setThresholds(newThresholds);
+                  }}
+                />
+              </div>
+            )}
+            <button 
+            className="btn btn-primary"
+            onClick={() => setThresholds([...thresholds,180])}>+ Threshold</button>
           </div>}
+          {!!colorAdjustedImg && <img src={colorAdjustedImg.dataUrl} alt="preview" className="img-fluid"/>}
         </div>          
       </OffCanvas>
       
