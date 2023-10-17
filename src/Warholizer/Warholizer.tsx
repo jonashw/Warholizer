@@ -59,10 +59,7 @@ const Warholizer = ({
     setOffCanvasVisible({[id]: !offCanvasIsVisible(id)})
   };
 
-  const [offCanvasVisible,setOffCanvasVisible] = React.useState<{[id:string]: boolean}>({
-    settings: false,
-    aspectRatio: false
-  });
+  const [offCanvasVisible,setOffCanvasVisible] = React.useState<{[id:string]: boolean}>({ });
 
   const [wholeTilesOnly,setWholeTilesOnly] = React.useState(false);
   const cropImgRef = React.createRef<HTMLImageElement>();
@@ -150,27 +147,31 @@ const Warholizer = ({
   [
     {
       id:'inputImage',
+      name: 'Input Image',
       activeClass: "btn-light",
       inactiveClass: "btn-secondary",
       iconFile:'/photo.svg'
     },
     {
-      id:'aspectRatio',
-      activeClass: "btn-light",
-      inactiveClass: "btn-secondary",
-      iconFile:'/aspect-ratio.svg'
-    },
-    {
       id:'color',
+      name: 'Color',
       activeClass: "btn-light",
       inactiveClass: "btn-secondary",
       iconFile:'/palette.svg'
     },
     {
       id:'tilingPattern',
+      name: 'Tiling',
       activeClass: "btn-light",
       inactiveClass: "btn-secondary",
       iconFile:'/grid-view.svg'
+    },
+    {
+      id:'aspectRatio',
+      name: 'Aspect Ratio',
+      activeClass: "btn-light",
+      inactiveClass: "btn-secondary",
+      iconFile:'/aspect-ratio.svg'
     },
 
     /*
@@ -203,98 +204,100 @@ const Warholizer = ({
         </FloatingActionButton>
       )}
 
+    <div className="navbar navbar-dark bg-dark" style={{
+        position:'fixed',
+        bottom:'0',
+        left:0,
+        right:0,
+        zIndex: 5000,
+        boxShadow:'0 0 10px black'
+    }}>
+      <ul className="nav nav-pills nav-fill" style={{width:'100%'}}>
+        {fabs.map((fab,i) => 
+          <li className="nav-item">
+            <a 
+            className={"nav-link" + (offCanvasIsVisible(fab.id) ? " active" : "")}
+            onClick={() => toggleOffCanvas(fab.id) }
+            aria-current="page" href="#">
+              <img alt="print" src={fab.iconFile} style={{
+                width:'1.5em',
+                filter: offCanvasIsVisible(fab.id) ? 'invert(0)' : 'invert(1)'
+              }}/>
+              <div className="text-light d-none d-sm-block">
+                {fab.name}
+              </div>
+            </a>
+          </li>
+        )}
+      </ul>
+    </div>
 
-      <OffCanvas title="Tiling Patterns" style={{background:'rgba(255,255,255,0.95'}} open={offCanvasIsVisible('tilingPattern')} setOpen={() => toggleOffCanvas('tilingPattern')} >
-        <label className="form-label">Tiling Pattern</label>
-        {tilingPatterns.map(tp =>
-          <div className="form-check" key={tp.label}>
+    <OffCanvas title="Tiling Patterns" style={{background:'rgba(255,255,255,0.95'}} open={offCanvasIsVisible('tilingPattern')} setOpen={() => toggleOffCanvas('tilingPattern')} >
+      {tilingPatterns.map(tp =>
+        <div className="form-check" key={tp.label}>
+          <input
+            className="form-check-input"
+            id={"form-tiling-pattern-" + tp.id}
+            type="radio"
+            name="tiling-pattern"
+            value={tp.label}
+            defaultChecked={tilingPatternId === tp.id}
+            onChange={e => {
+              if (!e.target.checked) {
+                return;
+              }
+              setTilingPatternId(tp.id);
+            }}
+          />
+          <label htmlFor={"form-tiling-pattern-" + tp.id} className="form-label">
+            {tp.label}
+          </label>
+        </div>)} 
+
+        <div className="my-3">
+          <label htmlFor="formRowLength" className="form-label">
+            Row Length ({rowSize})
+          </label>
+          <input type="range" min="1" max="10"
+          className="form-range"
+          id="formRowLength" defaultValue={rowSize} onChange={e => setRowSize(parseInt(e.target.value))} />
+        </div>
+
+        <div className="form-check form-switch mb-3">
+          <input className="form-check-input" type="checkbox" defaultChecked={wholeTilesOnly} onChange={e => setWholeTilesOnly(!!e.target.checked)} id="formWholeTilesOnly"/>
+          <label className="form-check-label" htmlFor="formWholeTilesOnly">
+            Whole rows only
+          </label>
+        </div>
+
+        <label className="form-label">Background Colors</label>
+        {bgcolorOptions.map((o,i) =>
+          <div className="form-check" key={i}>
             <input
               className="form-check-input"
-              id={"form-tiling-pattern-" + tp.id}
               type="radio"
-              name="tiling-pattern"
-              value={tp.label}
-              defaultChecked={tilingPatternId === tp.id}
+              id={'form-bgcolor-' + i}
+              value={o.label} 
+              name="bgcolor"
+              defaultChecked={selectedBGColorOption === o}
               onChange={e => {
                 if (!e.target.checked) {
                   return;
                 }
-                setTilingPatternId(tp.id);
+                setSelectedBGColorOption(o);
               }}
             />
-            <label htmlFor={"form-tiling-pattern-" + tp.id} className="form-label">
-              {tp.label}
+            <label className="form-check-label" htmlFor={'form-bgcolor-' + i}>
+              {o.label}
             </label>
-          </div>)} 
-
-          <div className="my-3">
-            <label htmlFor="formRowLength" className="form-label">
-              Row Length ({rowSize})
-            </label>
-            <input type="range" min="1" max="10"
-            className="form-range"
-            id="formRowLength" defaultValue={rowSize} onChange={e => setRowSize(parseInt(e.target.value))} />
-          </div>
-
-          <div className="form-check form-switch mb-3">
-            <input className="form-check-input" type="checkbox" defaultChecked={wholeTilesOnly} onChange={e => setWholeTilesOnly(!!e.target.checked)} id="formWholeTilesOnly"/>
-            <label className="form-check-label" htmlFor="formWholeTilesOnly">
-              Whole rows only
-            </label>
-          </div>
-
-          <label className="form-label">Background Colors</label>
-          {bgcolorOptions.map((o,i) =>
-            <div className="form-check" key={i}>
-              <input
-                className="form-check-input"
-                type="radio"
-                id={'form-bgcolor-' + i}
-                value={o.label} 
-                name="bgcolor"
-                defaultChecked={selectedBGColorOption === o}
-                onChange={e => {
-                  if (!e.target.checked) {
-                    return;
-                  }
-                  setSelectedBGColorOption(o);
-                }}
-              />
-              <label className="form-check-label" htmlFor={'form-bgcolor-' + i}>
-                {o.label}
-              </label>
-            </div>)
-          }
-      </OffCanvas>
-
-      <OffCanvas title="Paper Size" style={{background:'rgba(255,255,255,0.95'}} open={offCanvasIsVisible('aspectRatio')} setOpen={() => toggleOffCanvas('aspectRatio')} >
-        <label className="form-label">Paper</label>
-        {Object.values(PAPER).map(p =>
-          <div className="form-check" key={p.cssSize}>
-            <input
-              className="form-check-input"
-              id={"form-paper-" + p.cssSize}
-              type="radio"
-              name="paper"
-              value={p.label}
-              defaultChecked={paper === p}
-              onChange={e => {
-                if (!e.target.checked) {
-                  return;
-                }
-                setPaper(p);
-              }}
-            />
-            <label htmlFor={"form-paper-" + p.cssSize} className="form-label">
-              {p.label}
-            </label>
-          </div>)} 
+          </div>)
+        }
       </OffCanvas>
 
       <OffCanvas title="Input Image" style={{background:'rgba(255,255,255,0.95'}} open={offCanvasIsVisible('inputImage')} setOpen={() => toggleOffCanvas('inputImage')} >
         {colorAdjustedImg && cropping
           ?
-          <div className="mb-3">
+          <div className="card mb-3">
             <ReactCrop crop={cropping.crop} onChange={c => {
               /* The ReactCrop component pays no mind to the automatic scaling that may occur when cropping a large image.
               ** Its coordinate space respects the scaled image, not the original.  
@@ -315,12 +318,13 @@ const Warholizer = ({
               <img src={colorAdjustedImg.dataUrl} alt="preview" ref={cropImgRef}/>
             </ReactCrop>
 
-            <a href="/" onClick={e => {
-              e.preventDefault();
-              setOriginalImg(undefined);
-            }}>
-              Clear
-            </a>
+            <div className="card-footer d-grid">
+              <button className="btn btn-danger" onClick={e => {
+                setOriginalImg(undefined);
+              }}>
+                Clear
+              </button>
+            </div>
           </div>
         : 
           <div className="mb-3">
@@ -434,6 +438,42 @@ const Warholizer = ({
           </div>}
 
         </div>          
+      </OffCanvas>
+
+      <OffCanvas
+        title="Paper Aspect Ratio"
+        style={{background:'rgba(255,255,255,0.95'}}
+        open={offCanvasIsVisible('aspectRatio')}
+        setOpen={() => toggleOffCanvas('aspectRatio')}
+      >
+        {Object.values(PAPER).map(p =>
+          <div className="form-check" key={p.cssSize}>
+            <input
+              className="form-check-input"
+              id={"form-paper-" + p.cssSize}
+              type="radio"
+              name="paper"
+              value={p.label}
+              defaultChecked={paper === p}
+              onChange={e => {
+                if (!e.target.checked) {
+                  return;
+                }
+                setPaper(p);
+              }}
+            />
+            <label htmlFor={"form-paper-" + p.cssSize} className="form-label">
+              {p.label}
+            </label>
+          </div>)} 
+        {!!croppedImg && <PrintPreview
+          tilingPattern={TILINGPATTERN[tilingPatternId]}
+          paper={paper}
+          img={croppedImg}
+          rowSize={rowSize}
+          wholeTilesOnly={wholeTilesOnly}
+          getBackgroundColor={selectedBGColorOption.getColor} 
+        />}
       </OffCanvas>
       
       {croppedImg && 
