@@ -183,26 +183,12 @@ const Warholizer = ({
   return (
     <div>
       <FloatingActionButton 
-        i={0}
+        i={1}
         className="btn btn-success"
         onClick={() => window.print() }
       >
         <img alt="print" src="/print.svg" style={{width:'1.5em',filter:'invert(1)'}}/>
       </FloatingActionButton>
-
-      {fabs.map((fab,i) => 
-        <FloatingActionButton 
-          key={i}
-          i={fabs.length-i}
-          className={"btn " + (offCanvasIsVisible(fab.id) ? "btn-light" : "btn-secondary")}
-          onClick={() => toggleOffCanvas(fab.id) }
-        >
-          <img alt="print" src={fab.iconFile} style={{
-            width:'1.5em',
-            filter: offCanvasIsVisible(fab.id) ? 'invert(0)' : 'invert(1)'
-          }}/>
-        </FloatingActionButton>
-      )}
 
     <div className="navbar navbar-dark bg-dark" style={{
         position:'fixed',
@@ -217,8 +203,11 @@ const Warholizer = ({
           <li className="nav-item">
             <a 
             className={"nav-link" + (offCanvasIsVisible(fab.id) ? " active" : "")}
-            onClick={() => toggleOffCanvas(fab.id) }
-            aria-current="page" href="#">
+            onClick={e => {
+              e.preventDefault();
+              toggleOffCanvas(fab.id);
+            }}
+            aria-current="page" href="/">
               <img alt="print" src={fab.iconFile} style={{
                 width:'1.5em',
                 filter: offCanvasIsVisible(fab.id) ? 'invert(0)' : 'invert(1)'
