@@ -1,6 +1,6 @@
 import React from 'react';
 import onFilePaste from './onFilePaste';
-import {applyImageValueRanges,ImagePayload,crop as cropImg, Cropping, text, load, thresholdsToRanges, ValueRange } from './ImageUtil';
+import {applyImageValueRanges,ImagePayload,crop as cropImg, Cropping, text, load} from './ImageUtil';
 import "./Warholizer.css";
 import PrintPreview from './PrintPreview';
 import fileToDataUrl from '../fileToDataUrl';
@@ -11,6 +11,7 @@ import ReactCrop from 'react-image-crop'
 import 'react-image-crop/dist/ReactCrop.css'
 import Fonts from './Fonts';
 import { tilingPatterns, defaultTilingPattern,  TILINGPATTERN} from './TilingPattern';
+import { ValueRange, split } from './ValueRange';
 
 const colors = ["#ffff00", "#ff00ff", "#00ff00","#6666ff"];
 
@@ -43,6 +44,7 @@ const Warholizer = ({
   let [paper,setPaper] = React.useState<Paper>(PAPER.LETTER_PORTRAIT);
 	let [thresholdIsInEffect, setThresholdIsInEffect] = React.useState<boolean>(initialThresholdIsInEffect === undefined ? true : initialThresholdIsInEffect)
   let [colorAdjustedImg,setColorAdjustedImg] = React.useState<ImagePayload|undefined>();
+  const [stencilMaskImgs,setStencilMaskImgs] = React.useState<ImagePayload[]>([]);
   const [tilingPatternId,setTilingPatternId] = React.useState<string>(defaultTilingPattern.id);
   let [originalImg,setOriginalImg] = React.useState<ImagePayload|undefined>();
   let [croppedImg,setCroppedImg] = React.useState<ImagePayload|undefined>();
@@ -96,7 +98,13 @@ const Warholizer = ({
 
   React.useEffect(() => {
     const effect = async () => {
-      const ranges = thresholdsToRanges(thresholds);
+      const ranges = split(
+        {
+          min:0,
+          max:255,
+          value: 0
+        },
+        thresholds);
       setRanges(ranges);
     }
     effect();
@@ -111,6 +119,7 @@ const Warholizer = ({
       const img = await applyImageValueRanges(ranges, originalImg);
       const src = thresholdIsInEffect ? img.modified : img.original;
       setColorAdjustedImg(src);
+      setStencilMaskImgs(img.stencilMasks);
       console.log('image threshold');
     }
     effect();
@@ -369,31 +378,61 @@ const Warholizer = ({
             </label>
           </div>
           {!!thresholdIsInEffect && <div className="mb-3">
+            <label className="form-label">
+              Value Threshold(s)
+            </label>
             {thresholds.map((threshold,t) => 
-              <div key={t}>
-                <label htmlFor="formThreshold" className="form-label">
-                  Value Threshold
-                  ({threshold})
-                </label>
-                <button onClick={() => {
-                  setThresholds(thresholds.filter((_,ti) => ti !== t));
-                }} className="btn btn-outline-danger btn-sm float-end">
-                  Remove
-                </button>
-                <input id="formThreshold" className="form-range" disabled={!thresholdIsInEffect} type="range" min="0" max="255" defaultValue={threshold} 
+              <div key={t} className="d-flex py-1">
+                <input className="form-range" disabled={!thresholdIsInEffect} type="range" min="0" max="255" defaultValue={threshold} 
                   onChange={e => {
                     let newThresholds = [...thresholds];
                     newThresholds[t] = parseInt(e.target.value);
                     setThresholds(newThresholds);
                   }}
                 />
+                <span className="px-2">
+                  {thresholds[t].toFixed(0)}
+                </span>
+                <button onClick={() => {
+                  setThresholds(thresholds.filter((_,ti) => ti !== t));
+                }} className="btn btn-outline-danger btn-sm">
+                  Remove
+                </button>
               </div>
             )}
-            <button 
-            className="btn btn-primary"
-            onClick={() => setThresholds([...thresholds,180])}>+ Threshold</button>
+            <div className="d-grid py-1">
+              <button 
+              className="btn btn-primary"
+              onClick={() => {
+                let nextThreshold = 
+                  thresholds.length === 0 
+                  ? 125 
+                  : (255+thresholds[thresholds.length-1])/2;
+                setThresholds([...thresholds, nextThreshold ]);
+              }}>+ Threshold</button>
+            </div>
+            {!!colorAdjustedImg && <>
+              <img src={colorAdjustedImg.dataUrl} alt="preview composite" className="img-fluid"/>
+              <h5 className="my-3">
+                Stencil masks ({stencilMaskImgs.length})
+              </h5>
+              <div className="row g-4">
+                {stencilMaskImgs.map((img, i) =>
+                  <div className="col-4">
+                    <div className="card mb-2">
+                      <img src={img.dataUrl}
+                        alt={"preview of range #" + (i + 1)}
+                        className="card-img-top"/>
+                      <div className="card-body text-center">
+                        <div className="card-text">#{(i + 1)}</div>
+                      </div>
+                    </div>
+                  </div>
+                )}
+              </div>
+            </>}
           </div>}
-          {!!colorAdjustedImg && <img src={colorAdjustedImg.dataUrl} alt="preview" className="img-fluid"/>}
+
         </div>          
       </OffCanvas>
       

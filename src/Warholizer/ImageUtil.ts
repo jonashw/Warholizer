@@ -1,4 +1,5 @@
 import { Crop } from "react-image-crop";
+import { ValueRange } from "./ValueRange";
 
 export type Cropping = {crop: Crop, adjustRatio: {x: number, y: number}};
 export type ImagePayload = {dataUrl: string; width:number; height: number};
@@ -145,86 +146,69 @@ export const crop = (img: ImagePayload, cropping: Cropping): Promise<ImagePayloa
     };
   });
 
-export type ValueRange = {
-  min: number,
-  max: number,
-  value: number
-};
-
-type RangeState = {ranges: ValueRange[], min: number, max: number};
-
-export const thresholdsToRanges = (
-  ts: number[]
-): ValueRange[] => {
-  let thresholds = ts.sort((a,b) => a-b).filter(t => 0 <= t && t <=255);
-  let rangeState = thresholds.reduce((state,threshold,i) => {
-    let isFirst = i === 0;
-    let isLast = i === (thresholds.length-1);
-    return {
-      ...state,
-      min: threshold+1,
-      ranges: [
-        ...state.ranges,
-        ...(
-          isLast
-          ? [
-            {
-              min: state.min,
-              max: threshold,
-              value: isFirst ? 0 : state.min + ((threshold - state.min)/2)
-            },
-            {
-              min: threshold+1,
-              max: 255,
-              value: 255
-            }
-          ] : [
-            {
-              min: state.min,
-              max: threshold,
-              value: 
-                isFirst
-                ? 0 
-                : isLast
-                ? 255
-                : state.min + ((threshold - state.min)/2)
-            }
-          ])
-      ]
-    };
-  }, {
-    min:0,
-    max:255,
-    ranges: []
-  } as RangeState);
-  return rangeState.ranges;
-}
 
 export const applyImageValueRanges = (
   ranges: ValueRange[],
   originalImg: ImagePayload
 ): Promise<{
   modified:ImagePayload,
-  original:ImagePayload
+  original:ImagePayload,
+  stencilMasks: ImagePayload[]
 }> => 
   editImage(originalImg.dataUrl, (img, c, ctx) => {
     let [width,height] = [img.width, img.height];
     c.width = img.width;
     c.height = img.height;
     ctx.drawImage(img,0,0);
-    let d = ctx.getImageData(0, 0, width, height);
-    for (var i=0; i<d.data.length; i+=4) { // 4 is for RGBA channels
-      let value = ranges.reduce((v,range) => 
-        range.min < v && v <= range.max
-        ? range.value
-        : v
-      , d.data[i]);
-      d.data[i] = d.data[i+1] = d.data[i+2] = value; 
-    }
-    console.log({ranges});
-    ctx.putImageData(d,0,0);
+    let originalImage = ctx.getImageData(0, 0, width, height);
+    const clampValueIfInRange = (value: number , range: ValueRange): [boolean,number] => 
+        range.min <= value && value <= range.max
+        ? [true,range.value]
+        : [false,value];
+
+    let rangeImages = ranges.map(range => {
+      //each ValueRange yields its own bitmap that could be transformed into a stencil.
+      let rangeImage = new ImageData(
+        originalImage.width,
+        originalImage.height,
+        {
+          colorSpace: originalImage.colorSpace 
+        });
+      for (var i=0; i<originalImage.data.length; i+=4) { // 4 is for RGBA channels
+        let [inRange,value] = clampValueIfInRange(originalImage.data[i], range);
+        if(inRange){
+          rangeImage.data[i+0] = 0
+          rangeImage.data[i+1] = 0
+          rangeImage.data[i+2] = 0
+          rangeImage.data[i+3] = 255;
+          originalImage.data[i+0] = value;//R
+          originalImage.data[i+1] = value;//G
+          originalImage.data[i+2] = value;//B
+          originalImage.data[i+3] = inRange ? 255 : 0;//A
+        }
+      }
+      return rangeImage;
+    });
+
+    let rangeImagePayloads: ImagePayload[] =
+      rangeImages.map(rangeImage => {
+        ctx.clearRect(0, 0, width, height);
+        ctx.putImageData(rangeImage, 0, 0);
+        return {
+          dataUrl: c.toDataURL(),
+          width,
+          height
+        };
+      });
+
+    ctx.clearRect(0, 0, width, height);
+    ctx.putImageData(originalImage, 0, 0);
+
+    console.log({ranges, rangeImages, rangeImagePayloads});
+
     return {
       original: originalImg,
-      modified: {dataUrl: c.toDataURL(), width, height}
+      modified: {dataUrl: c.toDataURL(), width, height},
+      stencilMasks: rangeImagePayloads
     };
   });
