@@ -214,12 +214,20 @@ export const applyImageValueRanges = (
 
 export const MAX_QUANITIZATION_DEPTH = 5;
 export type Quantization = {
-  modified:ImagePayload,
+  quantized:ImagePayload,
   reassembled:ImagePayload,
   original:ImagePayload,
-  colorMasks: ImagePayload[],
-  colorBucketImages: ImagePayload[]
+  originalColorCount: number,
+  colorBuckets: ColorBucket[]
 };
+
+type ColorBucket = {
+  original: ImagePayload,
+  masked: ImagePayload,
+  originalImgData: ImageData,
+  maskedImgData: ImageData,
+  averageColorCSS: string
+}
 
 export const quantize = (
   originalImg: ImagePayload,
@@ -232,57 +240,74 @@ export const quantize = (
     ctx.drawImage(img,0,0);
     let originalImage = ctx.getImageData(0, 0, width, height);
 
-    let colorBuckets = 
-      quantizeLoop(originalImage,depth).map(img => {
-        let avgColor = averageColor(img);
-        let maskedImg = colorMask(avgColor,img);
-        return {
-          img,
-          maskedImg,
-          avgColor
-        };
-      });
-
-    let colorBucketImages = 
-      colorBuckets.map(b => {
+    let colorBuckets: ColorBucket[] = 
+      quantizeLoop(originalImage,depth).map(originalImgData => {
         ctx.clearRect(0, 0, width, height);
-        ctx.putImageData(b.img, 0, 0);
-        return {
+        ctx.putImageData(originalImgData, 0, 0);
+        var original = {
           dataUrl: c.toDataURL(),
           width,
           height
         };
-      });
 
-    let colorMasks = 
-      colorBuckets.map(b => {
+        let avgColor = averageColor(originalImgData);
+        let maskedImgData = colorMask(avgColor,originalImgData);
+
         ctx.clearRect(0, 0, width, height);
-        ctx.putImageData(b.maskedImg, 0, 0);
-        return {
+        ctx.putImageData(maskedImgData, 0, 0);
+
+        var masked = {
           dataUrl: c.toDataURL(),
           width,
           height
         };
+        let cssColor = `rgba(${avgColor.join(',')})`;
+        console.log({maskColor: cssColor});
+
+        return {
+          original,
+          originalImgData,
+          masked,
+          maskedImgData,
+          averageColorCSS: cssColor
+        }
       });
 
-    let modifiedImage = mergeImages(colorBuckets.map(cb => cb.maskedImg));
+    let quantizedImg = mergeImages(colorBuckets.map(cb => cb.maskedImgData));
     ctx.clearRect(0, 0, width, height);
-    ctx.putImageData(modifiedImage, 0, 0);
-    let modified = {dataUrl: c.toDataURL(), width, height};
+    ctx.putImageData(quantizedImg, 0, 0);
+    let quantized = {dataUrl: c.toDataURL(), width, height};
 
-    let reassembledImage = mergeImages(colorBuckets.map(cb => cb.img));
+    let reassembledImg = mergeImages(colorBuckets.map(cb => cb.originalImgData));
     ctx.clearRect(0, 0, width, height);
-    ctx.putImageData(reassembledImage, 0, 0);
+    ctx.putImageData(reassembledImg, 0, 0);
     let reassembled = {dataUrl: c.toDataURL(), width, height};
 
     return {
       original: originalImg,
-      modified,
+      originalColorCount: colorPaletteSize(originalImage),
+      quantized,
       reassembled,
-      colorMasks,
-      colorBucketImages
+      colorBuckets
     };
   });
+
+  const colorPaletteSize = (img: ImageData): number => {
+    let colors = new Set<number>();
+    for (var i = 0; i < img.data.length; i += 4) { // 4 is for RGBA channels
+      if(img.data[i+3] === 255){
+        let rgba = rgbaEncode(
+          img.data[i+0],
+          img.data[i+1],
+          img.data[i+2],
+          img.data[i+3]
+        );
+        colors.add(rgba);
+      }
+    }
+    return colors.size;
+  };
+  
 
 const mergeImages = (imgs: ImageData[]): ImageData => {
   let merged = new ImageData(
@@ -306,7 +331,7 @@ const mergeImages = (imgs: ImageData[]): ImageData => {
   return merged;
 };
 
-const colorMask = (color: [number,number,number,number], mask: ImageData): ImageData => {
+const colorMask = (color: [number,number,number], mask: ImageData): ImageData => {
   const outImg = new ImageData(
     mask.width,
     mask.height,
@@ -337,20 +362,24 @@ const quantizeLoop = (img: ImageData, i: number): ImageData[] => {
   ].flatMap(subImg => quantizeLoop(subImg, i-1));
 };
 
-const averageColor = (img: ImageData): [number,number,number,number] => {
-  const sums: [number, number, number, number] = [0,0,0,0];
+const averageColor = (img: ImageData): [number,number,number] => {
+  const sums: [number, number, number] = [0,0,0];
+  let opaqueCount = 0;
   for (var i = 0; i < img.data.length; i += 4) { // 4 is for RGBA channels
-    sums[0] += img.data[i + 0];
-    sums[1] += img.data[i + 1];
-    sums[2] += img.data[i + 2];
-    sums[3] += img.data[i + 3];
+    if(img.data[i+3] === 255){
+      sums[0] += img.data[i + 0];
+      sums[1] += img.data[i + 1];
+      sums[2] += img.data[i + 2];
+      opaqueCount++;
+    }
   }
-  let pixelCount = img.data.length / 4;
+  if(opaqueCount === 0){
+    return [0,0,0];
+  }
   return [
-    Math.floor(sums[0]/pixelCount),
-    Math.floor(sums[1]/pixelCount),
-    Math.floor(sums[2]/pixelCount),
-    Math.floor(sums[3]/pixelCount)
+    Math.floor(sums[0]/opaqueCount),
+    Math.floor(sums[1]/opaqueCount),
+    Math.floor(sums[2]/opaqueCount)
   ];
 };
 
@@ -399,9 +428,10 @@ const divide = (img: ImageData) => {
     newBucket.data[i + 0] = img.data[i+0];
     newBucket.data[i + 1] = img.data[i+1];
     newBucket.data[i + 2] = img.data[i+2];
-    newBucket.data[i + 3] = 255;//why bother with any other alpha?
+    newBucket.data[i + 3] = img.data[i+3];
   }
   return {
+    originalColorCount: 100,
     stats: {
       dimensions,
       dominantDimension,
@@ -432,3 +462,23 @@ const divide = (img: ImageData) => {
   6. After the desired number of buckets have been produced, average the pixels in each bucket to get the
       final color palette.  */
 };
+
+function rgbaEncode(red: number, green: number, blue: number, alpha: number): number {
+    var r = red & 0xFF;
+    var g = green & 0xFF;
+    var b = blue & 0xFF;
+    var a = alpha & 0xFF;
+    
+    return (r << 24) + (g << 16) + (b << 8) + (a);
+}
+
+/*
+function rgbaDecode(rgba:number): [number, number, number, number] {
+  return [
+    (rgba >> 24) & 0xFF,
+    (rgba >> 16) & 0xFF,
+    (rgba >>  8) & 0xFF,
+    (rgba >>  0) & 0xFF
+  ];
+}
+*/

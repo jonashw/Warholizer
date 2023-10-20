@@ -469,45 +469,85 @@ const Warholizer = ({
             />
             </div>
         </div>          
-        <div>
-          {Math.pow(2,quantizationDepth)} colors
+
+        <div className="d-flex text-center justify-content-between align-items-center mb-3">
+          <div className="card mb-2">
+            <img src={quantization?.original.dataUrl}
+              className="card-img-top"
+              alt="original img" 
+            />
+            <div className="card-body text-center">
+              <div className="card-text">
+                Original
+                <div>
+                  {quantization?.originalColorCount?.toLocaleString()} colors
+                </div>
+              </div>
+            </div>
+          </div>
+          
+          <div className="h2">&rarr;</div>
+
+          <div className="card mb-2">
+            <img src={quantization?.quantized.dataUrl}
+              className="card-img-top"
+              alt="quantized img" 
+            />
+            <div className="card-body text-center">
+              <div className="card-text">
+                Quantized
+                <div>
+                  {quantization?.colorBuckets.length} colors
+                </div>
+              </div>
+            </div>
+          </div>
         </div>
+
+        <h6 className="mt-3">Quantized Color Pallette</h6>
+        <div className="mb-3 d-flex flex-wrap">
+          {quantization?.colorBuckets.map((bucket, i) =>
+            <div className="pe-1 pb-1">
+              <Swatch color={bucket.averageColorCSS} />
+            </div>
+          )}
+        </div>
+
         <h6 className="mt-3">Color Buckets</h6>
-        <div className="row">
-          {quantization?.colorBucketImages.map((img, i) =>
-            <div className="col-4" key={i}>
-              <div className="card mb-2">
-                <img src={img.dataUrl}
-                  alt={"preview of range #" + (i + 1)}
-                  className="card-img-top"/>
-                <div className="card-body text-center">
-                  <div className="card-text">#{(i + 1)}</div>
-                </div>
+        {quantization?.colorBuckets.map((bucket,i) =>
+          <div className="d-flex align-items-center">
+            <div className="card mb-2">
+              <img src={bucket.original.dataUrl}
+                alt={"preview of original bucket #" + (i + 1)}
+                className="card-img-top"/>
+              <div className="card-body text-center">
+                <div className="card-text">Original #{(i + 1)}</div>
               </div>
             </div>
-          )}
-        </div>
 
-        <h6 className="h6">Reassembled <small className="text-muted">(should be identical to original)</small></h6>
+            <div className="text-center d-flex flex-column align-items-center justify-content-between ">
+              Mask
+              <Swatch color={bucket.averageColorCSS} />
+              <div className="h2">
+                &rarr;
+              </div>
+            </div>
+
+            
+
+            <div className="card mb-2">
+              <img src={bucket.masked.dataUrl}
+                alt={"preview of masked bucket #" + (i + 1)}
+                className="card-img-top"/>
+              <div className="card-body text-center">
+                <div className="card-text">Masked #{(i + 1)}</div>
+              </div>
+            </div>
+          </div>
+        )}
+
+        <h6 className="h6">Reassembled Color Buckets <div className="text-muted">(should be identical to original)</div></h6>
         <img src={quantization?.reassembled.dataUrl} className="img-fluid img-thumbnail" alt="re-assembled img" />
-
-        <h6 className="h6">Color Masks</h6>
-        <div className="row">
-          {quantization?.colorMasks.map((img, i) =>
-            <div className="col-4" key={i}>
-              <div className="card mb-2">
-                <img src={img.dataUrl}
-                  alt={"preview of range #" + (i + 1)}
-                  className="card-img-top"/>
-                <div className="card-body text-center">
-                  <div className="card-text">#{(i + 1)}</div>
-                </div>
-              </div>
-            </div>
-          )}
-        </div>
-        <h6 className="h6">Assembled masks <small className="text-muted">(should have only {Math.pow(2,quantizationDepth)} colors)</small></h6>
-        <img src={quantization?.modified?.dataUrl} className="img-fluid img-thumbnail" alt="quantized img" />
       </OffCanvas>
 
       <OffCanvas
@@ -561,5 +601,13 @@ const Warholizer = ({
     </div>
   );
 };
+
+const Swatch = ({color} : {color: string}) => 
+  <div className="card" style={{
+    width:'32px',
+    height:'32px',
+    flexShrink:0,
+    backgroundColor: color
+  }}/>;
 
 export default Warholizer;
