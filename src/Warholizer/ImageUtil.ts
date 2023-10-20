@@ -148,13 +148,13 @@ export const crop = (img: ImagePayload, cropping: Cropping): Promise<ImagePayloa
 
 export const applyImageValueRanges = (
   ranges: ValueRange[],
-  originalImg: ImagePayload
+  original: ImagePayload
 ): Promise<{
   modified:ImagePayload,
   original:ImagePayload,
   stencilMasks: ImagePayload[]
 }> => 
-  editImage(originalImg.dataUrl, (img, c, ctx) => {
+  editImage(original.dataUrl, (img, c, ctx) => {
     let [width,height] = [img.width, img.height];
     c.width = img.width;
     c.height = img.height;
@@ -206,7 +206,7 @@ export const applyImageValueRanges = (
     console.log({ranges, rangeImages, rangeImagePayloads});
 
     return {
-      original: originalImg,
+      original,
       modified: {dataUrl: c.toDataURL(), width, height},
       stencilMasks: rangeImagePayloads
     };
@@ -231,53 +231,41 @@ type ColorBucket = {
 }
 
 export const quantize = (
-  originalImg: ImagePayload,
+  original: ImagePayload,
   depth: number
 ): Promise<Quantization> => 
-  editImage(originalImg.dataUrl, (img, c, ctx) => {
+  editImage(original.dataUrl, (img, c, ctx) => {
     let [width,height] = [img.width, img.height];
     c.width = img.width;
     c.height = img.height;
+
+    const imageDataToPayload = (d: ImageData): ImagePayload => {
+      ctx.clearRect(0, 0, width, height);
+      ctx.putImageData(d, 0, 0);
+      return {
+        dataUrl: c.toDataURL(),
+        width,
+        height
+      };
+    };
+
     ctx.drawImage(img,0,0);
     let originalImage = ctx.getImageData(0, 0, width, height);
 
     let colorBuckets: ColorBucket[] = 
       quantizeLoop(originalImage,depth).map(originalImgData => {
-        ctx.clearRect(0, 0, width, height);
-        ctx.putImageData(originalImgData, 0, 0);
-        var original = {
-          dataUrl: c.toDataURL(),
-          width,
-          height
-        };
-
         let avgColor = averageColor(originalImgData);
         let maskedImgData = colorMask(avgColor,originalImgData);
-        ctx.clearRect(0, 0, width, height);
-        ctx.putImageData(maskedImgData, 0, 0);
-
-        var masked = {
-          dataUrl: c.toDataURL(),
-          width,
-          height
-        };
+        let masked = imageDataToPayload(maskedImgData);
         let cssColor = `rgba(${avgColor.join(',')})`;
         console.log({maskColor: cssColor});
 
         type RGBColor = [number,number,number];
         const highlightColor: RGBColor = [255,0,255];
-        let highlightedMaskImgData = colorMask(highlightColor,originalImgData);
-        ctx.clearRect(0, 0, width, height);
-        ctx.putImageData(highlightedMaskImgData, 0, 0);
-
-        var highlightedMask = {
-          dataUrl: c.toDataURL(),
-          width,
-          height
-        };
+        let highlightedMask = imageDataToPayload(colorMask(highlightColor,originalImgData));
 
         return {
-          original,
+          original: imageDataToPayload(originalImgData),
           originalImgData,
           masked,
           highlightedMask,
@@ -286,21 +274,15 @@ export const quantize = (
         }
       });
 
-    let quantizedImg = mergeImages(colorBuckets.map(cb => cb.maskedImgData));
-    ctx.clearRect(0, 0, width, height);
-    ctx.putImageData(quantizedImg, 0, 0);
-    let quantized = {dataUrl: c.toDataURL(), width, height};
-
-    let reassembledImg = mergeImages(colorBuckets.map(cb => cb.originalImgData));
-    ctx.clearRect(0, 0, width, height);
-    ctx.putImageData(reassembledImg, 0, 0);
-    let reassembled = {dataUrl: c.toDataURL(), width, height};
-
     return {
-      original: originalImg,
+      original,
       originalColorCount: colorPaletteSize(originalImage),
-      quantized,
-      reassembled,
+      quantized: 
+        imageDataToPayload(
+          mergeImages(colorBuckets.map(cb => cb.maskedImgData))),
+      reassembled: 
+        imageDataToPayload(
+          mergeImages(colorBuckets.map(cb => cb.originalImgData))),
       colorBuckets
     };
   });
