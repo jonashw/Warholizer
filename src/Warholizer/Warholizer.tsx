@@ -67,6 +67,8 @@ const Warholizer = ({
   const [wholeTilesOnly,setWholeTilesOnly] = React.useState(false);
   const cropImgRef = React.createRef<HTMLImageElement>();
   const [fonts,setFonts] = React.useState<string[]>([]);
+  const [replacementCSSColors,setReplacementCSSColors] = React.useState<string[]>([]);
+  const [replacementColors,setReplacementColors] = React.useState<([number,number,number]|undefined)[]>([]);
 
   React.useEffect(() => {
     const effect = async () => {
@@ -131,11 +133,11 @@ const Warholizer = ({
         setQuantization(undefined);
         return;
       }
-      const q = await quantize(originalImg,quantizationDepth);
+      const q = await quantize(originalImg,quantizationDepth,replacementColors);
       setQuantization(q);
     }
     effect();
-  }, [quantizationDepth,originalImg]);
+  }, [quantizationDepth,originalImg,replacementColors]);
 
   React.useEffect(() => {
     const effect = async () => {
@@ -514,6 +516,43 @@ const Warholizer = ({
             </div>
           )}
         </div>
+
+        <h6 className="mt-3">Color Replacement</h6>
+        {quantization?.colorBuckets.map((bucket, i) =>
+        <div className="py-1 d-flex justify-content-between align-items-center">
+            <Swatch color={bucket.averageColorCSS} />
+            <div className="h3 m-0">&rarr;</div>
+
+            {!!replacementColors[i] 
+              ? <Swatch color={'rgba(' + replacementColors[i] + ')'} />
+              : <span>N/A</span>
+            }
+
+            <input type="text"
+              style={{width:'unset'}}
+              className="form-control form-control-sm flex-shrink-1"
+              defaultValue={!!replacementCSSColors[i] ? replacementCSSColors[i] : ""} 
+              onChange={e => {
+                let colorString = e.target.value?.trim() || "";
+                let rgb = 
+                  colorString
+                    .split(',')
+                    .map(str => parseInt(str))
+                    .filter(n => !isNaN(n) && 0 <= n && n <= 255);
+                setReplacementColors(cs => {
+                  let updatedColors = [...cs];
+                  updatedColors[i] = rgb.length !== 3 ? undefined : (rgb as [number,number,number]);
+                  return updatedColors;
+                })
+                setReplacementCSSColors(cs => {
+                  let updatedColors = [...cs];
+                  updatedColors[i] = rgb.length !== 3 ? "" : colorString;
+                  return updatedColors;
+                })
+              }}
+            />
+          </div>
+        )}
 
         <h6 className="mt-3">Color Buckets</h6>
 

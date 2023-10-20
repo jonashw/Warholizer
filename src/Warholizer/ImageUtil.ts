@@ -232,7 +232,8 @@ type ColorBucket = {
 
 export const quantize = (
   original: ImagePayload,
-  depth: number
+  depth: number,
+  replacementColors: ([number,number,number]|undefined)[]
 ): Promise<Quantization> => 
   editImage(original.dataUrl, (img, c, ctx) => {
     let [width,height] = [img.width, img.height];
@@ -253,11 +254,15 @@ export const quantize = (
     let originalImage = ctx.getImageData(0, 0, width, height);
 
     let colorBuckets: ColorBucket[] = 
-      quantizeLoop(originalImage,depth).map(originalImgData => {
-        let avgColor = averageColor(originalImgData);
-        let maskedImgData = colorMask(avgColor,originalImgData);
+      quantizeLoop(originalImage,depth).map((originalImgData,i) => {
+        let replacementColor = replacementColors[i] ;
+        let maskColor = 
+          !!replacementColor
+          ? replacementColor 
+          : averageColor(originalImgData);
+        let maskedImgData = colorMask(maskColor,originalImgData);
         let masked = imageDataToPayload(maskedImgData);
-        let cssColor = `rgba(${avgColor.join(',')})`;
+        let cssColor = `rgba(${maskColor.join(',')})`;
         console.log({maskColor: cssColor});
 
         type RGBColor = [number,number,number];
