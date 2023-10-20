@@ -1,6 +1,6 @@
 import React from 'react';
 import onFilePaste from './onFilePaste';
-import {applyImageValueRanges,ImagePayload,crop as cropImg, Cropping, text, load} from './ImageUtil';
+import {applyImageValueRanges,ImagePayload,crop as cropImg, Cropping, text, load, Quantization, quantize, MAX_QUANITIZATION_DEPTH} from './ImageUtil';
 import "./Warholizer.css";
 import PrintPreview from './PrintPreview';
 import fileToDataUrl from '../fileToDataUrl';
@@ -44,6 +44,8 @@ const Warholizer = ({
   let [paper,setPaper] = React.useState<Paper>(PAPER.LETTER_PORTRAIT);
 	let [thresholdIsInEffect, setThresholdIsInEffect] = React.useState<boolean>(initialThresholdIsInEffect === undefined ? true : initialThresholdIsInEffect)
   let [colorAdjustedImg,setColorAdjustedImg] = React.useState<ImagePayload|undefined>();
+  const [quantization,setQuantization] = React.useState<Quantization|undefined>();
+  const [quantizationDepth,setQuantizationDepth] = React.useState<number>(2);
   const [stencilMaskImgs,setStencilMaskImgs] = React.useState<ImagePayload[]>([]);
   const [tilingPatternId,setTilingPatternId] = React.useState<string>(defaultTilingPattern.id);
   let [originalImg,setOriginalImg] = React.useState<ImagePayload|undefined>();
@@ -124,6 +126,18 @@ const Warholizer = ({
 
   React.useEffect(() => {
     const effect = async () => {
+      if(!originalImg){
+        setQuantization(undefined);
+        return;
+      }
+      const q = await quantize(originalImg,quantizationDepth);
+      setQuantization(q);
+    }
+    effect();
+  }, [quantizationDepth,originalImg]);
+
+  React.useEffect(() => {
+    const effect = async () => {
       if(!colorAdjustedImg){
         setCroppedImg(undefined);
         return;
@@ -158,6 +172,13 @@ const Warholizer = ({
       activeClass: "btn-light",
       inactiveClass: "btn-secondary",
       iconFile:'/palette.svg'
+    },
+    {
+      id:'quantize',
+      name: 'Quantize',
+      activeClass: "btn-light",
+      inactiveClass: "btn-secondary",
+      iconFile:'/equalizer.svg'
     },
     {
       id:'tilingPattern',
@@ -200,7 +221,7 @@ const Warholizer = ({
     }}>
       <ul className="nav nav-pills nav-fill" style={{width:'100%'}}>
         {fabs.map((fab,i) => 
-          <li className="nav-item">
+          <li className="nav-item" key={i}>
             <a 
             className={"nav-link" + (offCanvasIsVisible(fab.id) ? " active" : "")}
             onClick={e => {
@@ -411,7 +432,7 @@ const Warholizer = ({
               </h5>
               <div className="row g-4">
                 {stencilMaskImgs.map((img, i) =>
-                  <div className="col-4">
+                  <div className="col-4" key={i}>
                     <div className="card mb-2">
                       <img src={img.dataUrl}
                         alt={"preview of range #" + (i + 1)}
@@ -427,6 +448,66 @@ const Warholizer = ({
           </div>}
 
         </div>          
+      </OffCanvas>
+
+      <OffCanvas title="Quantize" style={{background:'rgba(255,255,255,0.95'}} open={offCanvasIsVisible('quantize')} setOpen={() => toggleOffCanvas('quantize')} >
+        <div className="mb-3">
+          <div className="mb-3">
+            <label className="form-label">
+              Depth ({quantizationDepth})
+            </label>
+            <input
+              className="form-range"
+              type="range"
+              min="1"
+              step="1"
+              max={MAX_QUANITIZATION_DEPTH}
+              defaultValue={quantizationDepth} 
+              onChange={e => {
+                setQuantizationDepth(parseInt(e.target.value));
+              }}
+            />
+            </div>
+        </div>          
+        <div>
+          {Math.pow(2,quantizationDepth)} colors
+        </div>
+        <h6 className="mt-3">Color Buckets</h6>
+        <div className="row">
+          {quantization?.colorBucketImages.map((img, i) =>
+            <div className="col-4" key={i}>
+              <div className="card mb-2">
+                <img src={img.dataUrl}
+                  alt={"preview of range #" + (i + 1)}
+                  className="card-img-top"/>
+                <div className="card-body text-center">
+                  <div className="card-text">#{(i + 1)}</div>
+                </div>
+              </div>
+            </div>
+          )}
+        </div>
+
+        <h6 className="h6">Reassembled <small className="text-muted">(should be identical to original)</small></h6>
+        <img src={quantization?.reassembled.dataUrl} className="img-fluid img-thumbnail" alt="re-assembled img" />
+
+        <h6 className="h6">Color Masks</h6>
+        <div className="row">
+          {quantization?.colorMasks.map((img, i) =>
+            <div className="col-4" key={i}>
+              <div className="card mb-2">
+                <img src={img.dataUrl}
+                  alt={"preview of range #" + (i + 1)}
+                  className="card-img-top"/>
+                <div className="card-body text-center">
+                  <div className="card-text">#{(i + 1)}</div>
+                </div>
+              </div>
+            </div>
+          )}
+        </div>
+        <h6 className="h6">Assembled masks <small className="text-muted">(should have only {Math.pow(2,quantizationDepth)} colors)</small></h6>
+        <img src={quantization?.modified?.dataUrl} className="img-fluid img-thumbnail" alt="quantized img" />
       </OffCanvas>
 
       <OffCanvas

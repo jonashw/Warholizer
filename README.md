@@ -1,3 +1,10 @@
+# Dependencies / Acknowledgements
+
+| | URL |
+|-|-----|
+|Material Icons|https://materialui.co/icon/|
+|Color Quantization Algorithms|https://spin.atomicobject.com/2016/12/07/pixels-and-palettes-extracting-color-palettes-from-images/|
+
 # Getting Started with Create React App
 
 This project was bootstrapped with [Create React App](https://github.com/facebook/create-react-app).
