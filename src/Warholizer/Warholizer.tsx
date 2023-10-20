@@ -61,6 +61,7 @@ const Warholizer = ({
     setOffCanvasVisible({[id]: !offCanvasIsVisible(id)})
   };
 
+  const [activeColorBucket, setActiveColorBucket] = React.useState<number|undefined>(undefined);
   const [offCanvasVisible,setOffCanvasVisible] = React.useState<{[id:string]: boolean}>({ });
 
   const [wholeTilesOnly,setWholeTilesOnly] = React.useState(false);
@@ -505,6 +506,7 @@ const Warholizer = ({
         </div>
 
         <h6 className="mt-3">Quantized Color Pallette</h6>
+
         <div className="mb-3 d-flex flex-wrap">
           {quantization?.colorBuckets.map((bucket, i) =>
             <div className="pe-1 pb-1">
@@ -514,6 +516,7 @@ const Warholizer = ({
         </div>
 
         <h6 className="mt-3">Color Buckets</h6>
+
         {quantization?.colorBuckets.map((bucket,i) =>
           <div className="d-flex align-items-center">
             <div className="card mb-2">
@@ -533,10 +536,11 @@ const Warholizer = ({
               </div>
             </div>
 
-            
-
-            <div className="card mb-2">
-              <img src={bucket.masked.dataUrl}
+            <div className="card mb-2"
+              onMouseOver={() => setActiveColorBucket(i)}
+              onMouseOut={() => setActiveColorBucket(undefined)}
+            >
+              <img src={i === activeColorBucket ? bucket.highlightedMask.dataUrl : bucket.masked.dataUrl}
                 alt={"preview of masked bucket #" + (i + 1)}
                 className="card-img-top"/>
               <div className="card-body text-center">

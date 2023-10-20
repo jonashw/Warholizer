@@ -224,6 +224,7 @@ export type Quantization = {
 type ColorBucket = {
   original: ImagePayload,
   masked: ImagePayload,
+  highlightedMask: ImagePayload,
   originalImgData: ImageData,
   maskedImgData: ImageData,
   averageColorCSS: string
@@ -252,7 +253,6 @@ export const quantize = (
 
         let avgColor = averageColor(originalImgData);
         let maskedImgData = colorMask(avgColor,originalImgData);
-
         ctx.clearRect(0, 0, width, height);
         ctx.putImageData(maskedImgData, 0, 0);
 
@@ -264,10 +264,23 @@ export const quantize = (
         let cssColor = `rgba(${avgColor.join(',')})`;
         console.log({maskColor: cssColor});
 
+        type RGBColor = [number,number,number];
+        const highlightColor: RGBColor = [255,0,255];
+        let highlightedMaskImgData = colorMask(highlightColor,originalImgData);
+        ctx.clearRect(0, 0, width, height);
+        ctx.putImageData(highlightedMaskImgData, 0, 0);
+
+        var highlightedMask = {
+          dataUrl: c.toDataURL(),
+          width,
+          height
+        };
+
         return {
           original,
           originalImgData,
           masked,
+          highlightedMask,
           maskedImgData,
           averageColorCSS: cssColor
         }
