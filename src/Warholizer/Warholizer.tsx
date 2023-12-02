@@ -1,6 +1,6 @@
 import React from 'react';
 import onFilePaste from './onFilePaste';
-import {applyImageValueRanges,ImagePayload,crop as cropImg, Cropping, text, load, Quantization, quantize, MAX_QUANITIZATION_DEPTH} from './ImageUtil';
+import {applyImageValueRanges,ImagePayload,crop as cropImg, Cropping, text, load, Quantization, quantize, MAX_QUANITIZATION_DEPTH, getValueHistogram} from './ImageUtil';
 import "./Warholizer.css";
 import PrintPreview from './PrintPreview';
 import fileToDataUrl from '../fileToDataUrl';
@@ -47,6 +47,7 @@ const Warholizer = ({
   const [quantization,setQuantization] = React.useState<Quantization|undefined>();
   const [quantizationDepth,setQuantizationDepth] = React.useState<number>(2);
   const [stencilMaskImgs,setStencilMaskImgs] = React.useState<ImagePayload[]>([]);
+  const [valueHistogramImg,setValueHistogramImg] = React.useState<ImagePayload | undefined>();
   const [tilingPatternId,setTilingPatternId] = React.useState<string>(defaultTilingPattern.id);
   let [originalImg,setOriginalImg] = React.useState<ImagePayload|undefined>();
   let [croppedImg,setCroppedImg] = React.useState<ImagePayload|undefined>();
@@ -67,6 +68,8 @@ const Warholizer = ({
   const [wholeTilesOnly,setWholeTilesOnly] = React.useState(false);
   const cropImgRef = React.createRef<HTMLImageElement>();
   const [fonts,setFonts] = React.useState<string[]>([]);
+  const [replacementCSSColors,setReplacementCSSColors] = React.useState<string[]>([]);
+  const [replacementColors,setReplacementColors] = React.useState<([number,number,number]|undefined)[]>([]);
 
   React.useEffect(() => {
     const effect = async () => {
@@ -112,51 +115,55 @@ const Warholizer = ({
 
   React.useEffect(() => {
     const effect = async () => {
-      if(!originalImg){
+      if(!croppedImg){
         setColorAdjustedImg(undefined);
         return;
       }
-      const img = await applyImageValueRanges(ranges, originalImg);
+      const img = await applyImageValueRanges(ranges, croppedImg);
+      const histo = await getValueHistogram(croppedImg);
       const src = thresholdIsInEffect ? img.modified : img.original;
       setColorAdjustedImg(src);
+      setValueHistogramImg(histo);
       setStencilMaskImgs(img.stencilMasks);
       console.log('image threshold');
     }
     effect();
-  }, [ranges,originalImg,thresholdIsInEffect]);
+  }, [ranges,croppedImg,thresholdIsInEffect]);
+
+  React.useEffect(() => {
+    const effect = async () => {
+      if(!croppedImg){
+        setQuantization(undefined);
+        return;
+      }
+      const q = await quantize(croppedImg,quantizationDepth,replacementColors);
+      setQuantization(q);
+    }
+    effect();
+  }, [quantizationDepth,croppedImg,replacementColors]);
+
+  React.useEffect(() => {
+    setReplacementColors([]);
+    setReplacementCSSColors([]);
+  },[croppedImg, quantizationDepth]);
 
   React.useEffect(() => {
     const effect = async () => {
       if(!originalImg){
-        setQuantization(undefined);
-        return;
-      }
-      const q = await quantize(originalImg,quantizationDepth);
-      setQuantization(q);
-    }
-    effect();
-  }, [quantizationDepth,originalImg]);
-
-  React.useEffect(() => {
-    const effect = async () => {
-      if(!colorAdjustedImg){
         setCroppedImg(undefined);
         return;
       }
       const img = 
         !cropping || cropping.crop.width === 0 || cropping.crop.height === 0
-        ? colorAdjustedImg
-        : await cropImg(colorAdjustedImg, cropping);
+        ? originalImg
+        : await cropImg(originalImg, cropping);
 
-      const tileAdjustedImage = 
-        img;//await adjustTiling(img, TILINGPATTERN[tilingPatternId]);
-
-      setCroppedImg(tileAdjustedImage);
+      setCroppedImg(img);
       console.log('crop');
       //console.log('crop',img);
     }
     effect();
-  }, [colorAdjustedImg,cropping,tilingPatternId]);
+  }, [originalImg,cropping]);
 
   const fabs = 
   [
@@ -306,7 +313,7 @@ const Warholizer = ({
       </OffCanvas>
 
       <OffCanvas title="Input Image" style={{background:'rgba(255,255,255,0.95'}} open={offCanvasIsVisible('inputImage')} setOpen={() => toggleOffCanvas('inputImage')} >
-        {colorAdjustedImg && cropping
+        {originalImg && cropping
           ?
           <div className="card mb-3">
             <ReactCrop crop={cropping.crop} onChange={c => {
@@ -326,7 +333,7 @@ const Warholizer = ({
                 }
               });
             }}>
-              <img src={colorAdjustedImg.dataUrl} alt="preview" ref={cropImgRef}/>
+              <img src={originalImg.dataUrl} alt="preview" ref={cropImgRef}/>
             </ReactCrop>
 
             <div className="card-footer d-grid">
@@ -386,6 +393,11 @@ const Warholizer = ({
 
       <OffCanvas title="Color" style={{background:'rgba(255,255,255,0.95'}} open={offCanvasIsVisible('color')} setOpen={() => toggleOffCanvas('color')} >
         <div className="mb-3">
+          {!!valueHistogramImg && 
+            <img src={valueHistogramImg!.dataUrl} 
+              alt="Value histogram"
+              className="img-fluid mb-4" 
+              style={{width: '100%'}}/> }
           <div className="form-check form-switch mb-3">
             <input className="form-check-input" type="checkbox" defaultChecked={thresholdIsInEffect} onChange={e => setThresholdIsInEffect(!!e.target.checked)} id="formThresholdOn"/>
             <label className="form-check-label" htmlFor="formThresholdOn">
@@ -515,6 +527,43 @@ const Warholizer = ({
           )}
         </div>
 
+        <h6 className="mt-3">Color Replacement</h6>
+        {quantization?.colorBuckets.map((bucket, i) =>
+        <div className="py-1 d-flex justify-content-between align-items-center">
+            <Swatch color={bucket.averageColorCSS} />
+            <div className="h3 m-0">&rarr;</div>
+
+            {!!replacementColors[i] 
+              ? <Swatch color={'rgba(' + replacementColors[i] + ')'} />
+              : <span>N/A</span>
+            }
+
+            <input type="text"
+              style={{width:'unset'}}
+              className="form-control form-control-sm flex-shrink-1"
+              defaultValue={!!replacementCSSColors[i] ? replacementCSSColors[i] : ""} 
+              onChange={e => {
+                let colorString = e.target.value?.trim() || "";
+                let rgb = 
+                  colorString
+                    .split(',')
+                    .map(str => parseInt(str))
+                    .filter(n => !isNaN(n) && 0 <= n && n <= 255);
+                setReplacementColors(cs => {
+                  let updatedColors = [...cs];
+                  updatedColors[i] = rgb.length !== 3 ? undefined : (rgb as [number,number,number]);
+                  return updatedColors;
+                })
+                setReplacementCSSColors(cs => {
+                  let updatedColors = [...cs];
+                  updatedColors[i] = rgb.length !== 3 ? "" : colorString;
+                  return updatedColors;
+                })
+              }}
+            />
+          </div>
+        )}
+
         <h6 className="mt-3">Color Buckets</h6>
 
         {quantization?.colorBuckets.map((bucket,i) =>
@@ -590,12 +639,12 @@ const Warholizer = ({
         />}
       </OffCanvas>
       
-      {croppedImg && 
+      {colorAdjustedImg && 
         <div className="centralizer">
           <PrintPreview
             tilingPattern={TILINGPATTERN[tilingPatternId]}
             paper={paper}
-            img={croppedImg}
+            img={colorAdjustedImg}
             rowSize={rowSize}
             wholeTilesOnly={wholeTilesOnly}
             getBackgroundColor={selectedBGColorOption.getColor} 

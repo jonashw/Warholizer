@@ -174,7 +174,8 @@ export const applyImageValueRanges = (
           colorSpace: originalImage.colorSpace 
         });
       for (var i=0; i<originalImage.data.length; i+=4) { // 4 is for RGBA channels
-        let [inRange,value] = clampValueIfInRange(originalImage.data[i], range);
+        var v = rgbaValue( originalImage.data[i],  originalImage.data[i+1],  originalImage.data[i+2],  originalImage.data[i+3] );
+        let [inRange,value] = clampValueIfInRange( v, range);
         if(inRange){
           rangeImage.data[i+0] = 0
           rangeImage.data[i+1] = 0
@@ -232,7 +233,8 @@ type ColorBucket = {
 
 export const quantize = (
   original: ImagePayload,
-  depth: number
+  depth: number,
+  replacementColors: ([number,number,number]|undefined)[]
 ): Promise<Quantization> => 
   editImage(original.dataUrl, (img, c, ctx) => {
     let [width,height] = [img.width, img.height];
@@ -253,20 +255,24 @@ export const quantize = (
     let originalImage = ctx.getImageData(0, 0, width, height);
 
     let colorBuckets: ColorBucket[] = 
-      quantizeLoop(originalImage,depth).map(originalImgData => {
-        let avgColor = averageColor(originalImgData);
-        let maskedImgData = colorMask(avgColor,originalImgData);
+      quantizeLoop(originalImage,depth).map((bucketImgData,i) => {
+        let replacementColor = replacementColors[i] ;
+        let maskColor = 
+          !!replacementColor
+          ? replacementColor 
+          : averageColor(bucketImgData);
+        let maskedImgData = colorMask(maskColor,bucketImgData);
         let masked = imageDataToPayload(maskedImgData);
-        let cssColor = `rgba(${avgColor.join(',')})`;
+        let cssColor = `rgba(${maskColor.join(',')})`;
         console.log({maskColor: cssColor});
 
         type RGBColor = [number,number,number];
         const highlightColor: RGBColor = [255,0,255];
-        let highlightedMask = imageDataToPayload(colorMask(highlightColor,originalImgData));
+        let highlightedMask = imageDataToPayload(colorMask(highlightColor,bucketImgData));
 
         return {
-          original: imageDataToPayload(originalImgData),
-          originalImgData,
+          original: imageDataToPayload(bucketImgData),
+          originalImgData: bucketImgData,
           masked,
           highlightedMask,
           maskedImgData,
@@ -349,11 +355,11 @@ const quantizeLoop = (img: ImageData, i: number): ImageData[] => {
   if(i===0){
     return [img];
   }
-  let {upper,lower} = divide(img);
+  let {upper,lower,pixelCount} = divide(img);
   //console.log(`loop #${i}:`, stats.printable);
   return [
-    upper,
-    lower,
+    ...(pixelCount.upper > 0 ? [upper] : []),
+    ...(pixelCount.lower > 0 ? [lower] : [])
   ].flatMap(subImg => quantizeLoop(subImg, i-1));
 };
 
@@ -415,18 +421,25 @@ const divide = (img: ImageData) => {
         colorSpace: img.colorSpace 
       })
   };
+  const pixelCount = {upper: 0, lower: 0};
   for (var i = 0; i < img.data.length; i += 4) { // 4 is for RGBA channels
     division.lower.data[i + 3] = 0;
     division.upper.data[i + 3] = 0;
     let v = img.data[i + dominantDimension.index];
-    let newBucket = v < medianValue ? division.lower : division.upper;
+    let isLower = v < medianValue;
+    let newBucket = isLower ? division.lower : division.upper;
+    if(isLower){
+      pixelCount.lower++;
+    } else {
+      pixelCount.upper++;
+    }
     newBucket.data[i + 0] = img.data[i+0];
     newBucket.data[i + 1] = img.data[i+1];
     newBucket.data[i + 2] = img.data[i+2];
     newBucket.data[i + 3] = img.data[i+3];
   }
   return {
-    originalColorCount: 100,
+    pixelCount,
     stats: {
       dimensions,
       dominantDimension,
@@ -467,6 +480,14 @@ function rgbaEncode(red: number, green: number, blue: number, alpha: number): nu
     return (r << 24) + (g << 16) + (b << 8) + (a);
 }
 
+
+function rgbaValue(r: number, g: number, b: number, a: number) {
+  //reference: https://computergraphics.stackexchange.com/a/5114
+  //const [rPeakWavelength,gPeakWavelength,bPeakWavelength]=[600,540,450];
+  const [rCoeff,gCoeff,bCoeff]=[0.21,0.72,0.07];
+  return Math.floor((a/255) * ((r * rCoeff) + (g * gCoeff) + (b * bCoeff)));
+}
+
 /*
 function rgbaDecode(rgba:number): [number, number, number, number] {
   return [
@@ -477,3 +498,34 @@ function rgbaDecode(rgba:number): [number, number, number, number] {
   ];
 }
 */
+
+export const getValueHistogram = (
+  original: ImagePayload
+): Promise<ImagePayload> => 
+  editImage(original.dataUrl, (img, c, ctx) => {
+    let [width,height] = [img.width, img.height];
+    c.width = img.width;
+    c.height = img.height;
+    ctx.drawImage(img,0,0);
+    let originalImage = ctx.getImageData(0, 0, width, height);
+    var pixelCountByValue = Array(255).fill(0);
+    for (var i=0; i<originalImage.data.length; i+=4) { // 4 is for RGBA channels
+      var v = rgbaValue( originalImage.data[i],  originalImage.data[i+1],  originalImage.data[i+2],  originalImage.data[i+3] );
+      pixelCountByValue[v]++;
+    }
+    var totalPixelCount = originalImage.data.length/4;
+    var proportionalPixelsByValue = pixelCountByValue.map(c => 100*c/totalPixelCount);
+    var checksum = proportionalPixelsByValue.reduce((a,b) => a+b);
+    console.log({proportionalPixelsByValue,checksum});
+
+    ctx.clearRect(0, 0, width, height);
+    c.width = 255;
+    c.height = 100;
+    ctx.fillStyle="black";
+    for(let i=0; i<totalPixelCount; i++){
+      var h = 100*proportionalPixelsByValue[i];
+      ctx.fillRect(i,c.height-h,1,h);
+    }
+
+    return {dataUrl: c.toDataURL(), width, height};
+  });
