@@ -514,7 +514,8 @@ export const getValueHistogram = (
       pixelCountByValue[v]++;
     }
     var totalPixelCount = originalImage.data.length/4;
-    var proportionalPixelsByValue = pixelCountByValue.map(c => 100*c/totalPixelCount);
+    var max = pixelCountByValue.reduce((a,b) => Math.max(a,b));
+    var proportionalPixelsByValue = pixelCountByValue.map(c => Math.floor(100*c/max));
     var checksum = proportionalPixelsByValue.reduce((a,b) => a+b);
     console.log({proportionalPixelsByValue,checksum});
 
@@ -523,7 +524,7 @@ export const getValueHistogram = (
     c.height = 100;
     ctx.fillStyle="black";
     for(let i=0; i<totalPixelCount; i++){
-      var h = 100*proportionalPixelsByValue[i];
+      var h = proportionalPixelsByValue[i];
       ctx.fillRect(i,c.height-h,1,h);
     }
 

@@ -396,8 +396,9 @@ const Warholizer = ({
           {!!valueHistogramImg && 
             <img src={valueHistogramImg!.dataUrl} 
               alt="Value histogram"
+              title="Value histogram"
               className="img-fluid mb-4" 
-              style={{width: '100%'}}/> }
+              style={{width: '100%', border:'1px solid black'}}/> }
           <div className="form-check form-switch mb-3">
             <input className="form-check-input" type="checkbox" defaultChecked={thresholdIsInEffect} onChange={e => setThresholdIsInEffect(!!e.target.checked)} id="formThresholdOn"/>
             <label className="form-check-label" htmlFor="formThresholdOn">
