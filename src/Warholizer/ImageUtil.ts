@@ -530,3 +530,13 @@ export const getValueHistogram = (
 
     return {dataUrl: c.toDataURL(), width, height};
   });
+
+export default {
+  text,
+  load,
+  crop,
+  applyImageValueRanges,
+  MAX_QUANITIZATION_DEPTH,
+  quantize,
+  getValueHistogram
+};

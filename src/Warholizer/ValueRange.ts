@@ -5,6 +5,9 @@ export type ValueRange = {
   value: number
 };
 
+export const initial = (): ValueRange => 
+    ({min:0, max:255, value:0});
+
 export const splitValueRangeByThresholdValue = (
   range: ValueRange,
   threshold: number
@@ -63,3 +66,9 @@ export const split = (
     initialRange
   ]);
 }
+
+export default {
+  split,
+  splitValueRangeByThresholdValue,
+  initial
+};
