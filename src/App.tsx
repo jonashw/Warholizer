@@ -1,4 +1,3 @@
-import React from 'react';
 import Warholizer from './Warholizer/Warholizer';
 
 

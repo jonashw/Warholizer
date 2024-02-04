@@ -42,7 +42,7 @@ export const split = (
   }
   return thresholds
   .sort((a,b) => a-b)//they only make sense when they're in order, right?
-  .reduce((state,threshold,i) => {
+  .reduce((state,threshold,_) => {
     const ranges = state;
     // []
     if(ranges.length === 0){

@@ -136,7 +136,7 @@ const HSLuvColorPicker = () => {
                 {modeName(m)}
             </label>)}
         <div>
-            {sliders.filter(([m]) => m === mode).map(([m,max,get,set],i) =>
+            {sliders.filter(([m]) => m === mode).map(([_,max,get,set],i) =>
                 <div>
                 <input
                     key={i}

@@ -24,10 +24,10 @@ const fontNames = [
 
 const Fonts = {
 	loadAll: async (): Promise<string[]> => 
-		Promise.all(fontNames.map(fn => new Promise<string>((resolve,reject) => {
+		Promise.all(fontNames.map(fn => new Promise<string>((resolve,_) => {
 			const link = document.createElement('link');
 			link.rel = "stylesheet";
-			link.href=`https://fonts.googleapis.com/css2?family=${fn.replaceAll(" ","+")}`
+			link.href=`https://fonts.googleapis.com/css2?family=${fn.replace(/ /g,"+")}`
 			link.onload = () => {
 				resolve(fn);
 			}

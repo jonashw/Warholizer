@@ -19,7 +19,7 @@ const randomColors = Array(100).fill(undefined).map(_ =>
   colors[Math.floor(Math.random() * colors.length)]);
 
 const bgcolorOptions: {label: string, getColor: (i: number) => string}[] = [
-  {label: 'None', getColor: i => 'transparent'},
+  {label: 'None', getColor: _ => 'transparent'},
   {label: 'Sequential', getColor: i => colors[i % colors.length]},
   {label: 'Random', getColor: i => randomColors[Math.floor(i % randomColors.length)]}
 ];
@@ -337,7 +337,7 @@ const Warholizer = ({
             </ReactCrop>
 
             <div className="card-footer d-grid">
-              <button className="btn btn-danger" onClick={e => {
+              <button className="btn btn-danger" onClick={_ => {
                 setOriginalImg(undefined);
               }}>
                 Clear
@@ -371,7 +371,7 @@ const Warholizer = ({
                 }}
               />
               <div style={{maxHeight:'200px', overflowY:'auto', border:'1px solid #ddd', background:'white'}}>
-              {fonts.map((f,fi) => 
+              {fonts.map((f,_) => 
                 <div
                   style={{fontFamily:f,fontSize:'24px', textAlign:'center'}}
                   key={f} 
@@ -521,7 +521,7 @@ const Warholizer = ({
         <h6 className="mt-3">Quantized Color Pallette</h6>
 
         <div className="mb-3 d-flex flex-wrap">
-          {quantization?.colorBuckets.map((bucket, i) =>
+          {quantization?.colorBuckets.map((bucket, _) =>
             <div className="pe-1 pb-1">
               <Swatch color={bucket.averageColorCSS} />
             </div>

@@ -48,7 +48,7 @@ const wacky: TilingPattern = {
       rowSelector:'2n',
       colSelector:'n',
       dimension: 'x',
-      amount: (w:number ,h:number ) => w/2
+      amount: (w:number ,_:number ) => w/2
     }
   ]
 };
@@ -78,7 +78,7 @@ export const tilingPatterns: TilingPattern[] = [
         rowSelector:'n',
         colSelector:'2n',
         dimension: 'y',
-        amount: (w:number ,h:number ) => h/2
+        amount: (_:number ,h:number ) => h/2
       }
     ]
   },
@@ -91,7 +91,7 @@ export const tilingPatterns: TilingPattern[] = [
         rowSelector:'2n',
         colSelector:'n',
         dimension: 'x',
-        amount: (w:number ,h:number ) => w/2
+        amount: (w:number ,_:number ) => w/2
       }
     ]
   },

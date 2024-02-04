@@ -4,7 +4,7 @@ import { ValueRange } from "./ValueRange";
 export type Cropping = {crop: Crop, adjustRatio: {x: number, y: number}};
 export type ImagePayload = {dataUrl: string; width:number; height: number};
 
-const getTextHeight = (font: string, text: string) => {
+const getTextHeight = (font: string, _: string) => {
   let textContainer = document.createElement('span');
   textContainer.style.font = font;
   textContainer.innerText = "Mg";
@@ -49,7 +49,7 @@ var determineFontHeight = function(fontStyle: string) {
 };
 
 export const text = (text: string, font: string, sizeInPx: number): Promise<ImagePayload> => 
-  new Promise((resolve,reject) => {
+  new Promise((resolve,_) => {
     let c = document.createElement('canvas');
     document.body.prepend(c);
     let ctx = c.getContext('2d')!;
@@ -97,7 +97,7 @@ function editImage<T>(
     ctx: CanvasRenderingContext2D
 ) => T): Promise<T> 
 {
-  return new Promise((resolve,reject) => {
+  return new Promise((resolve,_) => {
     let img = new Image();
     img.onload = () => {
       let c = document.createElement('canvas');
