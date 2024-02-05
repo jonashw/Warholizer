@@ -2,7 +2,7 @@ import { Crop } from "react-image-crop";
 import VR, { ValueRange } from "./ValueRange";
 
 export type Cropping = {crop: Crop, adjustRatio: {x: number, y: number}};
-export type ImagePayload = {dataUrl: string; width:number; height: number};
+export type ImagePayload = {dataUrl: string; width:number; height: number,imageData: ImageData};
 
 export class WarholizerImage {
   public payload: ImagePayload;
@@ -101,29 +101,47 @@ export const text = (text: string, font: string, sizeInPx: number): Promise<Imag
     resolve({
       dataUrl: c.toDataURL(),
       height: sizeInPx,
-      width: measurements.width
+      width: measurements.width,
+      imageData: ctx.getImageData(0,0,c.width,c.height)
     });
     c.remove();
   });
 
-function withCanvas<T>(
+const with2dContext = (
   width: number,
   height: number,
-  fn: (
-    canvas: HTMLCanvasElement,
-    ctx: CanvasRenderingContext2D
-  ) => T
-): Promise<T> {
-  return new Promise((resolve,_) => {
-    let c = document.createElement('canvas');
-    c.width = width;
-    c.height = height;
-    document.body.append(c);
-    let ctx = c.getContext('2d')!;
-    resolve(fn(c, ctx));
-    c.remove();
-  });
+  action: (ctx: CanvasRenderingContext2D) => void
+): ImagePayload => {
+  let c = document.createElement('canvas');
+  c.width = width;
+  c.height = height;
+  document.body.append(c);
+  let ctx = c.getContext('2d')!;
+  action(ctx);
+  c.remove();
+  return {
+    dataUrl: c.toDataURL(), 
+    width, 
+    height,
+    imageData: ctx.getImageData(0,0,width,height)
+  };
 };
+
+/*
+const with2dContextOffscreen = async (
+  width: number,
+  height: number,
+  action: (ctx: OffscreenCanvasRenderingContext2D) => void
+): Promise<ImagePayload> => {
+  let c = new OffscreenCanvas(width,height);
+  let ctx = c.getContext('2d')!;
+  action(ctx);
+  const blob = await c.convertToBlob();
+  const dataUrl = await blobToDataURL(blob);
+  return { width, height, dataUrl };
+};
+
+*/
 
 function editImage<T>(
   src: string,
@@ -163,7 +181,8 @@ export const load = (src: string): Promise<ImagePayload> =>
     return {
       dataUrl: c.toDataURL(),
       width: c.width,
-      height: c.height
+      height: c.height,
+      imageData: ctx.getImageData(0,0,c.width,c.height)
     };
 });
 
@@ -187,7 +206,8 @@ export const crop = (img: ImagePayload, cropping: Cropping): Promise<ImagePayloa
     return {
       dataUrl: c.toDataURL(),
       width: c.width,
-      height: c.height
+      height: c.height,
+      imageData: ctx.getImageData(0,0,c.width,c.height)
     };
   });
 
@@ -242,7 +262,8 @@ export const applyImageValueRanges = (
         return {
           dataUrl: c.toDataURL(),
           width,
-          height
+          height,
+          imageData: ctx.getImageData(0,0,width,height)
         };
       });
 
@@ -253,7 +274,12 @@ export const applyImageValueRanges = (
 
     return {
       original,
-      modified: {dataUrl: c.toDataURL(), width, height},
+      modified: {
+        dataUrl: c.toDataURL(),
+        width,
+        height,
+        imageData: ctx.getImageData(0,0,width,height)
+      },
       stencilMasks: rangeImagePayloads
     };
   });
@@ -292,7 +318,8 @@ export const quantize = (
       return {
         dataUrl: c.toDataURL(),
         width,
-        height
+        height,
+        imageData: ctx.getImageData(0,0,width,height)
       };
     };
 
@@ -573,13 +600,18 @@ export const getValueHistogram = (
       ctx.fillRect(i,c.height-h,1,h);
     }
 
-    return {dataUrl: c.toDataURL(), width, height};
+    return {
+      dataUrl: c.toDataURL(),
+      width,
+      height,
+      imageData: ctx.getImageData(0,0,width,height)
+    };
   });
 
 
 type NoiseType = "bw" | "rgb" | "grayscale";
 const noise = (width: number, height: number, type: NoiseType): Promise<ImagePayload> => 
-  withCanvas(width,height,(c,ctx) => {
+  Promise.resolve(with2dContext(width,height,(ctx) => {
     const data = ctx.getImageData(0,0,width,height);
     switch(type){
       case "bw":
@@ -610,30 +642,26 @@ const noise = (width: number, height: number, type: NoiseType): Promise<ImagePay
         break;
     }
     ctx.putImageData(data,0,0);
-    return {dataUrl: c.toDataURL(), width, height};
-  });
+  }));
 
 const addGrain = async (img: ImagePayload, noiseType: NoiseType): Promise<ImagePayload> => {
   const [width,height] = [img.width, img.height];
   const noisePayload = await noise(width, height, noiseType);
   const inputImg = await loadImgElement(img.dataUrl);
   const noiseImg = await loadImgElement(noisePayload.dataUrl);
-  return withCanvas(img.width, img.height,(c,ctx) => {
+  return with2dContext(img.width, img.height,(ctx) => {
     ctx.drawImage(inputImg,0,0);
     //ctx.globalCompositeOperation ="darken";
     ctx.globalAlpha = 0.15;
     ctx.drawImage(noiseImg,0,0);
-    return {dataUrl: c.toDataURL(), width, height};
   });
 }
 
 const invert = async (img: ImagePayload): Promise<ImagePayload> => {
-  const [width,height] = [img.width, img.height];
   const inputImg = await loadImgElement(img.dataUrl);
-  return withCanvas(img.width, img.height,(c,ctx) => {
+  return with2dContext(img.width, img.height,(ctx) => {
     ctx.filter="invert()";
     ctx.drawImage(inputImg,0,0);
-    return {dataUrl: c.toDataURL(), width, height};
   });
 }
 
@@ -655,3 +683,28 @@ export default {
   quantize,
   getValueHistogram
 };
+
+/*
+async function canvasToImagePayload(
+  c: HTMLCanvasElement | OffscreenCanvas,
+  ctx: CanvasRenderingContext2D | OffscreenCanvasRenderingContext2D
+): Promise<ImagePayload> {
+  const dataUrl = 
+    await (c instanceof HTMLCanvasElement
+    ? Promise.resolve(c.toDataURL())
+    : c.convertToBlob().then(blobToDataURL));
+  return {
+    dataUrl,
+    width: c.width,
+    height: c.height,
+    imageData: ctx.getImageData(0,0,c.width,c.height)
+  };
+}
+
+const blobToDataURL = (blob: Blob): Promise<string> =>
+  new Promise(resolve => {
+    var a = new FileReader();
+    a.onload = e => resolve(e.target?.result as string);
+    a.readAsDataURL(blob);
+  });
+*/
