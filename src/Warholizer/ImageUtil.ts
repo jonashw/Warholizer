@@ -1,9 +1,10 @@
 import { Crop } from "react-image-crop";
-import { ValueRange } from "./ValueRange";
+import VR, { ValueRange } from "./ValueRange";
 
 export type Cropping = {crop: Crop, adjustRatio: {x: number, y: number}};
 export type ImagePayload = {dataUrl: string; width:number; height: number};
 
+/*
 const getTextHeight = (font: string, _: string) => {
   let textContainer = document.createElement('span');
   textContainer.style.font = font;
@@ -35,6 +36,7 @@ const getTextHeight = (font: string, _: string) => {
 
   return {ascent,height,descent};
 };
+*/
 
 var determineFontHeight = function(fontStyle: string) {
   var body = document.querySelector("body")!;
@@ -57,15 +59,15 @@ export const text = (text: string, font: string, sizeInPx: number): Promise<Imag
     ctx.font = cssFont;
 
     let measurements = ctx.measureText(text);
-    let textHeight = getTextHeight(cssFont,text).height;
+    //let textHeight = getTextHeight(cssFont,text).height;
     let textHeight2 = determineFontHeight(`font-family:${font}; font-size: ${sizeInPx}px;`);
-    console.log(measurements.width, textHeight2, textHeight)
+    //console.log(measurements.width, textHeight2, textHeight)
     //let marginPct = 1/16;
     c.width = measurements.width;
     c.height= textHeight2;
     //let margin = Math.max();
     //measurements.fontBoundingBoxAscent + measurements.fontBoundingBoxDescent;
-    console.log(c.height, );
+    //console.log(c.height, );
     //measurements.actualBoundingBoxAscent + measurements.actualBoundingBoxDescent;
     ctx = c.getContext('2d')!;
     
@@ -89,6 +91,25 @@ export const text = (text: string, font: string, sizeInPx: number): Promise<Imag
     c.remove();
   });
 
+function withCanvas<T>(
+  width: number,
+  height: number,
+  fn: (
+    canvas: HTMLCanvasElement,
+    ctx: CanvasRenderingContext2D
+  ) => T
+): Promise<T> {
+  return new Promise((resolve,_) => {
+    let c = document.createElement('canvas');
+    c.width = width;
+    c.height = height;
+    document.body.append(c);
+    let ctx = c.getContext('2d')!;
+    resolve(fn(c, ctx));
+    c.remove();
+  });
+};
+
 function editImage<T>(
   src: string,
   fn: (
@@ -109,6 +130,15 @@ function editImage<T>(
     img.src = src;
   });
 }
+
+const loadImgElement = (src:string): Promise<HTMLImageElement> => 
+  new Promise((resolve,_) => {
+    let img = new Image();
+    img.onload = () => {
+      resolve(img);
+    };
+    img.src = src;
+  });
 
 export const load = (src: string): Promise<ImagePayload> =>
   editImage(src,(img,c,ctx) => {
@@ -204,7 +234,7 @@ export const applyImageValueRanges = (
     ctx.clearRect(0, 0, width, height);
     ctx.putImageData(originalImage, 0, 0);
 
-    console.log({ranges, rangeImages, rangeImagePayloads});
+    //console.log({ranges, rangeImages, rangeImagePayloads});
 
     return {
       original,
@@ -264,7 +294,7 @@ export const quantize = (
         let maskedImgData = colorMask(maskColor,bucketImgData);
         let masked = imageDataToPayload(maskedImgData);
         let cssColor = `rgba(${maskColor.join(',')})`;
-        console.log({maskColor: cssColor});
+        //console.log({maskColor: cssColor});
 
         type RGBColor = [number,number,number];
         const highlightColor: RGBColor = [255,0,255];
@@ -393,7 +423,7 @@ const divide = (img: ImageData) => {
       }
     }
     let valuesArray = Array.from(values).sort((a,b) => a>b?a:b);
-    console.log({values,valuesArray});
+    //console.log({values,valuesArray});
     return valuesArray;
   });
   let dimensions =
@@ -403,7 +433,7 @@ const divide = (img: ImageData) => {
       let range = max-min;
       return {min, max, range, index, vs};
     });
-  console.log({dimensions});
+  //console.log({dimensions});
   let dominantDimension = dimensions.reduce((a,b) => a.range > b.range ? a : b);
   let values = valuesByDimension[dominantDimension.index];
   let medianValue = values[Math.ceil(values.length/2)];
@@ -516,8 +546,8 @@ export const getValueHistogram = (
     var totalPixelCount = originalImage.data.length/4;
     var max = pixelCountByValue.reduce((a,b) => Math.max(a,b));
     var proportionalPixelsByValue = pixelCountByValue.map(c => Math.floor(100*c/max));
-    var checksum = proportionalPixelsByValue.reduce((a,b) => a+b);
-    console.log({proportionalPixelsByValue,checksum});
+    //var checksum = proportionalPixelsByValue.reduce((a,b) => a+b);
+    //console.log({proportionalPixelsByValue,checksum});
 
     ctx.clearRect(0, 0, width, height);
     c.width = 255;
@@ -531,10 +561,80 @@ export const getValueHistogram = (
     return {dataUrl: c.toDataURL(), width, height};
   });
 
+
+type NoiseType = "bw" | "rgb" | "grayscale";
+const noise = (width: number, height: number, type: NoiseType): Promise<ImagePayload> => 
+  withCanvas(width,height,(c,ctx) => {
+    const data = ctx.getImageData(0,0,width,height);
+    switch(type){
+      case "bw":
+        for(let i=0; i<data.data.length; i+=4){
+          var n = 255 * Math.round(Math.random());
+          data.data[i+0] = n;
+          data.data[i+1] = n;
+          data.data[i+2] = n;
+          data.data[i+3] = 255;
+        }
+        break;
+      case "rgb":
+        for(let i=0; i<data.data.length; i+=4){
+          data.data[i+0] = 255 * Math.round(Math.random());
+          data.data[i+1] = 255 * Math.round(Math.random());
+          data.data[i+2] = 255 * Math.round(Math.random());
+          data.data[i+3] = 255;
+        }
+        break;
+      case 'grayscale':
+        for(let i=0; i<data.data.length; i+=4){
+          var n = Math.floor(255 * Math.random());
+          data.data[i+0] = n;
+          data.data[i+1] = n;
+          data.data[i+2] = n;
+          data.data[i+3] = 255;
+        }
+        break;
+    }
+    ctx.putImageData(data,0,0);
+    return {dataUrl: c.toDataURL(), width, height};
+  });
+
+const addGrain = async (img: ImagePayload, noiseType: NoiseType): Promise<ImagePayload> => {
+  const [width,height] = [img.width, img.height];
+  const noisePayload = await noise(width, height, noiseType);
+  const inputImg = await loadImgElement(img.dataUrl);
+  const noiseImg = await loadImgElement(noisePayload.dataUrl);
+  return withCanvas(img.width, img.height,(c,ctx) => {
+    ctx.drawImage(inputImg,0,0);
+    //ctx.globalCompositeOperation ="darken";
+    ctx.globalAlpha = 0.15;
+    ctx.drawImage(noiseImg,0,0);
+    return {dataUrl: c.toDataURL(), width, height};
+  });
+}
+
+const invert = async (img: ImagePayload): Promise<ImagePayload> => {
+  const [width,height] = [img.width, img.height];
+  const inputImg = await loadImgElement(img.dataUrl);
+  return withCanvas(img.width, img.height,(c,ctx) => {
+    ctx.filter="invert()";
+    ctx.drawImage(inputImg,0,0);
+    return {dataUrl: c.toDataURL(), width, height};
+  });
+}
+
+const threshold = async (img: ImagePayload, value: number): Promise<ImagePayload> => {
+  const vrs = VR.split(VR.initial(), [value] );
+  return (await applyImageValueRanges(vrs,img)).modified;
+};
+
 export default {
+  noise,
+  invert,
+  addGrain,
   text,
   load,
   crop,
+  threshold,
   applyImageValueRanges,
   MAX_QUANITIZATION_DEPTH,
   quantize,

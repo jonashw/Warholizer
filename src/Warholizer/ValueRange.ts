@@ -54,10 +54,10 @@ export const split = (
     }
     // [...initRanges, prevRange]
     let initRanges = ranges.slice(0,ranges.length-1);
-    let isFirstSplitting = initRanges.length === 0;
+    //let isFirstSplitting = initRanges.length === 0;
     let prevRange = ranges[ranges.length-1];
     let tailRanges = splitValueRangeByThresholdValue(prevRange, threshold);
-    console.log({initRanges,prevRange,isFirstSplitting,tailRanges});
+    //console.log({initRanges,prevRange,isFirstSplitting,tailRanges});
     return [
       ...initRanges,
       ...tailRanges
