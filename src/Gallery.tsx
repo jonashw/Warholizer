@@ -1,5 +1,5 @@
 import React from 'react';
-import ImageUtil,{ImagePayload} from './Warholizer/ImageUtil';
+import ImageUtil,{ImagePayload, WarholizerImage} from './Warholizer/ImageUtil';
 import ValueRange from "./Warholizer/ValueRange";
 
 type ImageOutput = {description: string, img: ImagePayload, histogram: ImagePayload, msElapsed: number};
@@ -51,7 +51,10 @@ export default () => {
         ],
         [
             'Grain + Threshold',
-            async (img:ImagePayload) => ImageUtil.threshold(await ImageUtil.addGrain(img,"grayscale"),123)
+            (img:ImagePayload) => 
+                new WarholizerImage(img)
+                .addGrain("grayscale").then(img => img
+                .threshold(123)).then(i => i.payload)
         ],
         [
             'Value Ranges',

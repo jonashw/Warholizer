@@ -4,6 +4,21 @@ import VR, { ValueRange } from "./ValueRange";
 export type Cropping = {crop: Crop, adjustRatio: {x: number, y: number}};
 export type ImagePayload = {dataUrl: string; width:number; height: number};
 
+export class WarholizerImage {
+  public payload: ImagePayload;
+  //private imgElement?: HTMLImageElement;//for optimization?
+  constructor(payload: ImagePayload){
+    this.payload = payload;
+  }
+  async addGrain(noiseType: NoiseType){
+    return new WarholizerImage(await addGrain(this.payload, noiseType));
+  }
+  async threshold(value: number){
+    const vrs = VR.split(VR.initial(), [value] );
+    return new WarholizerImage((await applyImageValueRanges(vrs,this.payload)).modified);
+  }
+}
+
 /*
 const getTextHeight = (font: string, _: string) => {
   let textContainer = document.createElement('span');
