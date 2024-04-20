@@ -15,15 +15,20 @@ export const apply = async (op: RasterOperation, input: OffscreenCanvas): Promis
   const opType = op.type;
   switch(opType){
     case 'wrap': return offscreenCanvasOperation(input.width, input.height,(ctx) => {
-        if(op.dimension === 'x'){
-          ctx.drawImage(input,-input.width/2,0);
-          ctx.drawImage(input,input.width/2,0);
-        }
-        if(op.dimension === 'y'){
-          ctx.drawImage(input,0,-input.height/2);
-          ctx.drawImage(input,0,input.height/2);
-        }
-      });
+      const wrapCoefficient = Math.max(0,Math.min(1,op.amount));
+      if(op.dimension === 'x'){
+        const x = input.width * wrapCoefficient;
+        const xx = input.width - x;
+        ctx.drawImage(input,-x,0);
+        ctx.drawImage(input,xx,0);
+      }
+      if(op.dimension === 'y'){
+        const y = input.height * wrapCoefficient;
+        const yy = input.height - y;
+        ctx.drawImage(input,0,-y);
+        ctx.drawImage(input,0,yy);
+      }
+    });
     
     case 'scale':
       const scaleInput = await apply(op.input, input);

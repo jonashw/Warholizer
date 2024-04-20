@@ -34,7 +34,39 @@ export type TilingPattern = {
 const wacky: TilingPattern = {
   id: 'Wacky',
   label: 'Wacky',
-  rasterOperation: {type:'originalImage'},
+  rasterOperation: {
+    type:'stack',
+    dimension: 'y',
+    inputs: [
+      {
+        type:'stack',
+        dimension:'x',
+        inputs: [
+          {type:'originalImage'},
+          {type:'scale',x:-1,y:1, input:{type:'originalImage'}}
+        ]
+      },
+      {
+        type:'stack',
+        dimension:'x',
+        inputs: (() => {
+          const wrap: RasterOperation = {
+            type:'wrap',
+            input:{
+              type:'originalImage'
+            },
+            dimension:'x',
+            amount:0.5
+          };
+          return [
+            wrap,
+            {type:'scale',x:-1,y:1, input:wrap}
+          ];
+        })()
+      }
+    ]
+  },
+
   operations: [
     {
       type: 'flip',
