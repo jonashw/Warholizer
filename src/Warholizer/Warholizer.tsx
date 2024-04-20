@@ -268,17 +268,21 @@ const Warholizer = ({
 
     <OffCanvas title="Tiling Patterns" style={{background:'rgba(255,255,255,0.95'}} open={offCanvasIsVisible('tilingPattern')} setOpen={() => toggleOffCanvas('tilingPattern')} >
       <div className="row">
-        {tilingPatterns.map((tp,tpIndex) =>
-          <div key={tp.label} className="col">
+        {tilingPatterns.map((tp,tpIndex) => {
+          const normalImg = sampleTilingPatternImages[0];
+          const sampleImg = sampleTilingPatternImages[tpIndex];
+          const s = 100;
+          const backgroundSize = (s/3) * ((sampleImg?.width ?? 1) / (normalImg?.width ?? 1));
+          return <div key={tp.label} className="col">
             <label htmlFor={"form-tiling-pattern-" + tp.id} className="form-label">
               {tp.label}
               <div 
               style={{
-                width:'100px',
-                height:'100px',
-                backgroundImage:`url(${sampleTilingPatternImages[tpIndex]?.dataUrl})`,
+                width:`${s}px`,
+                height:`${s}px`,
+                backgroundImage:`url(${sampleImg?.dataUrl})`,
                 backgroundRepeat:'repeat',
-                backgroundSize:`${25 * (sampleTilingPatternImages[tpIndex].width / sampleTilingPatternImages[0].width)}px`,
+                backgroundSize:`${backgroundSize}px`,
                 border:'1px solid black',
                 boxShadow:'0 1px 2px rgba(0,0,0,0.5)',
                 borderRadius:'4px'
@@ -301,7 +305,8 @@ const Warholizer = ({
                 }}
               />
             </div>
-          </div>)} 
+          </div>;
+        })} 
       </div>
 
         <div className="my-3">
