@@ -8,6 +8,7 @@ import { TilingPattern } from "./TilingPattern";
 const ImageGrid = ({
     img,
     rowSize,
+    backgroundColorPalette,
     getBackgroundColor,
     paper,
     wholeTilesOnly,
@@ -15,7 +16,8 @@ const ImageGrid = ({
   }:{
     img:ImagePayload,
     rowSize: number,
-    getBackgroundColor: (i: number) => string | undefined,
+    backgroundColorPalette: string[],
+    getBackgroundColor: (colors: string[], i: number) => string | undefined,
     paper: Paper,
     wholeTilesOnly: boolean,
     tilingPattern: TilingPattern
@@ -111,7 +113,7 @@ const ImageGrid = ({
               <div
                 key={r}
                 className="frame" 
-                style={{ backgroundColor: getBackgroundColor(c*rowSize + r) }}
+                style={{ backgroundColor: getBackgroundColor(backgroundColorPalette, c*rowSize + r) }}
               >
                 <div className="img"/>
               </div>

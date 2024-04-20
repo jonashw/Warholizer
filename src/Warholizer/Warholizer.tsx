@@ -13,17 +13,16 @@ import Fonts from './Fonts';
 import { tilingPatterns, defaultTilingPattern,  TILINGPATTERN} from './TilingPattern';
 import { ValueRange, split } from './ValueRange';
 
-const colors = ["#ffff00", "#ff00ff", "#00ff00","#6666ff"];
+const colors = ["#ffff00", "#ff00ff", "#00ff00","#6666ff",'#ff0000'];
 
-const randomColors = Array(100).fill(undefined).map(_ => 
-  colors[Math.floor(Math.random() * colors.length)]);
-
-const bgcolorOptions: {label: string, getColor: (i: number) => string}[] = [
-  {label: 'None', getColor: _ => 'transparent'},
-  {label: 'Sequential', getColor: i => colors[i % colors.length]},
-  {label: 'Random', getColor: i => randomColors[Math.floor(i % randomColors.length)]}
+const bgcolorOptions: {
+  label: string, 
+  getColor: (colors: string[], i: number) => string
+}[] = [
+  {label: 'None', getColor: () => 'transparent'},
+  {label: 'Sequential', getColor: (colors,i) => colors[i % colors.length]},
+  {label: 'Random', getColor: (colors, i) => colors[Math.floor(i % colors.length)]}
 ];
-
 const Warholizer = ({
 	initialImgSrc,
 	initialThreshold,
@@ -35,6 +34,7 @@ const Warholizer = ({
   initialRowSize: number;
   initialThresholdIsInEffect: boolean | undefined;
 }) => {
+  const [bgColorPalette,setBgColorPalette] = React.useState(colors);
   const [fontPreviewText, setFontPreviewText] = React.useState<string>('');
   const defaultCropping: Cropping = React.useMemo(() => ({
     crop: {x:0,y:0,width:0,height:0,unit:'px'},
@@ -310,6 +310,45 @@ const Warholizer = ({
             </label>
           </div>)
         }
+
+        <label className="form-label mt-3">Background Color Palette</label>
+        <div className="d-flex justify-content-around">
+          {colors.map(c => {
+            const id = `bg-color-palette-${c.replace('#','')}`;
+            return <div key={c}>
+              <label
+                htmlFor={id}
+                style={{
+                  display:'inline-block',
+                  lineHeight:'1em',
+                  height:'1em',
+                  width:'1em',
+                  background:c,
+                  border:'1px solid white',
+                  padding:'1px',
+                  margin:'1px',
+                  boxShadow:'0 1px 3px #999'
+                }}
+              />
+              <div>
+                <input 
+                  type="checkbox"
+                  id={id}
+                  checked={bgColorPalette.indexOf(c) > -1}
+                  onChange={e => {
+                    let nextValue = [...bgColorPalette];
+                    if(e.target.checked){
+                      nextValue.push(c);
+                    } else {
+                      nextValue = nextValue.filter(otherC => otherC !== c);
+                    }
+                    setBgColorPalette(nextValue);
+                  }}
+                  />
+              </div>
+            </div>;
+          })}
+        </div>
       </OffCanvas>
 
       <OffCanvas title="Input Image" style={{background:'rgba(255,255,255,0.95'}} open={offCanvasIsVisible('inputImage')} setOpen={() => toggleOffCanvas('inputImage')} >
@@ -635,6 +674,7 @@ const Warholizer = ({
           paper={paper}
           img={croppedImg}
           rowSize={rowSize}
+          backgroundColorPalette={bgColorPalette}
           wholeTilesOnly={wholeTilesOnly}
           getBackgroundColor={selectedBGColorOption.getColor} 
         />}
@@ -647,6 +687,7 @@ const Warholizer = ({
             paper={paper}
             img={colorAdjustedImg}
             rowSize={rowSize}
+            backgroundColorPalette={bgColorPalette}
             wholeTilesOnly={wholeTilesOnly}
             getBackgroundColor={selectedBGColorOption.getColor} 
           />
