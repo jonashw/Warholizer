@@ -1,6 +1,6 @@
 import { Crop } from "react-image-crop";
 import VR, { ValueRange } from "./ValueRange";
-import { TilingPattern } from "./TilingPattern";
+import { RasterOperation, TilingPattern } from "./TilingPattern";
 
 export type Cropping = {crop: Crop, adjustRatio: {x: number, y: number}};
 export type ImagePayload = {dataUrl: string; width:number; height: number,imageData: ImageData};
@@ -108,11 +108,12 @@ export const text = (text: string, font: string, sizeInPx: number): Promise<Imag
     c.remove();
   });
 
-const with2dContext = (
+type CanvasOperationResult = {element: HTMLImageElement, data: ImageData};
+const canvasOperation = async (
   width: number,
   height: number,
   action: (ctx: CanvasRenderingContext2D) => void
-): ImagePayload => {
+): Promise<CanvasOperationResult> => {
   let c = document.createElement('canvas');
   c.width = width;
   c.height = height;
@@ -120,11 +121,30 @@ const with2dContext = (
   let ctx = c.getContext('2d')!;
   action(ctx);
   c.remove();
+  const element = await loadImgElement(c.toDataURL());
+  const data = ctx.getImageData(0,0,element.width,element.height);
+  return { element, data };
+};
+
+const with2dContext = (
+  width: number,
+  height: number,
+  action: (ctx: CanvasRenderingContext2D, c: HTMLCanvasElement) => void
+): ImagePayload => {
+  let c = document.createElement('canvas');
+  c.width = width;
+  c.height = height;
+  document.body.append(c);
+  let ctx = c.getContext('2d')!;
+  action(ctx,c);
+  c.remove();
+  const w = c.width;
+  const h = c.height;
   return {
     dataUrl: c.toDataURL(), 
-    width, 
-    height,
-    imageData: ctx.getImageData(0,0,width,height)
+    width: w, 
+    height: h,
+    imageData: ctx.getImageData(0,0,w,h)
   };
 };
 
@@ -671,28 +691,76 @@ const threshold = async (img: ImagePayload, value: number): Promise<ImagePayload
   return (await applyImageValueRanges(vrs,img)).modified;
 };
 
-const tilingPattern = async (img: ImagePayload, tp: TilingPattern): Promise<ImagePayload> => {
-  const inputImg = await loadImgElement(img.dataUrl);
-  return with2dContext(img.width, img.height,(ctx) => {
-    tp.operations.map(o => {
-      switch(o.type){
-        case 'flip': 
-          //ctx.translate(o.x ? img.width : 0, o.y ? img.height : 0);
-          //ctx.scale(o.x ? -1 : 1, o.y ? -1 : 1);
-          break;
-        case 'offset': 
-          //o.dimension
-          break;
+const operate = async (op: RasterOperation, input: CanvasOperationResult): Promise<CanvasOperationResult> => {
+  switch(op.type){
+    case 'wrap': return canvasOperation(input.element.width,input.element.height,(ctx) => {
+        if(op.dimension === 'x'){
+          ctx.drawImage(input.element,-input.element.width/2,0);
+          ctx.drawImage(input.element,input.element.width/2,0);
+        }
+        if(op.dimension === 'y'){
+          ctx.drawImage(input.element,0,-input.element.height/2);
+          ctx.drawImage(input.element,0,input.element.height/2);
+        }
+      });
+    
+    case 'scale':
+      const scaleInput = await operate(op.input, input);
+      const scaleWidth = Math.abs(op.x) * scaleInput.element.width;
+      const scaleHeight = Math.abs(op.y) * scaleInput.element.height;
+      return canvasOperation(scaleWidth, scaleHeight, (ctx) => {
+        if(op.x < 0){
+          ctx.translate(scaleWidth,0);
+        }
+        if(op.y < 0){
+          ctx.translate(0,scaleHeight);
+        }
+        ctx.scale(op.x, op.y);
+        ctx.drawImage(scaleInput.element,0,0);
+      });
+    case 'stack': 
+      const stackInputs = await Promise.all(op.inputs.map(op => operate(op,input)));
+      if(op.dimension === 'x'){
+        return canvasOperation(
+          stackInputs.map(i => i.element.width).reduce((a,b) => a + b, 0),
+          Math.max(...stackInputs.map(i => i.element.height)),
+          (ctx) => {
+            for(let stackInput of stackInputs){
+              ctx.drawImage(stackInput.element,0,0);
+              ctx.translate(stackInput.element.width,0);
+            }
+          });
+      }
+      return canvasOperation(
+        Math.max(...stackInputs.map(i => i.element.width)),
+        stackInputs.map(i => i.element.height).reduce((a,b) => a + b, 0),
+        (ctx) => {
+          for(let stackInput of stackInputs){
+            ctx.drawImage(stackInput.element,0,0);
+            ctx.translate(0,stackInput.element.height);
+          }
+        });
+    case 'originalImage': 
+    default:
+      return input; 
+  }
+};
 
-      }
-      switch(o.colSelector){
-      }
-      switch(o.rowSelector){
-      }
-    })
-    ctx.drawImage(inputImg,0,0);
+const opResultToPayload = (result: CanvasOperationResult): ImagePayload =>
+  ({
+      imageData: result.data,
+      dataUrl:   result.element.src,
+      height:    result.element.height,
+      width:     result.element.width
   });
-  return img;
+
+const tilingPattern = async (input: ImagePayload, tp: TilingPattern): Promise<ImagePayload> => {
+  const img = await loadImgElement(input.dataUrl);
+  const operationInput = await canvasOperation(img.width,img.height,(ctx) => {
+    ctx.drawImage(img,0,0);
+  });
+  const output = await operate(tp.rasterOperation, operationInput);
+  return opResultToPayload(output);
 };
 
 export default {

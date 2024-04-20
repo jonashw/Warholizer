@@ -8,7 +8,7 @@ type Flip = {
   y: boolean
 };
 
-type Selector = '2n' | 'n' | 'even' | 'odd';
+type Selector = 'n' | 'even' | 'odd';
 type Dimension = 'x'|'y';
 type Offset = {
   type: 'offset',
@@ -19,17 +19,41 @@ type Offset = {
 };
 
 type Operation = Offset | Flip;
+export type RasterOperation = 
+  | {
+    type: "originalImage"
+  }
+  | {
+    type:"wrap",
+    dimension: Dimension,
+    amount: number,
+    input: RasterOperation
+  }
+  | {
+    type: "stack",
+    dimension: Dimension,
+    inputs: RasterOperation[]
+  }
+  | {
+    type: "scale",
+    x: number,
+    y: number,
+    input: RasterOperation
+  };
+
 
 export type TilingPattern = {
   id: string,
   label: string,
-  operations: Operation[]
+  operations: Operation[],
+  rasterOperation: RasterOperation
 };
 
 
 const wacky: TilingPattern = {
   id: 'Wacky',
   label: 'Wacky',
+  rasterOperation: {type:'originalImage'},
   operations: [
     {
       type: 'flip',
@@ -47,7 +71,7 @@ const wacky: TilingPattern = {
     },
     {
       type: 'offset',
-      rowSelector:'2n',
+      rowSelector:'even',
       colSelector:'n',
       dimension: 'x',
       amount: (w:number ,_:number ) => w/2
@@ -57,6 +81,28 @@ const wacky: TilingPattern = {
 const mirror: TilingPattern = {
   id: 'Mirror',
   label: 'Mirror',
+  rasterOperation: {
+    type:'stack',
+    dimension:'y',
+    inputs: [
+      {
+        type:'stack',
+        dimension:'x',
+        inputs: [
+          {type:'scale', x:1, y: 1, input:{type:'originalImage'}},
+          {type:'scale', x:-1, y: 1, input:{type:'originalImage'}},
+        ]
+      },
+      {
+        type:'stack',
+        dimension:'x',
+        inputs: [
+          {type:'scale', x:1, y: -1, input:{type:'originalImage'}},
+          {type:'scale', x:-1, y: -1, input:{type:'originalImage'}},
+        ]
+      }
+    ]
+  },
   operations: [
     { type:'flip',rowSelector:'odd' , colSelector:'odd' , x: false, y: false },
     { type:'flip',rowSelector:'odd' , colSelector:'even', x: true , y: false },
@@ -67,6 +113,7 @@ const mirror: TilingPattern = {
 const normal: TilingPattern = {
   id: 'Normal',
   label: 'Normal', 
+  rasterOperation: {type:'originalImage'},
   operations: []
 };
 export const tilingPatterns: TilingPattern[] = [
@@ -74,23 +121,63 @@ export const tilingPatterns: TilingPattern[] = [
   {
     id: 'HalfDrop',
     label: 'Half Drop',
+    rasterOperation: {
+      type: 'stack',
+      dimension:'x', 
+      inputs: [
+        {type:'originalImage'},
+        {
+          type:"wrap",
+          amount:0.5,
+          dimension:"y",
+          input:{type:'originalImage'}
+        }
+      ]
+    },
     operations: [
       {
         type: 'offset',
         rowSelector:'n',
-        colSelector:'2n',
+        colSelector:'even',
         dimension: 'y',
         amount: (_:number ,h:number ) => h/2
       }
     ]
   },
   {
+    /*
+Half drop
+Stack(img,"x",(Wrap(img,"y",0.5))
+
+Half brick
+Stack(img,"y",(Wrap(img,"x",0.5))
+
+Mirror
+Stack(
+Stack(Scale(img,1, 1),"x",Scale(img,-1, 1)),
+"y",
+Stack(Scale(img,1,-1),"x",(Scale(img,-1,-1))
+)
+    */
     id: 'HalfBrick',
     label: 'Half Brick',
+    rasterOperation: {
+      type: 'stack',
+      dimension:'y', 
+      inputs: [
+        {type:'originalImage'},
+        {
+          type:"wrap",
+          amount:0.5,
+          dimension:"x",
+          input:{type:'originalImage'}
+        }
+      ]
+    },
     operations: [
       {
         type:'offset',
-        rowSelector:'2n',
+        rowSelector:'even',
         colSelector:'n',
         dimension: 'x',
         amount: (w:number ,_:number ) => w/2

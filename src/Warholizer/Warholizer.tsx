@@ -21,7 +21,7 @@ const bgcolorOptions: {
 }[] = [
   {label: 'None', getColor: () => 'transparent'},
   {label: 'Sequential', getColor: (colors,i) => colors[i % colors.length]},
-  {label: 'Random', getColor: (colors, i) => colors[Math.floor(Math.random() * colors.length)]}
+  {label: 'Random', getColor: (colors) => colors[Math.floor(Math.random() * colors.length)]}
 ];
 const Warholizer = ({
 	initialImgSrc,

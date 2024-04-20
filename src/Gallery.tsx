@@ -104,8 +104,8 @@ export default () => {
             ];
 
             let i = 1;
-            for(let e of tilingPatternEffects){
-            //for(let e of effects){
+            //for(let e of tilingPatternEffects){
+            for(let e of effects){
                 const ta = window.performance.now();
                 const output = await e[1](input);
                 const tb = window.performance.now();
