@@ -1,6 +1,7 @@
 import { Crop } from "react-image-crop";
 import VR, { ValueRange } from "./ValueRange";
-import { RasterOperation, TilingPattern } from "./TilingPattern";
+import { TilingPattern } from "./TilingPattern";
+import RasterOperations from "./RasterOperations";
 
 export type Cropping = {crop: Crop, adjustRatio: {x: number, y: number}};
 export type ImagePayload = {dataUrl: string; width:number; height: number,imageData: ImageData};
@@ -684,62 +685,8 @@ const threshold = async (img: ImagePayload, value: number): Promise<ImagePayload
   return (await applyImageValueRanges(vrs,img)).modified;
 };
 
-const operate = async (op: RasterOperation, input: OffscreenCanvas): Promise<OffscreenCanvas> => {
-  switch(op.type){
-    case 'wrap': return offscreenCanvasOperation(input.width, input.height,(ctx) => {
-        if(op.dimension === 'x'){
-          ctx.drawImage(input,-input.width/2,0);
-          ctx.drawImage(input,input.width/2,0);
-        }
-        if(op.dimension === 'y'){
-          ctx.drawImage(input,0,-input.height/2);
-          ctx.drawImage(input,0,input.height/2);
-        }
-      });
-    
-    case 'scale':
-      const scaleInput = await operate(op.input, input);
-      const scaleWidth = Math.abs(op.x) * scaleInput.width;
-      const scaleHeight = Math.abs(op.y) * scaleInput.height;
-      return offscreenCanvasOperation(scaleWidth, scaleHeight, (ctx) => {
-        if(op.x < 0){
-          ctx.translate(scaleWidth,0);
-        }
-        if(op.y < 0){
-          ctx.translate(0,scaleHeight);
-        }
-        ctx.scale(op.x, op.y);
-        ctx.drawImage(scaleInput,0,0);
-      });
-    case 'stack': 
-      const stackInputs = await Promise.all(op.inputs.map(op => operate(op,input)));
-      if(op.dimension === 'x'){
-        return offscreenCanvasOperation(
-          stackInputs.map(i => i.width).reduce((a,b) => a + b, 0),
-          Math.max(...stackInputs.map(i => i.height)),
-          (ctx) => {
-            for(let stackInput of stackInputs){
-              ctx.drawImage(stackInput,0,0);
-              ctx.translate(stackInput.width,0);
-            }
-          });
-      }
-      return offscreenCanvasOperation(
-        Math.max(...stackInputs.map(i => i.width)),
-        stackInputs.map(i => i.height).reduce((a,b) => a + b, 0),
-        (ctx) => {
-          for(let stackInput of stackInputs){
-            ctx.drawImage(stackInput,0,0);
-            ctx.translate(0,stackInput.height);
-          }
-        });
-    case 'originalImage': 
-    default:
-      return input; 
-  }
-};
 
-const opResultToPayload = async (result: OffscreenCanvas): Promise<ImagePayload> => {
+const offscreenCanvasToPayload = async (result: OffscreenCanvas): Promise<ImagePayload> => {
   const dataUrl = URL.createObjectURL(await result.convertToBlob());
   const element = await loadImgElement(dataUrl);
   const data = result.getContext('2d')!.getImageData(0,0,element.width,element.height);
@@ -756,8 +703,8 @@ const tilingPattern = async (input: ImagePayload, tp: TilingPattern): Promise<Im
   const operationInput = await offscreenCanvasOperation(img.width,img.height,(ctx) => {
     ctx.drawImage(img,0,0);
   });
-  const output = await operate(tp.rasterOperation, operationInput);
-  return await opResultToPayload(output);
+  const output = await RasterOperations.apply(tp.rasterOperation, operationInput);
+  return await offscreenCanvasToPayload(output);
 };
 
 export default {

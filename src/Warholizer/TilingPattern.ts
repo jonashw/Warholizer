@@ -1,3 +1,5 @@
+import { RasterOperation } from "./RasterOperations/RasterOperation";
+
 export type Vector = {x:number, y: number };
 
 type Flip = {
@@ -19,27 +21,6 @@ type Offset = {
 };
 
 type Operation = Offset | Flip;
-export type RasterOperation = 
-  | {
-    type: "originalImage"
-  }
-  | {
-    type:"wrap",
-    dimension: Dimension,
-    amount: number,
-    input: RasterOperation
-  }
-  | {
-    type: "stack",
-    dimension: Dimension,
-    inputs: RasterOperation[]
-  }
-  | {
-    type: "scale",
-    x: number,
-    y: number,
-    input: RasterOperation
-  };
 
 
 export type TilingPattern = {
