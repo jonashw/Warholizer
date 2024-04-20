@@ -1,6 +1,6 @@
 import React from 'react';
 import onFilePaste from './onFilePaste';
-import {applyImageValueRanges,ImagePayload,crop as cropImg, Cropping, text, load, Quantization, quantize, MAX_QUANITIZATION_DEPTH, getValueHistogram} from './ImageUtil';
+import ImageUtil, {applyImageValueRanges,ImagePayload,crop as cropImg, Cropping, text, load, Quantization, quantize, MAX_QUANITIZATION_DEPTH, getValueHistogram} from './ImageUtil';
 import "./Warholizer.css";
 import PrintPreview from './PrintPreview';
 import fileToDataUrl from '../fileToDataUrl';
@@ -12,6 +12,7 @@ import 'react-image-crop/dist/ReactCrop.css'
 import Fonts from './Fonts';
 import { tilingPatterns, defaultTilingPattern,  TILINGPATTERN} from './TilingPattern';
 import { ValueRange, split } from './ValueRange';
+import RasterOperations from './RasterOperations';
 
 const colors = ["#ffff00", "#ff00ff", "#00ff00","#6666ff",'#ff0000'];
 
@@ -34,6 +35,21 @@ const Warholizer = ({
   initialRowSize: number;
   initialThresholdIsInEffect: boolean | undefined;
 }) => {
+  React.useEffect(() => {
+    const effect = async() => {
+      const img = ImageUtil.textOffscreen('R','sansserif',100);
+      const sampleImages = 
+          await Promise.all(
+            tilingPatterns.map(async tp =>{
+              const canvas = await RasterOperations.apply(tp.rasterOperation, img);
+              return ImageUtil.offscreenCanvasToPayload(canvas);
+            }));
+      setSampleTilingPatternImages(sampleImages);
+    }
+    effect();
+  },[]);
+
+  const [sampleTilingPatternImages,setSampleTilingPatternImages] = React.useState<ImagePayload[]>([]);
   const [bgColorPalette,setBgColorPalette] = React.useState(colors);
   const [fontPreviewText, setFontPreviewText] = React.useState<string>('');
   const defaultCropping: Cropping = React.useMemo(() => ({
@@ -251,26 +267,42 @@ const Warholizer = ({
     </div>
 
     <OffCanvas title="Tiling Patterns" style={{background:'rgba(255,255,255,0.95'}} open={offCanvasIsVisible('tilingPattern')} setOpen={() => toggleOffCanvas('tilingPattern')} >
-      {tilingPatterns.map(tp =>
-        <div className="form-check" key={tp.label}>
-          <input
-            className="form-check-input"
-            id={"form-tiling-pattern-" + tp.id}
-            type="radio"
-            name="tiling-pattern"
-            value={tp.label}
-            defaultChecked={tilingPatternId === tp.id}
-            onChange={e => {
-              if (!e.target.checked) {
-                return;
-              }
-              setTilingPatternId(tp.id);
-            }}
-          />
-          <label htmlFor={"form-tiling-pattern-" + tp.id} className="form-label">
-            {tp.label}
-          </label>
-        </div>)} 
+      <div className="row">
+        {tilingPatterns.map((tp,tpIndex) =>
+          <div key={tp.label} className="col">
+            <label htmlFor={"form-tiling-pattern-" + tp.id} className="form-label">
+              {tp.label}
+              <div 
+              style={{
+                width:'100px',
+                height:'100px',
+                backgroundImage:`url(${sampleTilingPatternImages[tpIndex]?.dataUrl})`,
+                backgroundRepeat:'repeat',
+                backgroundSize:`${25 * (sampleTilingPatternImages[tpIndex].width / sampleTilingPatternImages[0].width)}px`,
+                border:'1px solid black',
+                boxShadow:'0 1px 2px rgba(0,0,0,0.5)',
+                borderRadius:'4px'
+              }}
+              />
+            </label>
+            <div>
+              <input
+                className="form-check-input"
+                id={"form-tiling-pattern-" + tp.id}
+                type="radio"
+                name="tiling-pattern"
+                value={tp.label}
+                defaultChecked={tilingPatternId === tp.id}
+                onChange={e => {
+                  if (!e.target.checked) {
+                    return;
+                  }
+                  setTilingPatternId(tp.id);
+                }}
+              />
+            </div>
+          </div>)} 
+      </div>
 
         <div className="my-3">
           <label htmlFor="formRowLength" className="form-label">
