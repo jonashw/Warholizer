@@ -126,6 +126,20 @@ const canvasOperation = async (
   return { element, data };
 };
 
+const offscreenCanvasOperation = async (
+  width: number,
+  height: number,
+  action: (ctx: OffscreenCanvasRenderingContext2D) => void
+): Promise<CanvasOperationResult> => {
+  const c = new OffscreenCanvas(width,height);
+  let ctx = c.getContext('2d')!;
+  action(ctx);
+  const dataUrl = URL.createObjectURL(await c.convertToBlob());
+  const element = await loadImgElement(dataUrl);
+  const data = ctx.getImageData(0,0,element.width,element.height);
+  return { element, data };
+};
+
 const with2dContext = (
   width: number,
   height: number,
@@ -693,7 +707,7 @@ const threshold = async (img: ImagePayload, value: number): Promise<ImagePayload
 
 const operate = async (op: RasterOperation, input: CanvasOperationResult): Promise<CanvasOperationResult> => {
   switch(op.type){
-    case 'wrap': return canvasOperation(input.element.width,input.element.height,(ctx) => {
+    case 'wrap': return offscreenCanvasOperation(input.element.width,input.element.height,(ctx) => {
         if(op.dimension === 'x'){
           ctx.drawImage(input.element,-input.element.width/2,0);
           ctx.drawImage(input.element,input.element.width/2,0);
@@ -708,7 +722,7 @@ const operate = async (op: RasterOperation, input: CanvasOperationResult): Promi
       const scaleInput = await operate(op.input, input);
       const scaleWidth = Math.abs(op.x) * scaleInput.element.width;
       const scaleHeight = Math.abs(op.y) * scaleInput.element.height;
-      return canvasOperation(scaleWidth, scaleHeight, (ctx) => {
+      return offscreenCanvasOperation(scaleWidth, scaleHeight, (ctx) => {
         if(op.x < 0){
           ctx.translate(scaleWidth,0);
         }
@@ -721,7 +735,7 @@ const operate = async (op: RasterOperation, input: CanvasOperationResult): Promi
     case 'stack': 
       const stackInputs = await Promise.all(op.inputs.map(op => operate(op,input)));
       if(op.dimension === 'x'){
-        return canvasOperation(
+        return offscreenCanvasOperation(
           stackInputs.map(i => i.element.width).reduce((a,b) => a + b, 0),
           Math.max(...stackInputs.map(i => i.element.height)),
           (ctx) => {
@@ -731,7 +745,7 @@ const operate = async (op: RasterOperation, input: CanvasOperationResult): Promi
             }
           });
       }
-      return canvasOperation(
+      return offscreenCanvasOperation(
         Math.max(...stackInputs.map(i => i.element.width)),
         stackInputs.map(i => i.element.height).reduce((a,b) => a + b, 0),
         (ctx) => {
@@ -756,7 +770,7 @@ const opResultToPayload = (result: CanvasOperationResult): ImagePayload =>
 
 const tilingPattern = async (input: ImagePayload, tp: TilingPattern): Promise<ImagePayload> => {
   const img = await loadImgElement(input.dataUrl);
-  const operationInput = await canvasOperation(img.width,img.height,(ctx) => {
+  const operationInput = await offscreenCanvasOperation(img.width,img.height,(ctx) => {
     ctx.drawImage(img,0,0);
   });
   const output = await operate(tp.rasterOperation, operationInput);
