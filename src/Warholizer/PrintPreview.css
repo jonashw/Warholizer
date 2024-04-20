@@ -1,6 +1,7 @@
 @media print {
     *,body {
         transform:none !important;
+        padding: 0 !important;
     }
     .print-preview {
         margin: 0 !important;
@@ -11,6 +12,9 @@
     }
     .canvas {
         overflow: visible;
+    }
+    .navbar {
+        display:none;
     }
 }
 .canvas {
