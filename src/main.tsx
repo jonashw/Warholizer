@@ -8,11 +8,16 @@ import {
   RouterProvider,
 } from "react-router-dom";
 import Gallery from './Gallery.tsx';
+import TilingPatternGallery from './TilingPatternGallery.tsx';
 
 const router = createBrowserRouter([
   {
     path: '/',
     element: <App />,
+  },
+  {
+    path: '/tiling-patterns',
+    element: <TilingPatternGallery/>
   },
   {
     path: '/gallery',
