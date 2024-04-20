@@ -1,12 +1,20 @@
 import React from 'react';
 import ImageUtil,{ImagePayload, WarholizerImage} from './Warholizer/ImageUtil';
 import ValueRange from "./Warholizer/ValueRange";
+import { tilingPatterns } from './Warholizer/TilingPattern';
 
 type ImageOutput = {description: string, img: ImagePayload, histogram: ImagePayload, msElapsed: number};
 type Effect = [string, (img:ImagePayload) => Promise<ImagePayload>, Effect[]?];
 
+//tilingPatterns.map(tp => tp.)
+
 export default () => {
+    const tilingPatternEffects = tilingPatterns.map(tp => [
+            `Tiling Pattern (${tp.label})`,
+            img => ImageUtil.tilingPattern(img,tp)
+        ] as Effect);
     const effects: Effect[] = [
+        ...tilingPatternEffects,
         [
             "Noise (rgb)",
             img => ImageUtil.noise(img.width,img.height,"rgb")
@@ -96,7 +104,8 @@ export default () => {
             ];
 
             let i = 1;
-            for(let e of effects){
+            for(let e of tilingPatternEffects){
+            //for(let e of effects){
                 const ta = window.performance.now();
                 const output = await e[1](input);
                 const tb = window.performance.now();

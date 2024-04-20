@@ -1,5 +1,6 @@
 import { Crop } from "react-image-crop";
 import VR, { ValueRange } from "./ValueRange";
+import { TilingPattern } from "./TilingPattern";
 
 export type Cropping = {crop: Crop, adjustRatio: {x: number, y: number}};
 export type ImagePayload = {dataUrl: string; width:number; height: number,imageData: ImageData};
@@ -670,7 +671,32 @@ const threshold = async (img: ImagePayload, value: number): Promise<ImagePayload
   return (await applyImageValueRanges(vrs,img)).modified;
 };
 
+const tilingPattern = async (img: ImagePayload, tp: TilingPattern): Promise<ImagePayload> => {
+  const inputImg = await loadImgElement(img.dataUrl);
+  return with2dContext(img.width, img.height,(ctx) => {
+    tp.operations.map(o => {
+      switch(o.type){
+        case 'flip': 
+          //ctx.translate(o.x ? img.width : 0, o.y ? img.height : 0);
+          //ctx.scale(o.x ? -1 : 1, o.y ? -1 : 1);
+          break;
+        case 'offset': 
+          //o.dimension
+          break;
+
+      }
+      switch(o.colSelector){
+      }
+      switch(o.rowSelector){
+      }
+    })
+    ctx.drawImage(inputImg,0,0);
+  });
+  return img;
+};
+
 export default {
+  tilingPattern,
   noise,
   invert,
   addGrain,

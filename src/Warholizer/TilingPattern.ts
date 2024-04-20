@@ -2,17 +2,18 @@ export type Vector = {x:number, y: number };
 
 type Flip = {
   type: 'flip',
-  rowSelector: string,
-  colSelector: string,
+  rowSelector: Selector,
+  colSelector: Selector,
   x: boolean,
   y: boolean
 };
 
+type Selector = '2n' | 'n' | 'even' | 'odd';
 type Dimension = 'x'|'y';
 type Offset = {
   type: 'offset',
-  rowSelector: string,
-  colSelector: string,
+  rowSelector: Selector,
+  colSelector: Selector,
   dimension: Dimension,
   amount: (w: number, h: number) => number
 };
@@ -35,7 +36,8 @@ const wacky: TilingPattern = {
       rowSelector:'odd',
       colSelector:'odd',
       x: false,
-      y: false },
+      y: false 
+    },
     {
       type: 'flip',
       rowSelector:'n',
