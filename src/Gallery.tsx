@@ -124,30 +124,32 @@ export default () => {
 
 
     return (
-        <div className="App">
-            <div className="centralizer" style={{flexWrap:'wrap', margin:'-2rem',gap:'0.5rem'}}>
+        <div className="container-fluid">
+            <div className="row">
                 {outputImages.map((o,i) => o && 
-                    <div key={i} className="card" style={{maxWidth:'200px'}}>
-                        <img
-                            src={o.img.dataUrl}
-                            className="card-img-top"
-                            style={{
-                                background:'white'
-                            }}
-                        />
-                        <div className="card-body">
-                            <h6 className="card-title">{o.description}</h6>
-                            <div className="card-text">
-                                {o.msElapsed.toFixed(0)}ms<br/>
+                    <div className="col-sm-6 col-md-4 col-lg-3 col-xl-2">
+                        <div key={i} className="card">
+                            <img
+                                src={o.img.dataUrl}
+                                className="card-img-top"
+                                style={{
+                                    background:'white'
+                                }}
+                            />
+                            <div className="card-body">
+                                <h6 className="card-title">{o.description}</h6>
+                                <div className="card-text">
+                                    {o.msElapsed.toFixed(0)}ms<br/>
+                                </div>
                             </div>
+                            <img
+                                src={o.histogram.dataUrl}
+                                className="card-img-bottom"
+                                style={{
+                                    borderTop:'1px solid #ddd'
+                                }}
+                            />
                         </div>
-                        <img
-                            src={o.histogram.dataUrl}
-                            className="card-img-bottom"
-                            style={{
-                                borderTop:'1px solid #ddd'
-                            }}
-                        />
                     </div>)}
             </div>
         </div>
