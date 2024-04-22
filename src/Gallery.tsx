@@ -127,8 +127,8 @@ export default () => {
         <div className="container-fluid">
             <div className="row">
                 {outputImages.map((o,i) => o && 
-                    <div className="col-sm-6 col-md-4 col-lg-3 col-xl-2">
-                        <div key={i} className="card">
+                    <div key={i} className="col-sm-6 col-md-4 col-lg-3 col-xl-2 mb-4">
+                        <div className="card">
                             <img
                                 src={o.img.dataUrl}
                                 className="card-img-top"
@@ -150,7 +150,8 @@ export default () => {
                                 }}
                             />
                         </div>
-                    </div>)}
+                    </div>
+                )}
             </div>
         </div>
     );

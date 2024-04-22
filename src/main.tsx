@@ -23,7 +23,7 @@ const router = createBrowserRouter([
           {href:'/gallery',label:'Gallery'},
           {href:'/tiling-patterns',label:'Tiling Patterns'}
         ].map(route => (
-          <li className="nav-item">
+          <li className="nav-item" key={route.label}>
             <a 
               className={"nav-link " + (window.location.pathname === route.href ? "active" : "")}
               href={route.href}
