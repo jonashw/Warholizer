@@ -2,9 +2,19 @@ import React from 'react';
 import ImageUtil,{ImagePayload, WarholizerImage} from './Warholizer/ImageUtil';
 import ValueRange from "./Warholizer/ValueRange";
 import { tilingPatterns } from './Warholizer/TilingPattern';
+import { Dimension, PureRasterOperation } from './Warholizer/RasterOperations/PureRasterOperation';
 
 type ImageOutput = {description: string, img: ImagePayload, histogram: ImagePayload, msElapsed: number};
 type Effect = [string, (img:ImagePayload) => Promise<ImagePayload>, Effect[]?];
+
+const pureExample = (name: string, op: PureRasterOperation): Effect => 
+    [
+        name,
+        async img => {
+            const imgs = await ImageUtil.applyPure(img,op);
+            return imgs[0];
+        }
+    ];
 
 //tilingPatterns.map(tp => tp.)
 
@@ -14,20 +24,23 @@ export default () => {
             img => ImageUtil.tilingPattern(img,tp)
         ] as Effect);
     const effects: Effect[] = [
-        [
-            "Wrap x",
-            async img => {
-                const imgs = await ImageUtil.applyPure(img,{type:'wrap',dimension:'x',amount:0.5});
-                return imgs[0];
-            }
-        ],
-        [
-            "Wrap y",
-            async img => {
-                const imgs = await ImageUtil.applyPure(img,{type:'wrap',dimension:'y',amount:0.5});
-                return imgs[0];
-            }
-        ],
+        pureExample(`invert`, {type:'invert'}),
+        ...(
+            (['x','y'] as Dimension[]).flatMap(dimension => 
+            [0.2,0.5,0.8].map(amount => 
+                pureExample(`Wrap ${dimension} ${amount*100}%`, {type:'wrap',dimension,amount}),
+            ))
+        ),
+        ...(
+            (['x','y'] as Dimension[]).flatMap(dimension => 
+            [0.2,0.5,0.8].map(amount => 
+                pureExample(`Wrap ${dimension} ${amount*100}%`, {
+                    type:'scale',
+                    x: dimension == 'x' ? amount : 1,
+                    y: dimension == 'y' ? amount : 1
+                }),
+            ))
+        ),
         ...tilingPatternEffects,
         [
             "Noise (rgb)",

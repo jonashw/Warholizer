@@ -86,6 +86,12 @@ export const applyFlat = async (filterById: {[id: string]: Filter}, filterId: st
 export const applyPureOperation = async (op: PureRasterOperation, inputs: OffscreenCanvas[]): Promise<OffscreenCanvas[]> => {
   const opType = op.type;
   switch(opType){
+    case 'invert': 
+      return Promise.all(inputs.map(input =>
+        offscreenCanvasOperation(input.width, input.height,(ctx) => {
+          ctx.filter="invert()";
+          ctx.drawImage(input,0,0);
+        })));
     case 'wrap': 
       return Promise.all(inputs.map(input =>
         offscreenCanvasOperation(input.width, input.height,(ctx) => {

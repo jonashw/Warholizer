@@ -1,5 +1,9 @@
 export type Dimension = 'x'|'y';
 
+export type Invert = {
+  type: "invert"
+};
+
 export type Wrap = {
   type: "wrap",
   dimension: Dimension,
@@ -20,4 +24,5 @@ export type Scale = {
 export type PureRasterOperation = 
 | Wrap 
 | Stack 
-| Scale;
+| Scale
+| Invert;
