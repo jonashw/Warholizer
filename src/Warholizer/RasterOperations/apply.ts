@@ -83,9 +83,23 @@ export const applyFlat = async (filterById: {[id: string]: Filter}, filterId: st
   return applyPureOperation(filter.operation, inputs);
 };
 
+export const applyPureOperations = (ops: PureRasterOperation[], inputs: OffscreenCanvas[]): Promise<OffscreenCanvas[]> => 
+  Promise.all(ops.map(op => applyPureOperation(op,inputs)))
+  .then(groups => groups.flatMap(g => g));
+
+export const applyPureOperationPipeline = async (ops: PureRasterOperation[], inputs: OffscreenCanvas[]): Promise<OffscreenCanvas[]> => {
+  var intermediates = inputs; 
+  for(let op of ops){
+    intermediates = await applyPureOperation(op, intermediates)
+  }
+  return intermediates;
+};
+
 export const applyPureOperation = async (op: PureRasterOperation, inputs: OffscreenCanvas[]): Promise<OffscreenCanvas[]> => {
   const opType = op.type;
   switch(opType){
+    case 'noop': 
+      return inputs;
     case 'invert': 
       return Promise.all(inputs.map(input =>
         offscreenCanvasOperation(input.width, input.height,(ctx) => {
