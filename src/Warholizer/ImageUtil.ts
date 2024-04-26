@@ -224,6 +224,14 @@ const loadImgElement = (src:string): Promise<HTMLImageElement> =>
     img.src = src;
   });
 
+export const loadOffscreen = async (src: string): Promise<OffscreenCanvas> =>{
+  const img = await loadImgElement(src);
+  const c = new OffscreenCanvas(img.width, img.height);
+  const ctx = c.getContext('2d')!;
+  ctx.drawImage(img,0,0);
+  return c;
+}
+
 export const load = (src: string): Promise<ImagePayload> =>
   editImage(src,(img,c,ctx) => {
     c.width = img.width;
@@ -767,6 +775,7 @@ export default {
   text,
   textOffscreen,
   load,
+  loadOffscreen,
   crop,
   threshold,
   payloadToOffscreenCanvas,
