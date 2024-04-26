@@ -14,6 +14,20 @@ export default () => {
             img => ImageUtil.tilingPattern(img,tp)
         ] as Effect);
     const effects: Effect[] = [
+        [
+            "Wrap x",
+            async img => {
+                const imgs = await ImageUtil.applyPure(img,{type:'wrap',dimension:'x',amount:0.5});
+                return imgs[0];
+            }
+        ],
+        [
+            "Wrap y",
+            async img => {
+                const imgs = await ImageUtil.applyPure(img,{type:'wrap',dimension:'y',amount:0.5});
+                return imgs[0];
+            }
+        ],
         ...tilingPatternEffects,
         [
             "Noise (rgb)",

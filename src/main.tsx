@@ -10,6 +10,7 @@ import {
 } from "react-router-dom";
 import Gallery from './Gallery.tsx';
 import TilingPatternGallery from './TilingPatternGallery.tsx';
+import OperationEditorDemo from './OperationEditorDemo.tsx';
 
 const router = createBrowserRouter([
   {
@@ -21,7 +22,8 @@ const router = createBrowserRouter([
         }}>{[
           {href:'/',label:'Warholizer'},
           {href:'/gallery',label:'Gallery'},
-          {href:'/tiling-patterns',label:'Tiling Patterns'}
+          {href:'/tiling-patterns',label:'Tiling Patterns'},
+          {href:'/edit',label:'Operation Editor Demo'}
         ].map(route => (
           <li className="nav-item" key={route.label}>
             <a 
@@ -47,6 +49,10 @@ const router = createBrowserRouter([
       {
         path: 'gallery',
         element: <Gallery/>
+      },
+      {
+        path: 'edit',
+        element: <OperationEditorDemo/>
       }
     ]
   }

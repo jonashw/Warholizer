@@ -2,6 +2,8 @@ import { Crop } from "react-image-crop";
 import VR, { ValueRange } from "./ValueRange";
 import { TilingPattern } from "./TilingPattern";
 import RasterOperations from "./RasterOperations";
+import { applyPureOperation } from "./RasterOperations/apply";
+import { PureRasterOperation } from "./RasterOperations/PureRasterOperation";
 
 export type Cropping = {crop: Crop, adjustRatio: {x: number, y: number}};
 export type ImagePayload = {dataUrl: string; width:number; height: number,imageData: ImageData};
@@ -720,6 +722,14 @@ const threshold = async (img: ImagePayload, value: number): Promise<ImagePayload
 };
 
 
+const payloadToOffscreenCanvas = async (img: ImagePayload): Promise<OffscreenCanvas> => {
+  const el = await loadImgElement(img.dataUrl);
+  const c = new OffscreenCanvas(img.width,img.height);
+  let ctx = c.getContext('2d')!;
+  ctx.drawImage(el,0,0);
+  return c;
+};
+
 const offscreenCanvasToPayload = async (result: OffscreenCanvas): Promise<ImagePayload> => {
   const dataUrl = URL.createObjectURL(await result.convertToBlob());
   const element = await loadImgElement(dataUrl);
@@ -741,7 +751,15 @@ const tilingPattern = async (input: ImagePayload, tp: TilingPattern): Promise<Im
   return await offscreenCanvasToPayload(output);
 };
 
+const applyPure = async (img: ImagePayload, op: PureRasterOperation): Promise<ImagePayload[]> => {
+  const c = await payloadToOffscreenCanvas(img);
+  const outputs = await applyPureOperation(op,[c]);
+  return Promise.all(outputs.map(offscreenCanvasToPayload));
+}
+
+
 export default {
+  applyPure,
   tilingPattern,
   noise,
   invert,
@@ -751,6 +769,7 @@ export default {
   load,
   crop,
   threshold,
+  payloadToOffscreenCanvas,
   offscreenCanvasToPayload,
   applyImageValueRanges,
   MAX_QUANITIZATION_DEPTH,
