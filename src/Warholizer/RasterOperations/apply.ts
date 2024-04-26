@@ -93,8 +93,8 @@ export const applyPureOperation = async (op: PureRasterOperation, inputs: Offscr
           if(op.dimension === 'x'){
             const x = input.width * wrapCoefficient;
             const xx = input.width - x;
-            ctx.drawImage(input,-x,0);
-            ctx.drawImage(input,xx,0);
+            ctx.drawImage(input,x,0);
+            ctx.drawImage(input,-xx,0);
           }
           if(op.dimension === 'y'){
             const y = input.height * wrapCoefficient;
