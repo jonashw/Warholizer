@@ -5,6 +5,7 @@ import { OffscreenCanvasImage } from './OffscreenCanvasImage';
 import { Dimension, PureRasterOperation } from './Warholizer/RasterOperations/PureRasterOperation';
 import { Angle, Byte, Percentage } from './Warholizer/RasterOperations/NumberTypes';
 import onFilePaste from './Warholizer/onFilePaste';
+import fileToDataUrl from './fileToDataUrl';
 
 type ImageOutput = {description: string, imgs: OffscreenCanvas[], msElapsed: number};
 type Effect = [string, (imgs:OffscreenCanvas[]) => Promise<OffscreenCanvas[]>, Effect[]?];
@@ -55,43 +56,52 @@ export default () => {
         ),
     ];
 
-    const [outputImages,setOutputImages] = React.useState<(ImageOutput|undefined)[]>(effects.map(_ => undefined));
-    const [inputZero, setInputZero] = React.useState<OffscreenCanvas>();
+    const [outputImages,setOutputImages] = React.useState<({id:number,img:ImageOutput}|undefined)[]>(effects.map(_ => undefined));
+    const [inputZero, setInputZero] = React.useState<{id:number,osc:OffscreenCanvas}>();
+
+    const unixNow = () => new Date().valueOf();
 
     React.useEffect(() => {
-        ImageUtil.loadOffscreen("/warhol.jpg").then(setInputZero);
-    },[]);
-
-    React.useEffect(() => {
+        ImageUtil.loadOffscreen("/warhol.jpg").then(osc => setInputZero({id:unixNow(),osc}));
         onFilePaste(async (data: ArrayBuffer | string) => {
-            let img = await ImageUtil.loadOffscreen(data.toString());
-            setOutputImages(effects.map(_ => undefined));
-            setInputZero(img);
+            let osc = await ImageUtil.loadOffscreen(data.toString());
+            setInputZero({osc, id: unixNow()});
             console.log('image paste');
         });
-    }, []);
+    },[]);
 
+    const useFile = async (file: File) => {
+        const url = await fileToDataUrl(file);
+        console.log({url});
+        const osc = await ImageUtil.loadOffscreen(url.toString());
+        console.log({osc});
+        setInputZero({osc,id:unixNow()});
+    };
 
     React.useEffect(() => {
+        console.log('inputZero changed',inputZero);
         if(!inputZero){
+            console.log('inputZero has no value. no op');
             return;
         }
+        console.log('refreshing...')
+        setOutputImages(effects.map(_ => undefined));
         const effect = async () => {
             let input = inputZero;
-            let outputs: (ImageOutput|undefined)[] = 
+            let outputs: ({img:ImageOutput, id: number}|undefined)[] = 
                 effects.map(_ => undefined); //placeholders for unfinished effects
 
             let i = 1;
             for(let effect of effects){
                 const ta = window.performance.now();
-                const outputImgs = await effect[1]([input]);
+                const outputImgs = await effect[1]([input.osc]);
                 const tb = window.performance.now();
                 const o = {
                     description: effect[0], 
                     imgs: outputImgs,
                     msElapsed: tb - ta,
                 };
-                outputs[i] = o;
+                outputs[i] = {img: o, id: unixNow()};
                 i++;
                 setOutputImages([...outputs]);
             }
@@ -102,13 +112,36 @@ export default () => {
     return (
         <div className="container-fluid">
             <div className="row">
-                {outputImages.map((o,i) => o && 
+                <div className="col-sm-6 col-md-4 col-lg-3 col-xl-2 mb-4">
+                    <div className="card text-white bg-primary">
+                        {inputZero ? <OffscreenCanvasImage key={inputZero.id} oc={inputZero.osc}/> : <></>}
+                        <div className="card-body">
+                            <h6 className="card-title">Input Image</h6>
+                            <div className="card-text">
+                                <input 
+                                    type="file" 
+                                    className="form-control"
+                                    accept="image/jpeg, image/png, image/gif"
+                                    onChange={e => {
+                                        var files = Array.from(e.target.files || []);
+                                        console.log({files});
+                                        if (files.length !== 1) {
+                                            return;
+                                        }
+                                        useFile(files[0]);
+                                    }}/>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                {inputZero && outputImages.map((o,i) => o && 
                     <div key={i} className="col-sm-6 col-md-4 col-lg-3 col-xl-2 mb-4">
                         <div className="card">
-                            {o.imgs.map((img,i) => 
+                            {o.img.imgs.map((img,imgIndex) => 
                                 <div key={i}>
-                                    {o.imgs.length > 1 && <span>#{i+1}</span>}
+                                    {o.img.imgs.length > 1 && <span>#{i+1}</span>}
                                     <OffscreenCanvasImage 
+                                        key={`${o.id}-${i}-${imgIndex}`}
                                         oc={img} 
                                         className="card-img-top"
                                         style={{
@@ -118,9 +151,9 @@ export default () => {
                                 </div>
                             )}
                             <div className="card-body">
-                                <h6 className="card-title">{o.description}</h6>
+                                <h6 className="card-title">{o.img.description}</h6>
                                 <div className="card-text">
-                                    {o.msElapsed.toFixed(0)}ms<br/>
+                                    {o.img.msElapsed.toFixed(0)}ms<br/>
                                 </div>
                             </div>
                         </div>
