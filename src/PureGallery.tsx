@@ -4,6 +4,7 @@ import { applyPureOperationPipeline } from './Warholizer/RasterOperations/apply'
 import { OffscreenCanvasImage } from './OffscreenCanvasImage';
 import { Dimension, PureRasterOperation } from './Warholizer/RasterOperations/PureRasterOperation';
 import { Angle, Byte, Percentage } from './Warholizer/RasterOperations/NumberTypes';
+import onFilePaste from './Warholizer/onFilePaste';
 
 type ImageOutput = {description: string, imgs: OffscreenCanvas[], msElapsed: number};
 type Effect = [string, (imgs:OffscreenCanvas[]) => Promise<OffscreenCanvas[]>, Effect[]?];
@@ -55,21 +56,30 @@ export default () => {
     ];
 
     const [outputImages,setOutputImages] = React.useState<(ImageOutput|undefined)[]>(effects.map(_ => undefined));
+    const [inputZero, setInputZero] = React.useState<OffscreenCanvas>();
 
     React.useEffect(() => {
+        ImageUtil.loadOffscreen("/warhol.jpg").then(setInputZero);
+    },[]);
+
+    React.useEffect(() => {
+        onFilePaste(async (data: ArrayBuffer | string) => {
+            let img = await ImageUtil.loadOffscreen(data.toString());
+            setOutputImages(effects.map(_ => undefined));
+            setInputZero(img);
+            console.log('image paste');
+        });
+    }, []);
+
+
+    React.useEffect(() => {
+        if(!inputZero){
+            return;
+        }
         const effect = async () => {
-            var t0 = window.performance.now();
-            const inputZero = await ImageUtil.loadOffscreen("/warhol.jpg");
-            var t1 = window.performance.now();
             let input = inputZero;
-            let outputs: (ImageOutput|undefined)[] = [
-                {
-                    description: "Original",
-                    imgs: [input],
-                    msElapsed: t1 - t0,
-                },
-                ...effects.map(_ => undefined) //placeholders for unfinished effects
-            ];
+            let outputs: (ImageOutput|undefined)[] = 
+                effects.map(_ => undefined); //placeholders for unfinished effects
 
             let i = 1;
             for(let effect of effects){
@@ -87,7 +97,7 @@ export default () => {
             }
         }
         effect();
-    }, []);
+    }, [inputZero]);
 
     return (
         <div className="container-fluid">
