@@ -1,6 +1,7 @@
 import React from "react";
 import { PureRasterOperation, Scale, Wrap } from "./PureRasterOperation";
 import { Filter } from "./Filter";
+import { percentage } from "./NumberTypes";
 
 
 export const NewFilterForm = ({
@@ -10,7 +11,7 @@ export const NewFilterForm = ({
     input: Filter;
     onApply: (r: PureRasterOperation) => void;
 }) => {
-    const [wrap,setWrap] = React.useState<Wrap>({type:'wrap',amount: 0.5,dimension:'x'});
+    const [wrap,setWrap] = React.useState<Wrap>({type:'wrap',amount: 50,dimension:'x'});
     const [scale,setScale] = React.useState<Scale>({type:'scale',x:1,y:1});
     return <div>
         Create parent:
@@ -58,7 +59,7 @@ export const NewFilterForm = ({
                 min={1}
                 max={99}
                 value={wrap.amount}
-                onChange={e => setWrap({...wrap, amount: parseInt(e.target.value)})} />
+                onChange={e => setWrap({...wrap, amount: percentage(parseInt(e.target.value))})} />
             <button
                 onClick={() => onApply(wrap) }>
                 Wrap

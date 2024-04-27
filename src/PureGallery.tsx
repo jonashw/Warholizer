@@ -1,8 +1,9 @@
 import React from 'react';
 import ImageUtil from './Warholizer/ImageUtil';
-import { Dimension, PureRasterOperation } from './Warholizer/RasterOperations/PureRasterOperation';
 import { applyPureOperationPipeline } from './Warholizer/RasterOperations/apply';
 import { OffscreenCanvasImage } from './OffscreenCanvasImage';
+import { Dimension, PureRasterOperation } from './Warholizer/RasterOperations/PureRasterOperation';
+import { Angle, Byte, Percentage } from './Warholizer/RasterOperations/NumberTypes';
 
 type ImageOutput = {description: string, imgs: OffscreenCanvas[], msElapsed: number};
 type Effect = [string, (imgs:OffscreenCanvas[]) => Promise<OffscreenCanvas[]>, Effect[]?];
@@ -16,6 +17,16 @@ const pureExample = (name: string, ops: PureRasterOperation[]): Effect =>
 export default () => {
     const effects: Effect[] = [
         pureExample(`noop`, [{type:'noop'}]),
+        ...([60,120,180] as Byte[]).map(value =>
+            pureExample(`threshold ${value}`, [{type:'threshold', value}]),
+        ),
+        ...([50,100] as Percentage[]).map(percent =>
+            pureExample(`grayscale ${percent}%`, [{type:'grayscale', percent}]),
+        ),
+        pureExample(`blur`, [{type:'blur', pixels: 3}]),
+        ...([90,180,270] as Angle[]).map(degrees =>
+            pureExample(`rotateHue ${degrees}deg`, [{type:'rotateHue', degrees}]),
+        ),
         pureExample(`invert`, [{type:'invert'}]),
         pureExample(`double invert`, [
             {type:'invert'},
@@ -27,8 +38,8 @@ export default () => {
         ]),
         ...(
             (['x','y'] as Dimension[]).flatMap(dimension => 
-            [0.2,0.5,0.8].map(amount => 
-                pureExample(`Wrap ${dimension} ${amount*100}%`, [{type:'wrap',dimension,amount}]),
+            ([20,50,80] as Percentage[]).map(amount => 
+                pureExample(`Wrap ${dimension} ${amount}%`, [{type:'wrap',dimension,amount}]),
             ))
         ),
         ...(

@@ -4,6 +4,7 @@ import { TilingPattern } from "./TilingPattern";
 import RasterOperations from "./RasterOperations";
 import { applyPureOperation } from "./RasterOperations/apply";
 import { PureRasterOperation } from "./RasterOperations/PureRasterOperation";
+import { Byte } from "./RasterOperations/NumberTypes";
 
 export type Cropping = {crop: Crop, adjustRatio: {x: number, y: number}};
 export type ImagePayload = {dataUrl: string; width:number; height: number,imageData: ImageData};
@@ -17,7 +18,7 @@ export class WarholizerImage {
   async addGrain(noiseType: NoiseType){
     return new WarholizerImage(await addGrain(this.payload, noiseType));
   }
-  async threshold(value: number){
+  async threshold(value: Byte){
     const vrs = VR.split(VR.initial(), [value] );
     return new WarholizerImage((await applyImageValueRanges(vrs,this.payload)).modified);
   }
@@ -724,7 +725,7 @@ const invert = async (img: ImagePayload): Promise<ImagePayload> => {
   });
 }
 
-const threshold = async (img: ImagePayload, value: number): Promise<ImagePayload> => {
+const threshold = async (img: ImagePayload, value: Byte): Promise<ImagePayload> => {
   const vrs = VR.split(VR.initial(), [value] );
   return (await applyImageValueRanges(vrs,img)).modified;
 };

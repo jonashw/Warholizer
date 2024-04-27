@@ -13,6 +13,7 @@ import Fonts from './Fonts';
 import { tilingPatterns, defaultTilingPattern,  TILINGPATTERN} from './TilingPattern';
 import { ValueRange, split } from './ValueRange';
 import RasterOperations from './RasterOperations';
+import { Byte, byte } from './RasterOperations/NumberTypes';
 
 const colors = ["#ffff00", "#ff00ff", "#00ff00","#6666ff",'#ff0000'];
 
@@ -31,7 +32,7 @@ const Warholizer = ({
 	initialThresholdIsInEffect
 } : {
   initialImgSrc: string;
-  initialThreshold: number;
+  initialThreshold: Byte;
   initialRowSize: number;
   initialThresholdIsInEffect: boolean | undefined;
 }) => {
@@ -68,7 +69,7 @@ const Warholizer = ({
   let [originalImg,setOriginalImg] = React.useState<ImagePayload|undefined>();
   let [croppedImg,setCroppedImg] = React.useState<ImagePayload|undefined>();
   const [rowSize, setRowSize] = React.useState(initialRowSize || 5);
-  const [thresholds, setThresholds] = React.useState<number[]>([initialThreshold || 122]);
+  const [thresholds, setThresholds] = React.useState<Byte[]>([initialThreshold || byte(122)]);
   const [selectedBGColorOption, setSelectedBGColorOption] = React.useState(bgcolorOptions[0]);
   const [ranges,setRanges] = React.useState<ValueRange[]>([]);
 
@@ -490,7 +491,7 @@ const Warholizer = ({
                 <input className="form-range" disabled={!thresholdIsInEffect} type="range" min="0" max="255" defaultValue={threshold} 
                   onChange={e => {
                     let newThresholds = [...thresholds];
-                    newThresholds[t] = parseInt(e.target.value);
+                    newThresholds[t] = byte(parseInt(e.target.value));
                     setThresholds(newThresholds);
                   }}
                 />
@@ -508,10 +509,10 @@ const Warholizer = ({
               <button 
               className="btn btn-primary"
               onClick={() => {
-                let nextThreshold = 
+                let nextThreshold: Byte = byte(
                   thresholds.length === 0 
                   ? 125 
-                  : (255+thresholds[thresholds.length-1])/2;
+                  : (255+thresholds[thresholds.length-1])/2);
                 setThresholds([...thresholds, nextThreshold ]);
               }}>+ Threshold</button>
             </div>

@@ -24,7 +24,7 @@ const defaultDoc: RasterOperationDocument = createDocWithRootFilter(
     {
         type:"wrap",
         dimension:"x",
-        amount:0.52
+        amount:52
     });
 
 const input = ImageUtil.textOffscreen('Hello','sansserif',50);

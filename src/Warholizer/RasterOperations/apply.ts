@@ -100,6 +100,51 @@ export const applyPureOperation = async (op: PureRasterOperation, inputs: Offscr
   switch(opType){
     case 'noop': 
       return inputs;
+    case 'threshold': 
+      return Promise.all(inputs.map(input =>
+        offscreenCanvasOperation(input.width, input.height,(ctx) => {
+          //ctx.filter=`threshold(${op.percent}%)`
+          ctx.drawImage(input,0,0);
+          const originalImgData = ctx.getImageData(0,0,input.width,input.height);
+
+          for (var i=0; i<originalImgData.data.length; i+=4) { // 4 is for RGBA channels
+            var value = rgbaValue(
+              originalImgData.data[i],
+              originalImgData.data[i+1],
+              originalImgData.data[i+2],
+              originalImgData.data[i+3]);
+            if(value < op.value){
+              originalImgData.data[i+0] = 0;//R
+              originalImgData.data[i+1] = 0;//G
+              originalImgData.data[i+2] = 0;//B
+              originalImgData.data[i+3] = 255;//A
+            } else {
+              originalImgData.data[i+0] = 255;//R
+              originalImgData.data[i+1] = 255;//G
+              originalImgData.data[i+2] = 255;//B
+              originalImgData.data[i+3] = 255;//A
+            }
+          }
+          ctx.putImageData(originalImgData, 0, 0);
+        })));
+    case 'grayscale': 
+      return Promise.all(inputs.map(input =>
+        offscreenCanvasOperation(input.width, input.height,(ctx) => {
+          ctx.filter=`grayscale(${op.percent}%)`
+          ctx.drawImage(input,0,0);
+        })));
+    case 'rotateHue': 
+      return Promise.all(inputs.map(input =>
+        offscreenCanvasOperation(input.width, input.height,(ctx) => {
+          ctx.filter=`hue-rotate(${op.degrees}deg)`
+          ctx.drawImage(input,0,0);
+        })));
+    case 'blur': 
+      return Promise.all(inputs.map(input =>
+        offscreenCanvasOperation(input.width, input.height,(ctx) => {
+          ctx.filter=`blur(${op.pixels}px)`
+          ctx.drawImage(input,0,0);
+        })));
     case 'invert': 
       return Promise.all(inputs.map(input =>
         offscreenCanvasOperation(input.width, input.height,(ctx) => {
@@ -109,7 +154,7 @@ export const applyPureOperation = async (op: PureRasterOperation, inputs: Offscr
     case 'wrap': 
       return Promise.all(inputs.map(input =>
         offscreenCanvasOperation(input.width, input.height,(ctx) => {
-          const wrapCoefficient = Math.max(0,Math.min(1,op.amount));
+          const wrapCoefficient = op.amount/100;
           if(op.dimension === 'x'){
             const x = input.width * wrapCoefficient;
             const xx = input.width - x;
@@ -164,4 +209,11 @@ export const applyPureOperation = async (op: PureRasterOperation, inputs: Offscr
     default:
       throw new Error(`Unexpected operation type: ${opType}`);
   }
+}
+
+function rgbaValue(r: number, g: number, b: number, a: number) {
+  //reference: https://computergraphics.stackexchange.com/a/5114
+  //const [rPeakWavelength,gPeakWavelength,bPeakWavelength]=[600,540,450];
+  const [rCoeff,gCoeff,bCoeff]=[0.21,0.72,0.07];
+  return Math.floor((a/255) * ((r * rCoeff) + (g * gCoeff) + (b * bCoeff)));
 }

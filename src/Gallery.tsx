@@ -3,6 +3,7 @@ import ImageUtil,{ImagePayload, WarholizerImage} from './Warholizer/ImageUtil';
 import ValueRange from "./Warholizer/ValueRange";
 import { tilingPatterns } from './Warholizer/TilingPattern';
 import { Dimension, PureRasterOperation } from './Warholizer/RasterOperations/PureRasterOperation';
+import { Percentage } from './Warholizer/RasterOperations/NumberTypes';
 
 type ImageOutput = {description: string, img: ImagePayload, histogram: ImagePayload, msElapsed: number};
 type Effect = [string, (img:ImagePayload) => Promise<ImagePayload>, Effect[]?];
@@ -27,8 +28,8 @@ export default () => {
         pureExample(`invert`, {type:'invert'}),
         ...(
             (['x','y'] as Dimension[]).flatMap(dimension => 
-            [0.2,0.5,0.8].map(amount => 
-                pureExample(`Wrap ${dimension} ${amount*100}%`, {type:'wrap',dimension,amount}),
+            ([20,50,80] as Percentage[]).map(amount => 
+                pureExample(`Wrap ${dimension} ${amount}%`, {type:'wrap',dimension,amount}),
             ))
         ),
         ...(

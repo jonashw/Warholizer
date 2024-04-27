@@ -1,8 +1,9 @@
+import { Byte } from "./RasterOperations/NumberTypes";
 
 export type ValueRange = {
-  min: number,
-  max: number,
-  value: number
+  min: Byte,
+  max: Byte,
+  value: Byte
 };
 
 export const initial = (): ValueRange => 
@@ -10,7 +11,7 @@ export const initial = (): ValueRange =>
 
 export const splitValueRangeByThresholdValue = (
   range: ValueRange,
-  threshold: number
+  threshold: Byte
 ): ValueRange[] => {
   if(threshold < range.min){
     console.info('threshold outside range: too low');
@@ -20,11 +21,11 @@ export const splitValueRangeByThresholdValue = (
     console.info('threshold outside range: too high');
     return [range];
   }
-  let midpoint = range.min + (threshold - range.min)/2;
+  let midpoint: Byte = Math.min(255,range.min + (threshold - range.min)/2) as Byte;
   return [
     {
       min: range.min,
-      max: threshold - 1,
+      max: Math.max(0,threshold - 1) as Byte,
       value: range.value !== range.max ? range.value : midpoint
     },
     {
@@ -37,7 +38,7 @@ export const splitValueRangeByThresholdValue = (
 
 export const split = (
   initialRange: ValueRange,
-  thresholds: number[]
+  thresholds: Byte[]
   //,valueCoefficients: number[]
 ): ValueRange[] => {
   if(thresholds.length === 0){
