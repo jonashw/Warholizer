@@ -1,6 +1,7 @@
 import { RasterOperation/*, RasterOperationDocument*/ } from "./RasterOperation";
 import { Filter } from "./Filter";
 import { PureRasterOperation } from "./PureRasterOperation";
+import { PureRasterApplicator } from "./PureRasterApplicator";
 
 const offscreenCanvasOperation = async (
   width: number,
@@ -204,6 +205,23 @@ export const applyPureOperation = async (op: PureRasterOperation, inputs: Offscr
       throw new Error(`Unexpected operation type: ${opType}`);
   }
 }
+
+export const applyApplicator = (app: PureRasterApplicator, imgs: OffscreenCanvas[]): Promise<OffscreenCanvas[]> => {
+    switch(app.type){
+        case 'flatMap':
+          return Promise.all(app.ops.map(op =>
+            applyPureOperation(op, imgs)))
+            .then(groups => groups.flatMap(g => g));
+        case 'zip':
+          const n = Math.min(app.ops.length,imgs.length);
+          const zipped = Promise.all(Array(n).fill(undefined).flatMap((_,i) => 
+            applyPureOperation(app.ops[i], [imgs[i]])
+          )).then(groups => groups.flatMap(g => g));
+          return zipped;
+        default:
+          throw new Error(`Unexpected applicator type: ${app.type}`);
+    }
+};
 
 function rgbaValue(r: number, g: number, b: number, a: number) {
   //reference: https://computergraphics.stackexchange.com/a/5114
