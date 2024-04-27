@@ -54,6 +54,9 @@ export default () => {
                 }]),
             ))
         ),
+        ...[1,2,3].map(n =>
+            pureExample(`multiply(${n})`, [{type:'multiply',n}]),
+        ),
     ];
 
     const [outputImages,setOutputImages] = React.useState<({id:number,img:ImageOutput}|undefined)[]>(effects.map(_ => undefined));
@@ -62,19 +65,18 @@ export default () => {
     const unixNow = () => new Date().valueOf();
 
     React.useEffect(() => {
-        ImageUtil.loadOffscreen("/warhol.jpg").then(osc => setInputZero({id:unixNow(),osc}));
+        ImageUtil.loadOffscreen("/warhol.jpg")
+            .then(osc => setInputZero({id:unixNow(),osc}));
+
         onFilePaste(async (data: ArrayBuffer | string) => {
             let osc = await ImageUtil.loadOffscreen(data.toString());
             setInputZero({osc, id: unixNow()});
-            console.log('image paste');
         });
     },[]);
 
     const useFile = async (file: File) => {
         const url = await fileToDataUrl(file);
-        console.log({url});
         const osc = await ImageUtil.loadOffscreen(url.toString());
-        console.log({osc});
         setInputZero({osc,id:unixNow()});
     };
 

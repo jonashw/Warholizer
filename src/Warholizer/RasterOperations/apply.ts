@@ -100,6 +100,8 @@ export const applyPureOperation = async (op: PureRasterOperation, inputs: Offscr
   switch(opType){
     case 'noop': 
       return inputs;
+    case 'multiply': 
+      return Array(op.n).fill(inputs).flatMap(inputs => inputs);
     case 'threshold': 
       return Promise.all(inputs.map(input =>
         offscreenCanvasOperation(input.width, input.height,(ctx) => {

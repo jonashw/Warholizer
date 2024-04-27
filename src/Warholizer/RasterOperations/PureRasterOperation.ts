@@ -11,6 +11,11 @@ export type Threshold = {
   value: Byte
 };
 
+export type Multiply = {
+  type: "multiply",
+  n: number
+};
+
 export type Wrap = {
   type: "wrap",
   dimension: Dimension,
@@ -52,4 +57,5 @@ export type PureRasterOperation =
   | RotateHue
   | Grayscale
   | Threshold
+  | Multiply
   | Invert;
