@@ -103,29 +103,21 @@ export const applyPureOperation = async (op: PureRasterOperation, inputs: Offscr
     case 'threshold': 
       return Promise.all(inputs.map(input =>
         offscreenCanvasOperation(input.width, input.height,(ctx) => {
-          //ctx.filter=`threshold(${op.percent}%)`
           ctx.drawImage(input,0,0);
-          const originalImgData = ctx.getImageData(0,0,input.width,input.height);
-
-          for (var i=0; i<originalImgData.data.length; i+=4) { // 4 is for RGBA channels
-            var value = rgbaValue(
-              originalImgData.data[i],
-              originalImgData.data[i+1],
-              originalImgData.data[i+2],
-              originalImgData.data[i+3]);
-            if(value < op.value){
-              originalImgData.data[i+0] = 0;//R
-              originalImgData.data[i+1] = 0;//G
-              originalImgData.data[i+2] = 0;//B
-              originalImgData.data[i+3] = 255;//A
-            } else {
-              originalImgData.data[i+0] = 255;//R
-              originalImgData.data[i+1] = 255;//G
-              originalImgData.data[i+2] = 255;//B
-              originalImgData.data[i+3] = 255;//A
-            }
+          const imgData = ctx.getImageData(0,0,input.width,input.height);
+          for (var i=0; i<imgData.data.length; i+=4) { // 4 is for RGBA channels
+            var currentPixelValue = rgbaValue(
+              imgData.data[i+0],
+              imgData.data[i+1],
+              imgData.data[i+2],
+              imgData.data[i+3]);
+            const thresholdValue = currentPixelValue < op.value ? 0 : 255;
+            imgData.data[i+0] = thresholdValue;//R
+            imgData.data[i+1] = thresholdValue;//G
+            imgData.data[i+2] = thresholdValue;//B
+            imgData.data[i+3] = 255;//A
           }
-          ctx.putImageData(originalImgData, 0, 0);
+          ctx.putImageData(imgData, 0, 0);
         })));
     case 'grayscale': 
       return Promise.all(inputs.map(input =>
