@@ -212,4 +212,23 @@ function rgbaValue(r: number, g: number, b: number, a: number) {
   return Math.floor((a/255) * ((r * rCoeff) + (g * gCoeff) + (b * bCoeff)));
 }
 
-export const PureRasterOperations = {apply};
+const stringRepresentation = (op: PureRasterOperation): string => {
+  const opType = op.type;
+  switch(opType){
+    case 'noop'      : return "noop";
+    case 'multiply'  : return `multiply(${op.n})`;
+    case 'threshold' : return `threshold(${op.value})`;
+    case 'grayscale' : return `grayscale(${op.percent}%)`;
+    case 'rotateHue' : return `rotateHue(${op.degrees}deg)`;
+    case 'blur'      : return `blur(${op.pixels}px)`;
+    case 'invert'    : return "invert";
+    case 'wrap'      : return `wrap(${op.dimension},${op.amount}%)`;
+    case 'scaleToFit': return `scaleToFit(${op.w},${op.h})`;
+    case 'scale'     : return `scale(${op.x},${op.y})`;
+    case 'stack'     : return `scale(${op.dimension})`;
+    default:
+      throw new Error(`Unexpected operation type: ${opType}`);
+  }
+}
+
+export const PureRasterOperations = {apply, stringRepresentation};

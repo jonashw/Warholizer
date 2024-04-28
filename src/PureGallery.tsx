@@ -10,32 +10,32 @@ import fileToDataUrl from './fileToDataUrl';
 type ImageOutput = {description: string, imgs: OffscreenCanvas[], msElapsed: number};
 type Effect = [string, (imgs:OffscreenCanvas[]) => Promise<OffscreenCanvas[]>, Effect[]?];
 
-const pureExample = (name: string, ops: PureRasterOperation[]): Effect => 
+const pureExample = (ops: PureRasterOperation[]): Effect => 
     [
-        name,
+        ops.map(op => PureRasterOperations.stringRepresentation(op)).join(" -> "),
         async img => applyPureOperationPipeline(ops,img)
     ];
 
 export default () => {
     const effects: Effect[] = [
         ...([90,180,270] as Angle[]).map(degrees =>
-            pureExample(`rotateHue ${degrees}deg`, [{type:'rotateHue', degrees}]),
+            pureExample([{type:'rotateHue', degrees}]),
         ),
-        pureExample(`invert`, [{type:'invert'}]),
+        pureExample([{type:'invert'}]),
         ...([60,120,180] as Byte[]).map(value =>
-            pureExample(`threshold ${value}`, [{type:'threshold', value}]),
+            pureExample([{type:'threshold', value}]),
         ),
-        pureExample(`blur`, [{type:'blur', pixels: 3}]),
+        pureExample([{type:'blur', pixels: 3}]),
         ...(
             (['x','y'] as Dimension[]).flatMap(dimension => 
             ([20,50,80] as Percentage[]).map(amount => 
-                pureExample(`Wrap ${dimension} ${amount}%`, [{type:'wrap',dimension,amount}]),
+                pureExample([{type:'wrap',dimension,amount}]),
             ))
         ),
         ...(
             (['x','y'] as Dimension[]).flatMap(dimension => 
             [0.2,0.5,0.8].map(amount => 
-                pureExample(`Scale ${dimension} ${amount*100}%`, [{
+                pureExample([{
                     type:'scale',
                     x: dimension == 'x' ? amount : 1,
                     y: dimension == 'y' ? amount : 1
@@ -44,13 +44,13 @@ export default () => {
         ),
         ...([100,200,300] as PositiveNumber[]).flatMap(w =>
         ([100,200,300] as PositiveNumber[]).map(h =>
-            pureExample(`scaleToFit ${w},${h}`, [{type:'scaleToFit', w,h}]),
+            pureExample([{type:'scaleToFit', w,h}]),
         )),
         ...([50,100] as Percentage[]).map(percent =>
-            pureExample(`grayscale ${percent}%`, [{type:'grayscale', percent}]),
+            pureExample([{type:'grayscale', percent}]),
         ),
         ...[1,2,3].map(n =>
-            pureExample(`multiply(${n})`, [{type:'multiply',n}]),
+            pureExample([{type:'multiply',n}]),
         ),
     ];
 
@@ -125,9 +125,9 @@ export default () => {
                 <div className="col-sm-6 col-md-4 col-lg-3 col-xl-2 mb-4">
                     <div className="card text-white bg-primary">
                         {inputImages.map(img =>  
-                        <>
-                            <OffscreenCanvasImage key={img.id} oc={img.osc}/>
-                            <div className="card-body">
+                        <div key={"container-" + img.id}>
+                            <OffscreenCanvasImage key={"img-" + img.id} oc={img.osc} style={{maxWidth:'100%'}}/>
+                            <div className="card-body" key={"card-body-" + img.id}>
                                 <div className="d-flex justify-content-between align-items-center">
                                     {img.osc.width}&times;{img.osc.height}
                                     <button className="btn btn-danger btn-sm"
@@ -136,7 +136,7 @@ export default () => {
                                     }}>Remove</button>
                                 </div>
                             </div>
-                        </>)}
+                        </div>)}
                         <div className="card-body">
                             <h6 className="card-title">Input Image</h6>
                             <div className="card-text">
