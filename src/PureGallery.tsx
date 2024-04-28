@@ -18,7 +18,6 @@ const pureExample = (name: string, ops: PureRasterOperation[]): Effect =>
 
 export default () => {
     const effects: Effect[] = [
-        pureExample(`noop`, [{type:'noop'}]),
         ...([60,120,180] as Byte[]).map(value =>
             pureExample(`threshold ${value}`, [{type:'threshold', value}]),
         ),
