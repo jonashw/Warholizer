@@ -2,26 +2,35 @@ import React from "react";
 import { Angle, Byte, Percentage, angle, byte, percentage } from "./NumberTypes";
 import { Dimension, PureRasterOperation } from "./PureRasterOperation";
 
-const NumberInput = <T extends number>(min:T,max:T,step:number,sanitize:(n:number) => T) => ({
+const NumberInput = <T extends number>(
+    min:T,
+    max:T,
+    step:number,
+    sanitize:(n:number) => T,
+    type: "range" | "number"
+) => ({
     value,
-    onChange
+    onChange,
 }:{
     value: T,
-    onChange: (v:T) => void
-}) =>
-    <input type="number"
+    onChange: (v:T) => void,
+}) => {
+    const width = type === "number" ? '3.5em' : '';
+    const className = type === "number" ? "ms-2" : "";
+    return <input type={type}
         value={value}
         min={min} max={max} step={step}
-        className="ms-2"
-        style={{width:'3.5em'}}
+        className={className}
+        style={{width}}
         onChange={e => {
             onChange(sanitize(parseInt(e.target.value)));
         }}
     />;
+};
 
-const AngleInput = NumberInput<Angle>(0,360,1,angle);
-const PercentageInput = NumberInput<Percentage>(0,100,1,percentage);
-const ByteInput = NumberInput<Byte>(0,255,1,byte);
+const AngleInput = NumberInput<Angle>(0,360,1,angle,"range");
+const PercentageInput = NumberInput<Percentage>(0,100,1,percentage,"range");
+const ByteInput = NumberInput<Byte>(0,255,1,byte,"range");
 const DimensionInput = ({
     id,
     value,
@@ -63,7 +72,7 @@ export const PureRasterOperationInlineEditor = ({
     const opType = op.type;
     const rando = React.useMemo(() => crypto.randomUUID,[]);
     return (
-        <div>
+        <>
             {op.type}
             {(() => {
                 switch (opType) {
@@ -107,7 +116,7 @@ export const PureRasterOperationInlineEditor = ({
                             }}/>);
                     case 'invert': return;
                     case 'wrap': return (
-                        <span>
+                        <>
                             <DimensionInput
                                 id={id + '-' + rando}
                                 value={op.dimension}
@@ -117,7 +126,7 @@ export const PureRasterOperationInlineEditor = ({
                                 value={op.amount}
                                 onChange={amount => onChange({...op, amount})}
                             />
-                        </span>
+                        </>
                     );
                     case 'scaleToFit': return `scaleToFit(${op.w},${op.h})`;
                     case 'scale': return (
@@ -136,6 +145,6 @@ export const PureRasterOperationInlineEditor = ({
                         throw new Error(`Unexpected operation type: ${opType}`);
                 }
             })()}
-        </div>
+        </>
     );
 };
