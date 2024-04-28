@@ -427,7 +427,7 @@ const Warholizer = ({
               File Upload
               <br/>(or just paste an image from your clipboard)
             </label>
-            <input type="file" id="formFileUpload" capture="user" onChange={async e => {
+            <input type="file" id="formFileUpload" onChange={async e => {
               var files = Array.from(e.target.files || []);
               if (files.length !== 1) {
                 return;

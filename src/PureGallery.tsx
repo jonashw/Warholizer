@@ -119,19 +119,41 @@ export default () => {
                         <div className="card-body">
                             <h6 className="card-title">Input Image</h6>
                             <div className="card-text">
-                                <input 
-                                    type="file" 
-                                    className="form-control"
-                                    capture="user"
-                                    accept="image/jpeg, image/png, image/gif"
-                                    onChange={e => {
-                                        var files = Array.from(e.target.files || []);
-                                        console.log({files});
-                                        if (files.length !== 1) {
-                                            return;
-                                        }
-                                        useFile(files[0]);
-                                    }}/>
+                                {([
+                                    {
+                                        label:"Upload",
+                                        id:"file-upload-regular",
+                                        capture: undefined
+
+                                    },
+                                    {
+                                        label:"Capture",
+                                        id:"file-upload-capture",
+                                        capture: "user"
+                                    }
+                                ] as {
+                                    label: string,
+                                    id: string,
+                                    capture: undefined | "user" | "environment"
+                                }[]).map(o => 
+                                    <label htmlFor={o.id} className="btn btn-primary">
+                                        {o.label}
+                                    <input 
+                                        id={o.id}
+                                        style={{display:'none'}}
+                                        type="file" 
+                                        className="form-control"
+                                        capture={o.capture}
+                                        accept="image/jpeg, image/png, image/gif"
+                                        onChange={e => {
+                                            var files = Array.from(e.target.files || []);
+                                            if (files.length !== 1) {
+                                                return;
+                                            }
+                                            useFile(files[0]);
+                                        }}/>
+                                    </label>
+                                )}
                             </div>
                         </div>
                     </div>
@@ -140,8 +162,8 @@ export default () => {
                     <div key={i} className="col-sm-6 col-md-4 col-lg-3 col-xl-2 mb-4">
                         <div className="card">
                             {o.img.imgs.map((img,imgIndex) => 
-                                <div key={i}>
-                                    {o.img.imgs.length > 1 && <span>#{i+1}</span>}
+                                <div key={imgIndex}>
+                                    {o.img.imgs.length > 1 && <span>#{imgIndex+1}</span>}
                                     <OffscreenCanvasImage 
                                         key={`${o.id}-${i}-${imgIndex}`}
                                         oc={img} 
