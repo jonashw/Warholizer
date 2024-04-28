@@ -123,6 +123,7 @@ export default () => {
                                 <input 
                                     type="file" 
                                     className="form-control"
+                                    capture="user"
                                     accept="image/jpeg, image/png, image/gif"
                                     onChange={e => {
                                         var files = Array.from(e.target.files || []);
