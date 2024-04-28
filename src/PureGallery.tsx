@@ -3,7 +3,7 @@ import ImageUtil from './Warholizer/ImageUtil';
 import { applyPureOperationPipeline } from './Warholizer/RasterOperations/apply';
 import { OffscreenCanvasImage } from './OffscreenCanvasImage';
 import { Dimension, PureRasterOperation, PureRasterOperations } from './Warholizer/RasterOperations/PureRasterOperation';
-import { Angle, Byte, Percentage, PositiveNumber } from './Warholizer/RasterOperations/NumberTypes';
+import { Angle, Byte, Percentage, PositiveNumber, positiveNumber } from './Warholizer/RasterOperations/NumberTypes';
 import onFilePaste from './Warholizer/onFilePaste';
 import fileToDataUrl from './fileToDataUrl';
 
@@ -69,7 +69,12 @@ export default () => {
 
     const prepareInputZero = async (oscPromise: Promise<OffscreenCanvas>) => {
         const osc = await oscPromise;
-        const scaled = await PureRasterOperations.apply({type:'scaleToFit',w:500,h:500}, [osc]);
+        const op: PureRasterOperation = {
+            type:'scaleToFit',
+            w: positiveNumber(500),
+            h: positiveNumber(500)
+        };
+        const scaled = await PureRasterOperations.apply(op, [osc]);
         setInputZero({
             id: unixNow(),
             osc: scaled[0]
