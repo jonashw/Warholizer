@@ -4,6 +4,7 @@ import TilingPatternGallery from "./TilingPatternGallery";
 import Gallery from "./Gallery";
 import OperationEditorDemo from "./OperationEditorDemo";
 import PureGallery from "./PureGallery";
+import PureEditor from "./PureEditor";
 
 export const routeConfig: RouteObject[] = [
   {
@@ -16,6 +17,7 @@ export const routeConfig: RouteObject[] = [
           {href:'/',label:'Warholizer'},
           {href:'/gallery',label:'Gallery'},
           {href:'/pure-gallery',label:'Pure Gallery'},
+          {href:'/pure-editor',label:'Pure Editor'},
           {href:'/tiling-patterns',label:'Tiling Patterns'},
           {href:'/edit',label:'Operation Editor Demo'}
         ].map(route => (
@@ -47,6 +49,10 @@ export const routeConfig: RouteObject[] = [
       {
         path: 'pure-gallery',
         element: <PureGallery/>
+      },
+      {
+        path: 'pure-editor',
+        element: <PureEditor/>
       },
       {
         path: 'edit',

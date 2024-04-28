@@ -225,7 +225,7 @@ const stringRepresentation = (op: PureRasterOperation): string => {
     case 'wrap'      : return `wrap(${op.dimension},${op.amount}%)`;
     case 'scaleToFit': return `scaleToFit(${op.w},${op.h})`;
     case 'scale'     : return `scale(${op.x},${op.y})`;
-    case 'stack'     : return `scale(${op.dimension})`;
+    case 'stack'     : return `stack(${op.dimension})`;
     default:
       throw new Error(`Unexpected operation type: ${opType}`);
   }

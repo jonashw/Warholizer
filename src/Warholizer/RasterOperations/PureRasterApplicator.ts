@@ -1,9 +1,12 @@
 import { PureRasterOperation, PureRasterOperations } from "./PureRasterOperation"
 
+type PureRasterApplicatorType = "flatMap" | "zip" | "pipe";
+const types: PureRasterApplicatorType[] = ["zip", "flatMap", "pipe"];
 export type PureRasterApplicator = {
-    type: "flatMap" | "zip",
+    type: PureRasterApplicatorType,
     ops: PureRasterOperation[]
 }
+
 
 const apply = (app: PureRasterApplicator, imgs: OffscreenCanvas[]): Promise<OffscreenCanvas[]> => {
     switch(app.type){
@@ -11,6 +14,13 @@ const apply = (app: PureRasterApplicator, imgs: OffscreenCanvas[]): Promise<Offs
           return Promise.all(app.ops.map(op =>
             PureRasterOperations.apply(op, imgs)))
             .then(groups => groups.flatMap(g => g));
+        case 'pipe':
+          if(app.ops.length === 0){
+            return Promise.resolve(imgs);
+          }
+          return app.ops.reduce(
+            async (prevImgs,op) => PureRasterOperations.apply(op, await prevImgs),
+            Promise.resolve(imgs));
         case 'zip':
           const n = Math.min(app.ops.length,imgs.length);
           const zipped = Promise.all(Array(n).fill(undefined).flatMap((_,i) => 
@@ -22,4 +32,4 @@ const apply = (app: PureRasterApplicator, imgs: OffscreenCanvas[]): Promise<Offs
     }
 };
 
-export const PureRasterApplicators = {apply};
+export const PureRasterApplicators = {apply,types};
