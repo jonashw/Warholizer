@@ -62,12 +62,12 @@ export default () => {
         ),
     ];
 
+    const [inputImages, setInputImages] = React.useState<{id:number,osc:OffscreenCanvas}[]>([]);
     const [outputImages,setOutputImages] = React.useState<({id:number,img:ImageOutput}|undefined)[]>(effects.map(_ => undefined));
-    const [inputZero, setInputZero] = React.useState<{id:number,osc:OffscreenCanvas}>();
 
     const unixNow = () => new Date().valueOf();
 
-    const prepareInputZero = async (oscPromise: Promise<OffscreenCanvas>) => {
+    const prepareInputImage = async (oscPromise: Promise<OffscreenCanvas>) => {
         const osc = await oscPromise;
         const op: PureRasterOperation = {
             type:'scaleToFit',
@@ -75,41 +75,44 @@ export default () => {
             h: positiveNumber(500)
         };
         const scaled = await PureRasterOperations.apply(op, [osc]);
-        setInputZero({
-            id: unixNow(),
-            osc: scaled[0]
-        });
+        setInputImages([
+            ...inputImages,
+            {
+                id: unixNow(),
+                osc: scaled[0]
+            }
+        ]);
     }
 
     React.useEffect(() => {
-        prepareInputZero(ImageUtil.loadOffscreen("/warhol.jpg"))
+        prepareInputImage(ImageUtil.loadOffscreen("/warhol.jpg"))
         onFilePaste(async (data: ArrayBuffer | string) => {
-            prepareInputZero(ImageUtil.loadOffscreen(data.toString()));
+            prepareInputImage(ImageUtil.loadOffscreen(data.toString()));
         });
     },[]);
 
     const useFile = async (file: File) => {
         const url = await fileToDataUrl(file);
-        prepareInputZero(ImageUtil.loadOffscreen(url.toString()));
+        prepareInputImage(ImageUtil.loadOffscreen(url.toString()));
     };
 
     React.useEffect(() => {
-        console.log('inputZero changed',inputZero);
-        if(!inputZero){
+        console.log('inputImages changed',inputImages);
+        if(!inputImages.length){
+            setOutputImages(effects.map(_ => undefined));
             console.log('inputZero has no value. no op');
             return;
         }
         console.log('refreshing...')
         setOutputImages(effects.map(_ => undefined));
         const effect = async () => {
-            let input = inputZero;
             let outputs: ({img:ImageOutput, id: number}|undefined)[] = 
                 effects.map(_ => undefined); //placeholders for unfinished effects
 
             let i = 1;
             for(let effect of effects){
                 const ta = window.performance.now();
-                const outputImgs = await effect[1]([input.osc]);
+                const outputImgs = await effect[1](inputImages.map(i => i.osc));
                 const tb = window.performance.now();
                 const o = {
                     description: effect[0], 
@@ -122,19 +125,26 @@ export default () => {
             }
         }
         effect();
-    }, [inputZero]);
+    }, [inputImages]);
 
     return (
         <div className="container-fluid">
             <div className="row">
                 <div className="col-sm-6 col-md-4 col-lg-3 col-xl-2 mb-4">
                     <div className="card text-white bg-primary">
-                        {inputZero 
-                        ? <>
-                            <OffscreenCanvasImage key={inputZero.id} oc={inputZero.osc}/>
-                            <div className="text-center">{inputZero.osc.width}&times;{inputZero.osc.height}</div>
-                        </> 
-                        : <></>}
+                        {inputImages.map(img =>  
+                        <>
+                            <OffscreenCanvasImage key={img.id} oc={img.osc}/>
+                            <div className="card-body">
+                                <div className="d-flex justify-content-between align-items-center">
+                                    {img.osc.width}&times;{img.osc.height}
+                                    <button className="btn btn-danger btn-sm"
+                                    onClick={() => {
+                                        setInputImages(inputImages.filter(m => m !== img));
+                                    }}>Remove</button>
+                                </div>
+                            </div>
+                        </>)}
                         <div className="card-body">
                             <h6 className="card-title">Input Image</h6>
                             <div className="card-text">
@@ -182,7 +192,7 @@ export default () => {
                         </div>
                     </div>
                 </div>
-                {inputZero && outputImages.map((o,i) => o && 
+                {outputImages.map((o,i) => o && 
                     <div key={i} className="col-sm-6 col-md-4 col-lg-3 col-xl-2 mb-4">
                         <div className="card">
                             {o.img.imgs.map((img,imgIndex) => 
