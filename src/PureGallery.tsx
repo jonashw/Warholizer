@@ -136,7 +136,11 @@ export default () => {
                                     id: string,
                                     capture: undefined | "user" | "environment"
                                 }[]).map(o => 
-                                    <label htmlFor={o.id} className="btn btn-primary">
+                                    <label
+                                        htmlFor={o.id}
+                                        className="btn btn-primary"
+                                        key={o.id}
+                                    >
                                         {o.label}
                                     <input 
                                         id={o.id}
@@ -151,7 +155,8 @@ export default () => {
                                                 return;
                                             }
                                             useFile(files[0]);
-                                        }}/>
+                                            }}
+                                        />
                                     </label>
                                 )}
                             </div>
