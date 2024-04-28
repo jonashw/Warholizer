@@ -37,10 +37,6 @@ export default () => {
             {type:'invert'},
             {type:'invert'},
         ]),
-        pureExample(`double invert`, [
-            {type:'invert'},
-            {type:'noop'},
-        ]),
         ...(
             (['x','y'] as Dimension[]).flatMap(dimension => 
             ([20,50,80] as Percentage[]).map(amount => 
