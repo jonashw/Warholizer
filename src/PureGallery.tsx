@@ -2,7 +2,7 @@ import React from 'react';
 import ImageUtil from './Warholizer/ImageUtil';
 import { applyPureOperationPipeline } from './Warholizer/RasterOperations/apply';
 import { OffscreenCanvasImage } from './OffscreenCanvasImage';
-import { Dimension, PureRasterOperation } from './Warholizer/RasterOperations/PureRasterOperation';
+import { Dimension, PureRasterOperation, PureRasterOperations } from './Warholizer/RasterOperations/PureRasterOperation';
 import { Angle, Byte, Percentage, PositiveNumber } from './Warholizer/RasterOperations/NumberTypes';
 import onFilePaste from './Warholizer/onFilePaste';
 import fileToDataUrl from './fileToDataUrl';
@@ -67,20 +67,25 @@ export default () => {
 
     const unixNow = () => new Date().valueOf();
 
-    React.useEffect(() => {
-        ImageUtil.loadOffscreen("/warhol.jpg")
-            .then(osc => setInputZero({id:unixNow(),osc}));
+    const prepareInputZero = async (oscPromise: Promise<OffscreenCanvas>) => {
+        const osc = await oscPromise;
+        const scaled = await PureRasterOperations.apply({type:'scaleToFit',w:500,h:500}, [osc]);
+        setInputZero({
+            id: unixNow(),
+            osc: scaled[0]
+        });
+    }
 
+    React.useEffect(() => {
+        prepareInputZero(ImageUtil.loadOffscreen("/warhol.jpg"))
         onFilePaste(async (data: ArrayBuffer | string) => {
-            let osc = await ImageUtil.loadOffscreen(data.toString());
-            setInputZero({osc, id: unixNow()});
+            prepareInputZero(ImageUtil.loadOffscreen(data.toString()));
         });
     },[]);
 
     const useFile = async (file: File) => {
         const url = await fileToDataUrl(file);
-        const osc = await ImageUtil.loadOffscreen(url.toString());
-        setInputZero({osc,id:unixNow()});
+        prepareInputZero(ImageUtil.loadOffscreen(url.toString()));
     };
 
     React.useEffect(() => {
