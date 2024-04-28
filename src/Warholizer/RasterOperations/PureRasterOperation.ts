@@ -152,7 +152,9 @@ const apply = async (op: PureRasterOperation, inputs: OffscreenCanvas[]): Promis
         const hr = op.h / input.height;
 
         const [scaleFactor,width,height] = 
-          wr < hr
+          op.w > input.width && op.h > input.height
+          ? [1,input.width,input.height] //do not scale up
+          : wr < hr
           ? [wr,op.w,op.w / ar] //width drive
           : [hr,op.h * ar,op.h];
         return offscreenCanvasOperation(width, height, (ctx) => {
