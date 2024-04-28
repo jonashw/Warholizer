@@ -22,6 +22,7 @@ export default () => {
     const [inputImages, setInputImages] = React.useState<{id:string,osc:OffscreenCanvas}[]>([]);
     const [outputImages, setOutputImages] = React.useState<{id:string,osc:OffscreenCanvas}[]>([]);
     const [applicator,setApplicator] = React.useState<PureRasterApplicator>({"type":"flatMap", ops:[{type:"invert"}]});
+    const selectRef = React.createRef<HTMLSelectElement>();
 
     //const unixNow = () => new Date().valueOf();
     const newId = () => crypto.randomUUID().toString();
@@ -199,18 +200,25 @@ export default () => {
 
                         <div className="card-footer">
                             <div className="d-flex justify-content-between">
-                                <select value={undefined} onChange={e => {
-                                    const op = sampleOperations.filter(op => op.type === e.target.value)[0];
-                                    if(!op){
-                                        return;
-                                    }
-                                    console.log({op});
-                                    setApplicator({
-                                        ...applicator,
-                                        ops: [...applicator.ops, {...op}]
-                                    });
-                                }}>
-                                    <option value={undefined}>Add an operation</option>
+                                <select
+                                    ref={selectRef}
+                                    value={undefined}
+                                    onChange={e => {
+                                        const op = sampleOperations.filter(op => op.type === e.target.value)[0];
+                                        if(!op){
+                                            return;
+                                        }
+                                        console.log({op});
+                                        setApplicator({
+                                            ...applicator,
+                                            ops: [...applicator.ops, {...op}]
+                                        });
+                                        if(selectRef.current){
+                                            selectRef.current.value = "";
+                                        }
+                                    }}
+                                >
+                                    <option value={""}>Add an operation</option>
                                     {sampleOperations.map(op => 
                                         <option key={op.type} value={op.type}>{op.type}</option>
                                     )}
