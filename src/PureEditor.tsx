@@ -2,42 +2,36 @@ import React from 'react';
 import ImageUtil from './Warholizer/ImageUtil';
 import { OffscreenCanvasImage } from './OffscreenCanvasImage';
 import { PureRasterOperation, PureRasterOperations } from './Warholizer/RasterOperations/PureRasterOperation';
-import { angle,byte, positiveNumber } from './Warholizer/RasterOperations/NumberTypes';
+import { positiveNumber } from './Warholizer/RasterOperations/NumberTypes';
 import onFilePaste from './Warholizer/onFilePaste';
 import fileToDataUrl from './fileToDataUrl';
 import { PureRasterApplicator, PureRasterApplicators } from './Warholizer/RasterOperations/PureRasterApplicator';
-import { PureRasterOperationInlineEditor } from './Warholizer/RasterOperations/PureRasterOperationInlineEditor';
+import { PureRasterApplicatorCardEditor } from './PureRasterApplicatorCardEditor';
 
-const sampleOperations: PureRasterOperation[] = [
-    {"type":"invert"},
-    {"type":"stack",dimension:'x'},
-    {"type":"threshold", value: byte(128)},
-    {"type":"rotateHue",degrees: angle(180)},
-    {"type":"multiply",n: 2},
-    {"type":"wrap",amount:50,dimension:'x'},
-    {"type":"grayscale",percent:100},
-    {"type":"blur",pixels:5}
-];
 export default () => {
     const [inputImages, setInputImages] = React.useState<{id:string,osc:OffscreenCanvas}[]>([]);
     const [outputImages, setOutputImages] = React.useState<{id:string,osc:OffscreenCanvas}[]>([]);
-    const [applicator,setApplicator] = React.useState<PureRasterApplicator>({"type":"flatMap", ops:[{type:"invert"}]});
-    const selectRef = React.createRef<HTMLSelectElement>();
+    const defaultApplicator: PureRasterApplicator = {"type":"flatMap", ops:[]};
+    const [applicators,setApplicators] = React.useState<PureRasterApplicator[]>([defaultApplicator]);
 
     //const unixNow = () => new Date().valueOf();
     const newId = () => crypto.randomUUID().toString();
 
     React.useEffect(() => {
         setOutputImages([]);
-        if(inputImages.length === 0 || applicator.ops.length === 0){
+        if(inputImages.length === 0){
             return;
         }
-        PureRasterApplicators.apply(
-            applicator,
-            inputImages.map(i => i.osc))
+        const inputOffscreenCanvases = inputImages.map(i => i.osc);
+        applicators.reduce(
+            async (oscs,applicator) => 
+                applicator.ops.length > 0 
+                ? PureRasterApplicators.apply(applicator, await oscs)
+                : oscs,
+            Promise.resolve(inputOffscreenCanvases))
         .then(oscs => oscs.map(osc => ({osc, id: newId()})))
         .then(setOutputImages);
-    },[inputImages,applicator]);
+    },[inputImages,applicators]);
 
     const prepareInputImage = async (url: string) => {
         const osc = await ImageUtil.loadOffscreen(url);
@@ -148,111 +142,54 @@ export default () => {
                         </div>
 
                     </div>
+                    <div className="card mt-3">
+                        <div className="card-header">
+                            Outputs ({outputImages.length})
+                        </div>
+
+                        <div className="card-body">
+                            <div className="d-flex justify-content-start gap-1 align-items-center">
+                                {outputImages.map(img => {
+                                    const s = '90px';
+                                    return (
+                                        <div key={img.id} style={{
+                                            width:s,
+                                            height:s,
+                                            display:'flex',
+                                            alignItems:'center',
+                                            justifyContent:'center'
+                                        }}>
+                                            <OffscreenCanvasImage key={img.id} oc={img.osc} style={{maxWidth:s, maxHeight:s}}/>
+                                        </div>
+                                    );
+                                })}
+                            </div>
+                            <pre>{JSON.stringify(outputImages.map(o => o.id),null,2)}</pre>
+                        </div>
+                    </div>
                 </div>
 
                 <div className="col-md-6 mb-3">
-                    <div className="card">
-                        <div className="card-header d-flex justify-content-between">
-                            Operations
-
-                            <div>
-                                {PureRasterApplicators.types.map(t => 
-                                    <label key={t} className="ms-3">
-                                        <input
-                                            type="radio"
-                                            name="applicatorType" 
-                                            value={t}
-                                            checked={applicator.type === t}
-                                            onChange={e => {
-                                                if(e.target.value === t){
-                                                    setApplicator({...applicator, type: t});
-                                                }
-                                            }}
-                                        />
-                                        {' '}{t}
-                                    </label>
-                                )}
-                            </div>
+                    {applicators.map((applicator,i) =>
+                        <div key={i} className="mb-3">
+                            <PureRasterApplicatorCardEditor
+                                id={i.toString()}
+                                value={applicator}
+                                onChange={updatedApplicator => {
+                                    setApplicators(applicators.map(a => a === applicator ? updatedApplicator : a))
+                                }} 
+                                onRemove={() => {
+                                    setApplicators(applicators.filter(a => a !== applicator))
+                                }}
+                            />
                         </div>
-
-                        <div className="list-group list-group-flush">
-                            {applicator.ops.map((op,i) => 
-                                <div className="list-group-item" key={`${i}-${op.type}`}>
-                                    <div className="d-flex justify-content-between">
-                                        <PureRasterOperationInlineEditor id={i.toString()} value={op} onChange={newOp => {
-                                            setApplicator({
-                                                ...applicator,
-                                                ops: applicator.ops.map(o => o == op ? newOp : o)
-                                            });
-                                        }}/>
-                                        <button className="btn btn-sm btn-outline-danger"
-                                            onClick={() => {
-                                                setApplicator({
-                                                    ...applicator,
-                                                    ops: applicator.ops.filter(o => o !== op)
-                                                });
-                                            }}
-                                        >Remove</button>
-                                    </div>
-                                </div>
-                            )}
-                        </div>
-
-                        <div className="card-footer">
-                            <div className="d-flex justify-content-between">
-                                <select
-                                    ref={selectRef}
-                                    value={undefined}
-                                    onChange={e => {
-                                        const op = sampleOperations.filter(op => op.type === e.target.value)[0];
-                                        if(!op){
-                                            return;
-                                        }
-                                        console.log({op});
-                                        setApplicator({
-                                            ...applicator,
-                                            ops: [...applicator.ops, {...op}]
-                                        });
-                                        if(selectRef.current){
-                                            selectRef.current.value = "";
-                                        }
-                                    }}
-                                >
-                                    <option value={""}>Add an operation</option>
-                                    {sampleOperations.map(op => 
-                                        <option key={op.type} value={op.type}>{op.type}</option>
-                                    )}
-                                </select>
-                            </div>
-                        </div>
-                    </div>
+                    )}
+                    <button className="btn btn-primary w-100" onClick={() => {
+                        setApplicators([...applicators,defaultApplicator]);
+                    }}>Add Applicator</button>
                 </div>
             </div>
-            <div className="card">
-                <div className="card-header">
-                    Output ({outputImages.length})
-                </div>
-
-                <div className="card-body">
-                    <div className="d-flex justify-content-start gap-1 align-items-center">
-                        {outputImages.map(img => {
-                            const s = '90px';
-                            return (
-                                <div key={img.id} style={{
-                                    width:s,
-                                    height:s,
-                                    display:'flex',
-                                    alignItems:'center',
-                                    justifyContent:'center'
-                                }}>
-                                    <OffscreenCanvasImage key={img.id} oc={img.osc} style={{maxWidth:s, maxHeight:s}}/>
-                                </div>
-                            );
-                        })}
-                    </div>
-                    <pre>{JSON.stringify(outputImages.map(o => o.id),null,2)}</pre>
-                </div>
-            </div>
+            <pre className="text-white">{JSON.stringify(applicators,null,2)}</pre>
         </div>
     );
 };

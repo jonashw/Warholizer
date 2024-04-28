@@ -1,3 +1,4 @@
+import React from "react";
 import { Angle, Byte, Percentage, angle, byte, percentage } from "./NumberTypes";
 import { Dimension, PureRasterOperation } from "./PureRasterOperation";
 
@@ -60,6 +61,7 @@ export const PureRasterOperationInlineEditor = ({
 }) => {
     const op = value;
     const opType = op.type;
+    const rando = React.useMemo(() => crypto.randomUUID,[]);
     return (
         <div>
             {op.type}
@@ -107,7 +109,7 @@ export const PureRasterOperationInlineEditor = ({
                     case 'wrap': return (
                         <span>
                             <DimensionInput
-                                id={id}
+                                id={id + '-' + rando}
                                 value={op.dimension}
                                 onChange={dimension => onChange({...op, dimension})}
                             />
@@ -123,7 +125,7 @@ export const PureRasterOperationInlineEditor = ({
                     );
                     case 'stack': return (
                         <DimensionInput
-                            id={id}
+                            id={id + '-' + rando}
                             value={op.dimension}
                             onChange={dimension => {
                                 onChange({...op, dimension});
