@@ -2,8 +2,7 @@ import { Crop } from "react-image-crop";
 import VR, { ValueRange } from "./ValueRange";
 import { TilingPattern } from "./TilingPattern";
 import RasterOperations from "./RasterOperations";
-import { applyPureOperation } from "./RasterOperations/apply";
-import { PureRasterOperation } from "./RasterOperations/PureRasterOperation";
+import { PureRasterOperation, PureRasterOperations } from "./RasterOperations/PureRasterOperation";
 import { Byte } from "./RasterOperations/NumberTypes";
 
 export type Cropping = {crop: Crop, adjustRatio: {x: number, y: number}};
@@ -762,7 +761,7 @@ const tilingPattern = async (input: ImagePayload, tp: TilingPattern): Promise<Im
 
 const applyPure = async (img: ImagePayload, op: PureRasterOperation): Promise<ImagePayload[]> => {
   const c = await payloadToOffscreenCanvas(img);
-  const outputs = await applyPureOperation(op,[c]);
+  const outputs = await PureRasterOperations.apply(op,[c]);
   return Promise.all(outputs.map(offscreenCanvasToPayload));
 }
 
