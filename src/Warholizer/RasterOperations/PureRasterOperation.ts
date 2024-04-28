@@ -1,4 +1,4 @@
-import { Angle, Byte, Percentage } from "./NumberTypes";
+import { Angle, Byte, Percentage, PositiveNumber } from "./NumberTypes";
 
 export type Dimension = 'x'|'y';
 export type Direction = 'up' | 'down' | 'left' | 'right';
@@ -47,11 +47,17 @@ export type Scale = {
   x: number,
   y: number
 };
+export type ScaleToFit = {
+  type: "scaleToFit",
+  w: PositiveNumber,
+  h: PositiveNumber
+};
 
 export type PureRasterOperation = 
   | Wrap 
   | Stack 
   | Scale
+  | ScaleToFit
   | Noop
   | Blur
   | RotateHue
@@ -139,6 +145,21 @@ const apply = async (op: PureRasterOperation, inputs: OffscreenCanvas[]): Promis
             ctx.drawImage(input,0,yy);
           }
         })));
+    case 'scaleToFit':
+      return Promise.all(inputs.map(input => {
+        const ar = input.width / input.height;
+        const wr = op.w / input.width;
+        const hr = op.h / input.height;
+
+        const [scaleFactor,width,height] = 
+          wr < hr
+          ? [wr,op.w,op.w / ar] //width drive
+          : [hr,op.h * ar,op.h];
+        return offscreenCanvasOperation(width, height, (ctx) => {
+          ctx.scale(scaleFactor,scaleFactor);
+          ctx.drawImage(input,0,0);
+        });
+      }));
     case 'scale':
       return Promise.all(inputs.map(input => {
         const scaleWidth = Math.abs(op.x) * input.width;

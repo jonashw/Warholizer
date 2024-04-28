@@ -3,7 +3,7 @@ import ImageUtil from './Warholizer/ImageUtil';
 import { applyPureOperationPipeline } from './Warholizer/RasterOperations/apply';
 import { OffscreenCanvasImage } from './OffscreenCanvasImage';
 import { Dimension, PureRasterOperation } from './Warholizer/RasterOperations/PureRasterOperation';
-import { Angle, Byte, Percentage } from './Warholizer/RasterOperations/NumberTypes';
+import { Angle, Byte, Percentage, PositiveNumber } from './Warholizer/RasterOperations/NumberTypes';
 import onFilePaste from './Warholizer/onFilePaste';
 import fileToDataUrl from './fileToDataUrl';
 
@@ -18,6 +18,10 @@ const pureExample = (name: string, ops: PureRasterOperation[]): Effect =>
 
 export default () => {
     const effects: Effect[] = [
+        ...([100,200,300] as PositiveNumber[]).flatMap(w =>
+        ([100,200,300] as PositiveNumber[]).map(h =>
+            pureExample(`scaleToFit ${w},${h}`, [{type:'scaleToFit', w,h}]),
+        )),
         ...([60,120,180] as Byte[]).map(value =>
             pureExample(`threshold ${value}`, [{type:'threshold', value}]),
         ),
@@ -115,7 +119,12 @@ export default () => {
             <div className="row">
                 <div className="col-sm-6 col-md-4 col-lg-3 col-xl-2 mb-4">
                     <div className="card text-white bg-primary">
-                        {inputZero ? <OffscreenCanvasImage key={inputZero.id} oc={inputZero.osc}/> : <></>}
+                        {inputZero 
+                        ? <>
+                            <OffscreenCanvasImage key={inputZero.id} oc={inputZero.osc}/>
+                            <div className="text-center">{inputZero.osc.width}&times;{inputZero.osc.height}</div>
+                        </> 
+                        : <></>}
                         <div className="card-body">
                             <h6 className="card-title">Input Image</h6>
                             <div className="card-text">
@@ -142,19 +151,19 @@ export default () => {
                                         key={o.id}
                                     >
                                         {o.label}
-                                    <input 
-                                        id={o.id}
-                                        style={{display:'none'}}
-                                        type="file" 
-                                        className="form-control"
-                                        capture={o.capture}
-                                        accept="image/jpeg, image/png, image/gif"
-                                        onChange={e => {
-                                            var files = Array.from(e.target.files || []);
-                                            if (files.length !== 1) {
-                                                return;
-                                            }
-                                            useFile(files[0]);
+                                        <input 
+                                            id={o.id}
+                                            style={{display:'none'}}
+                                            type="file" 
+                                            className="form-control"
+                                            capture={o.capture}
+                                            accept="image/jpeg, image/png, image/gif"
+                                            onChange={e => {
+                                                var files = Array.from(e.target.files || []);
+                                                if (files.length !== 1) {
+                                                    return;
+                                                }
+                                                useFile(files[0]);
                                             }}
                                         />
                                     </label>
@@ -177,10 +186,13 @@ export default () => {
                                             background:'white'
                                         }}
                                     />
+                                    <div className="text-center">{img.width}&times;{img.height}</div>
                                 </div>
                             )}
                             <div className="card-body">
                                 <h6 className="card-title">{o.img.description}</h6>
+                                <div className="card-text">
+                                </div>
                                 <div className="card-text">
                                     {o.img.msElapsed.toFixed(0)}ms<br/>
                                 </div>
