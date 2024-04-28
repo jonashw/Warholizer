@@ -1,6 +1,6 @@
 import { PureRasterOperation, PureRasterOperations } from "./PureRasterOperation"
 
-type PureRasterApplicatorType = "flatMap" | "zip" | "pipe";
+export type PureRasterApplicatorType = "flatMap" | "zip" | "pipe";
 const types: PureRasterApplicatorType[] = ["zip", "flatMap", "pipe"];
 export type PureRasterApplicator = {
     type: PureRasterApplicatorType,

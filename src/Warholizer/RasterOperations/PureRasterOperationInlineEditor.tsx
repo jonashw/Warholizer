@@ -1,6 +1,6 @@
-import React from "react";
 import { Angle, Byte, Percentage, angle, byte, percentage } from "./NumberTypes";
 import { Dimension, PureRasterOperation } from "./PureRasterOperation";
+import { ButtonRadiosInput } from "./ButtonRadiosInput";
 
 const NumberInput = <T extends number>(
     min:T,
@@ -32,45 +32,27 @@ const AngleInput = NumberInput<Angle>(0,360,1,angle,"range");
 const PercentageInput = NumberInput<Percentage>(0,100,1,percentage,"range");
 const ByteInput = NumberInput<Byte>(0,255,1,byte,"range");
 const DimensionInput = ({
-    id,
     value,
     onChange
 }:{
-    id: string,
     value: Dimension,
     onChange: (d:Dimension) => void
 }) =>
-    <span>
-        {(["x","y"] as Dimension[]).map(dim => 
-            <label key={dim} className="ms-2">
-                <input
-                    type="radio"
-                    name={"dimension-" + id}
-                    value={dim}
-                    checked={value === dim}
-                    onChange={e => {
-                        if(e.target.value === dim){
-                            onChange(dim);
-                        }
-                    }}
-                />
-                {' '}{dim}
-            </label>
-        )}
-    </span>;
+    <ButtonRadiosInput<Dimension> 
+        value={value}
+        options={(["x","y"] as Dimension[]).map(value => ({value, label: value}))}
+        onChange={onChange}
+    />;
 
 export const PureRasterOperationInlineEditor = ({
-    id,
     value,
     onChange
 }:{
-    id: string,
     value: PureRasterOperation,
     onChange:(newOp: PureRasterOperation) => void
 }) => {
     const op = value;
     const opType = op.type;
-    const rando = React.useMemo(() => crypto.randomUUID,[]);
     return (
         <>
             {op.type}
@@ -118,7 +100,6 @@ export const PureRasterOperationInlineEditor = ({
                     case 'wrap': return (
                         <>
                             <DimensionInput
-                                id={id + '-' + rando}
                                 value={op.dimension}
                                 onChange={dimension => onChange({...op, dimension})}
                             />
@@ -134,7 +115,6 @@ export const PureRasterOperationInlineEditor = ({
                     );
                     case 'stack': return (
                         <DimensionInput
-                            id={id + '-' + rando}
                             value={op.dimension}
                             onChange={dimension => {
                                 onChange({...op, dimension});

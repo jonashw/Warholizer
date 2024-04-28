@@ -173,7 +173,6 @@ export default () => {
                     {applicators.map((applicator,i) =>
                         <div key={i} className="mb-3">
                             <PureRasterApplicatorCardEditor
-                                id={i.toString()}
                                 value={applicator}
                                 onChange={updatedApplicator => {
                                     setApplicators(applicators.map(a => a === applicator ? updatedApplicator : a))
