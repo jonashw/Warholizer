@@ -18,25 +18,14 @@ const pureExample = (name: string, ops: PureRasterOperation[]): Effect =>
 
 export default () => {
     const effects: Effect[] = [
-        ...([100,200,300] as PositiveNumber[]).flatMap(w =>
-        ([100,200,300] as PositiveNumber[]).map(h =>
-            pureExample(`scaleToFit ${w},${h}`, [{type:'scaleToFit', w,h}]),
-        )),
-        ...([60,120,180] as Byte[]).map(value =>
-            pureExample(`threshold ${value}`, [{type:'threshold', value}]),
-        ),
-        ...([50,100] as Percentage[]).map(percent =>
-            pureExample(`grayscale ${percent}%`, [{type:'grayscale', percent}]),
-        ),
-        pureExample(`blur`, [{type:'blur', pixels: 3}]),
         ...([90,180,270] as Angle[]).map(degrees =>
             pureExample(`rotateHue ${degrees}deg`, [{type:'rotateHue', degrees}]),
         ),
         pureExample(`invert`, [{type:'invert'}]),
-        pureExample(`double invert`, [
-            {type:'invert'},
-            {type:'invert'},
-        ]),
+        ...([60,120,180] as Byte[]).map(value =>
+            pureExample(`threshold ${value}`, [{type:'threshold', value}]),
+        ),
+        pureExample(`blur`, [{type:'blur', pixels: 3}]),
         ...(
             (['x','y'] as Dimension[]).flatMap(dimension => 
             ([20,50,80] as Percentage[]).map(amount => 
@@ -52,6 +41,13 @@ export default () => {
                     y: dimension == 'y' ? amount : 1
                 }]),
             ))
+        ),
+        ...([100,200,300] as PositiveNumber[]).flatMap(w =>
+        ([100,200,300] as PositiveNumber[]).map(h =>
+            pureExample(`scaleToFit ${w},${h}`, [{type:'scaleToFit', w,h}]),
+        )),
+        ...([50,100] as Percentage[]).map(percent =>
+            pureExample(`grayscale ${percent}%`, [{type:'grayscale', percent}]),
         ),
         ...[1,2,3].map(n =>
             pureExample(`multiply(${n})`, [{type:'multiply',n}]),
