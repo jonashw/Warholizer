@@ -147,8 +147,37 @@ export default () => {
                         </div>
 
                     </div>
+                </div>
 
-                    <div className="card mt-3">
+                <div className="col-md-6 mb-3">
+                    <div className="card">
+                        <div className="card-header d-flex justify-content-between align-items-center">
+                            Operations
+                            <UndoRedoToolbar controller={applicatorUndoController} />
+                        </div>
+                        <div className="list-group list-group-flush">
+                            {applicators.map((applicator,i) =>
+                                <PureRasterApplicatorListItemEditor
+                                    key={"applicator-card-" + i}
+                                    value={applicator}
+                                    onChange={updatedApplicator => {
+                                        setApplicators(applicators.map(a => a === applicator ? updatedApplicator : a))
+                                    }} 
+                                    onRemove={() => {
+                                        setApplicators(applicators.filter(a => a !== applicator))
+                                    }}
+                                />
+                            )}
+                        </div>
+                        <div className="card-footer">
+                            <button className="btn btn-primary w-100" onClick={() => {
+                                setApplicators([...applicators,{...defaultApplicator}]);
+                            }}>Add Applicator</button>
+                        </div>
+                    </div>
+                </div>
+                <div className="col-12">
+                    <div className="card">
                         <div className="card-header">
                             Outputs ({outputImages.length})
                         </div>
@@ -176,34 +205,6 @@ export default () => {
                                 })}
                             </div>
                             <pre>{JSON.stringify(outputImages.map(o => o.id),null,2)}</pre>
-                        </div>
-                    </div>
-                </div>
-
-                <div className="col-md-6 mb-3">
-                    <div className="card">
-                        <div className="card-header d-flex justify-content-between align-items-center">
-                            Operations
-                            <UndoRedoToolbar controller={applicatorUndoController} />
-                        </div>
-                        <div className="list-group list-group-flush">
-                            {applicators.map((applicator,i) =>
-                                <PureRasterApplicatorListItemEditor
-                                    key={"applicator-card-" + i}
-                                    value={applicator}
-                                    onChange={updatedApplicator => {
-                                        setApplicators(applicators.map(a => a === applicator ? updatedApplicator : a))
-                                    }} 
-                                    onRemove={() => {
-                                        setApplicators(applicators.filter(a => a !== applicator))
-                                    }}
-                                />
-                            )}
-                        </div>
-                        <div className="card-footer">
-                            <button className="btn btn-primary w-100" onClick={() => {
-                                setApplicators([...applicators,{...defaultApplicator}]);
-                            }}>Add Applicator</button>
                         </div>
                     </div>
                 </div>
