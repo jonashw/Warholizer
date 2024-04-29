@@ -1,6 +1,15 @@
 import React from 'react';
 import { UndoState } from './UndoState';
 
+export type UndoController<T> = {
+    currentState: T;
+    canUndo: () => boolean;
+    canRedo: () => boolean;
+    undo: () => void;
+    redo: () => void;
+    onChange: (newCurrentState: T) => void;
+}
+
 export function useUndo<T>(initialState: T) {
     const initialUndoState = {
         prev: [],
@@ -8,7 +17,7 @@ export function useUndo<T>(initialState: T) {
         next: [],
     };
     const [state, setState] = React.useState<UndoState<T>>(initialUndoState);
-    return {
+    const controller: UndoController<T> =  {
         currentState: state.curr,
         canUndo() {
             return state.prev.length > 0;
@@ -54,4 +63,14 @@ export function useUndo<T>(initialState: T) {
             });
         }
     };
+
+    return [
+        controller.currentState,
+        controller.onChange,
+        controller
+    ] as [
+        T,
+        (newCurrentState: T) => void,
+        UndoController<T>
+    ];
 }

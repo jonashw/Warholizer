@@ -7,17 +7,15 @@ import onFilePaste from './Warholizer/onFilePaste';
 import fileToDataUrl from './fileToDataUrl';
 import { PureRasterApplicator, PureRasterApplicators } from './Warholizer/RasterOperations/PureRasterApplicator';
 import { PureRasterApplicatorCardEditor } from './PureRasterApplicatorCardEditor';
-import { useUndo } from './useUndo';
-import { Undo as UndoIcon, Redo as RedoIcon } from '@mui/icons-material';
+import { useUndo } from './undo/useUndo';
+import { UndoRedoToolbar } from './undo/UndoRedoToolbar';
 
 const defaultApplicator: PureRasterApplicator = {"type":"flatMap", ops:[{type:"rotate",degrees:90}]};
 
 export default () => {
-    const [inputImages, setInputImages] = React.useState<{id:string,osc:OffscreenCanvas}[]>([]);
+    const [inputImages, setInputImages, inputImagesUndoController] = useUndo<{id:string,osc:OffscreenCanvas}[]>([]);
+    const [applicators, setApplicators, applicatorUndoController] = useUndo([defaultApplicator]);
     const [outputImages, setOutputImages] = React.useState<{id:string,osc:OffscreenCanvas}[]>([]);
-    const undo = useUndo([defaultApplicator]);
-    const applicators = undo.currentState;
-    const setApplicators = undo.onChange;
 
     const newId = () => crypto.randomUUID().toString();
 
@@ -73,8 +71,9 @@ export default () => {
             <div className="row">
                 <div className="col-md-6 mb-3">
                     <div className="card">
-                        <div className="card-header">
+                        <div className="card-header d-flex justify-content-between align-items-center">
                             Inputs
+                            <UndoRedoToolbar controller={inputImagesUndoController} />
                         </div>
 
                         <div className="list-group list-group-flush">
@@ -182,14 +181,7 @@ export default () => {
                 </div>
 
                 <div className="col-md-6 mb-3">
-                    <button disabled={!undo.canUndo()} onClick={undo.undo} className="btn btn-success">
-                        <UndoIcon/>
-                        {' '}Undo
-                    </button>
-                    <button disabled={!undo.canRedo()} onClick={undo.redo} className="btn btn-success">
-                        Redo
-                        {' '}<RedoIcon/>
-                    </button>
+                    <UndoRedoToolbar controller={applicatorUndoController} />
                     {applicators.map((applicator,i) =>
                         <div key={i} className="mb-3">
                             <PureRasterApplicatorCardEditor
