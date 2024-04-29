@@ -144,6 +144,18 @@ export const PureRasterOperationInlineEditor = ({
                                 onChange({...op, pixels: parseInt(e.target.value)});
                             }}/>);
                     case 'invert': return;
+                    case 'grid': return (
+                        <>
+                            <NumberInput
+                                value={op.cols}
+                                onChange={cols => onChange({...op, cols})}
+                            />
+                            <NumberInput
+                                value={op.rows}
+                                onChange={rows => onChange({...op, rows})}
+                            />
+                        </>
+                    );
                     case 'tile': return (
                         <>
                             <DimensionInput

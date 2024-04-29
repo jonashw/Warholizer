@@ -15,8 +15,10 @@ export type Scale = { type: "scale", x: number, y: number };
 export type ScaleToFit = { type: "scaleToFit", w: PositiveNumber, h: PositiveNumber };
 export type Line = { type: "line", direction: Direction};
 export type Tile = { type: "tile", primaryDimension: Dimension, lineLength: number };
+export type Grid = { type: "grid", rows: number, cols: number };
 
 export type PureRasterOperation = 
+  | Grid
   | Tile
   | Line
   | SlideWrap 
@@ -160,6 +162,22 @@ const apply = async (op: PureRasterOperation, inputs: OffscreenCanvas[]): Promis
           ctx.drawImage(input,0,0);
         });
       }));
+    case 'grid': return Promise.all(inputs.map(input => {
+      if(op.cols <= 0 || op.cols <= 0){
+        return input;
+      }
+      return offscreenCanvasOperation(op.cols * input.width, op.rows * input.height, (ctx) => {
+        for(let r = 0; r < op.rows; r++){
+          ctx.save();
+          for(let c = 0; c < op.cols; c++){
+            ctx.drawImage(input,0,0);
+            ctx.translate(input.width,0);
+          }
+          ctx.restore();
+          ctx.translate(0,input.height);
+        }
+      });
+    }));
     case 'tile': {
       if(op.lineLength <= 0){
         return inputs;
@@ -266,6 +284,7 @@ const stringRepresentation = (op: PureRasterOperation): string => {
     case 'rotate'    : return `rotate(${op.degrees}deg)`;
     case 'blur'      : return `blur(${op.pixels}px)`;
     case 'invert'    : return "invert";
+    case 'grid'      : return `grid(${op.rows},${op.cols})`;
     case 'slideWrap' : return `slideWrap(${op.dimension},${op.amount}%)`;
     case 'scaleToFit': return `scaleToFit(${op.w},${op.h})`;
     case 'scale'     : return `scale(${op.x},${op.y})`;
