@@ -33,10 +33,6 @@ export const FilterEditor = ({
             <span>{op.type}</span>
             {(() => {
                 switch(op.type){
-                    case 'stack': return (
-                        <>
-                            ({op.dimension})
-                        </>);
                     case 'wrap': return (
                         <>
                             ({op.dimension}, {op.amount})

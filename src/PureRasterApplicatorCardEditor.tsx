@@ -7,7 +7,6 @@ import { ButtonRadiosInput } from './Warholizer/RasterOperations/ButtonRadiosInp
 
 export const sampleOperations: PureRasterOperation[] = [
     {"type":"line",direction:'right'},
-    {"type":"stack",dimension:'x'},
     {"type":"threshold", value: byte(128)},
     {"type":"invert"},
     {"type":"rotateHue",degrees: angle(180)},

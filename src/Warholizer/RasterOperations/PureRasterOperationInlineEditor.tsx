@@ -134,14 +134,6 @@ export const PureRasterOperationInlineEditor = ({
                             }}
                         />
                     );
-                    case 'stack': return (
-                        <DimensionInput
-                            value={op.dimension}
-                            onChange={dimension => {
-                                onChange({...op, dimension});
-                            }}
-                        />
-                    );
                     default:
                         throw new Error(`Unexpected operation type: ${opType}`);
                 }

@@ -10,7 +10,6 @@ export type Wrap = { type: "wrap", dimension: Dimension, amount: Percentage };
 export type Blur = { type: "blur", pixels: number };
 export type Grayscale = { type: "grayscale", percent: Percentage };
 export type RotateHue = { type: "rotateHue", degrees: Angle }
-export type Stack = { type: "stack", dimension: Dimension };
 export type Scale = { type: "scale", x: number, y: number };
 export type ScaleToFit = { type: "scaleToFit", w: PositiveNumber, h: PositiveNumber };
 export type Line = { type: "line", direction: Direction};
@@ -18,7 +17,6 @@ export type Line = { type: "line", direction: Direction};
 export type PureRasterOperation = 
   | Line
   | Wrap 
-  | Stack 
   | Scale
   | ScaleToFit
   | Noop
@@ -175,29 +173,6 @@ const apply = async (op: PureRasterOperation, inputs: OffscreenCanvas[]): Promis
         }
       })];
     }
-    case 'stack': 
-      if(op.dimension === 'x'){
-        return [await offscreenCanvasOperation(
-          inputs.map(i => i.width).reduce((a,b) => a + b, 0),
-          Math.max(...inputs.map(i => i.height)),
-          (ctx) => {
-            for(let input of inputs){
-              ctx.drawImage(input,0,0);
-              ctx.translate(input.width,0);
-            }
-          })
-        ];
-      }
-      return [await offscreenCanvasOperation(
-        Math.max(...inputs.map(i => i.width)),
-        inputs.map(i => i.height).reduce((a,b) => a + b, 0),
-        (ctx) => {
-          for(let stackInput of inputs){
-            ctx.drawImage(stackInput,0,0);
-            ctx.translate(0,stackInput.height);
-          }
-        })
-      ];
     default:
       throw new Error(`Unexpected operation type: ${opType}`);
   }
@@ -223,7 +198,6 @@ const stringRepresentation = (op: PureRasterOperation): string => {
     case 'wrap'      : return `wrap(${op.dimension},${op.amount}%)`;
     case 'scaleToFit': return `scaleToFit(${op.w},${op.h})`;
     case 'scale'     : return `scale(${op.x},${op.y})`;
-    case 'stack'     : return `stack(${op.dimension})`;
     case 'line'      : return `line(${op.direction})`;
     default:
       throw new Error(`Unexpected operation type: ${opType}`);
