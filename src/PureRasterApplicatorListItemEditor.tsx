@@ -17,7 +17,7 @@ export const sampleOperations: PureRasterOperation[] = [
     {"type":"blur",pixels:5}
 ];
 
-export const PureRasterApplicatorCardEditor = ({
+export const PureRasterApplicatorListItemEditor = ({
     value, onChange, onRemove
 }: {
     value: PureRasterApplicator;

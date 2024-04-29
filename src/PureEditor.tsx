@@ -6,7 +6,7 @@ import { positiveNumber } from './Warholizer/RasterOperations/NumberTypes';
 import onFilePaste from './Warholizer/onFilePaste';
 import fileToDataUrl from './fileToDataUrl';
 import { PureRasterApplicator, PureRasterApplicators } from './Warholizer/RasterOperations/PureRasterApplicator';
-import { PureRasterApplicatorCardEditor } from './PureRasterApplicatorCardEditor';
+import { PureRasterApplicatorListItemEditor } from './PureRasterApplicatorListItemEditor';
 import { useUndo } from './undo/useUndo';
 import { UndoRedoToolbar } from './undo/UndoRedoToolbar';
 
@@ -188,7 +188,7 @@ export default () => {
                         </div>
                         <div className="list-group list-group-flush">
                             {applicators.map((applicator,i) =>
-                                <PureRasterApplicatorCardEditor
+                                <PureRasterApplicatorListItemEditor
                                     key={"applicator-card-" + i}
                                     value={applicator}
                                     onChange={updatedApplicator => {
