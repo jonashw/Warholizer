@@ -25,26 +25,24 @@ export const PureRasterApplicatorCardEditor = ({
     onRemove?: () => void;
 }) => {
     const selectRef = React.createRef<HTMLSelectElement>();
-    return <div className="card">
-        <div className="card-header d-flex justify-content-between">
-            Operations
-            <ButtonRadiosInput<PureRasterApplicatorType> 
-                value={value.type}
-                options={PureRasterApplicators.types.map(value => ({value, label: value}))}
-                onChange={type => onChange({ ...value, type })}
-            />
-            {onRemove && (
-                <button
-                    className="btn btn-sm btn-danger"
-                    title="Remove this applicator"
-                    onClick={onRemove}
-                >&times;</button>)}
-        </div>
-
-        <div className="list-group list-group-flush">
+    return (
+        <>
+            <div className="list-group-item d-flex justify-content-between">
+                <ButtonRadiosInput<PureRasterApplicatorType>
+                    value={value.type}
+                    options={PureRasterApplicators.types.map(value => ({ value, label: value }))}
+                    onChange={type => onChange({ ...value, type })}
+                />
+                {onRemove && (
+                    <button
+                        className="btn btn-sm btn-danger"
+                        title="Remove this applicator"
+                        onClick={onRemove}
+                    >&times;</button>)}
+            </div>
             {value.ops.map((op, i) => <div className="list-group-item" key={`${i}-${op.type}`}>
                 <div className="d-flex justify-content-between">
-                    <PureRasterOperationInlineEditor 
+                    <PureRasterOperationInlineEditor
                         value={op}
                         onChange={newOp => {
                             onChange({
@@ -65,10 +63,7 @@ export const PureRasterApplicatorCardEditor = ({
                 </div>
             </div>
             )}
-        </div>
-
-        <div className="card-footer">
-            <div className="d-flex justify-content-between">
+            <div className="list-group-item">
                 <select
                     className="form-select form-select-sm"
                     ref={selectRef}
@@ -93,6 +88,6 @@ export const PureRasterApplicatorCardEditor = ({
                     )}
                 </select>
             </div>
-        </div>
-    </div>;
+        </>
+    );
 };

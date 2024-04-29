@@ -181,24 +181,31 @@ export default () => {
                 </div>
 
                 <div className="col-md-6 mb-3">
-                    <UndoRedoToolbar controller={applicatorUndoController} />
-                    {applicators.map((applicator,i) =>
-                        <div key={i} className="mb-3">
-                            <PureRasterApplicatorCardEditor
-                                key={"applicator-card-" + i}
-                                value={applicator}
-                                onChange={updatedApplicator => {
-                                    setApplicators(applicators.map(a => a === applicator ? updatedApplicator : a))
-                                }} 
-                                onRemove={() => {
-                                    setApplicators(applicators.filter(a => a !== applicator))
-                                }}
-                            />
+                    <div className="card">
+                        <div className="card-header d-flex justify-content-between align-items-center">
+                            Operations
+                            <UndoRedoToolbar controller={applicatorUndoController} />
                         </div>
-                    )}
-                    <button className="btn btn-primary w-100" onClick={() => {
-                        setApplicators([...applicators,{...defaultApplicator}]);
-                    }}>Add Applicator</button>
+                        <div className="list-group list-group-flush">
+                            {applicators.map((applicator,i) =>
+                                <PureRasterApplicatorCardEditor
+                                    key={"applicator-card-" + i}
+                                    value={applicator}
+                                    onChange={updatedApplicator => {
+                                        setApplicators(applicators.map(a => a === applicator ? updatedApplicator : a))
+                                    }} 
+                                    onRemove={() => {
+                                        setApplicators(applicators.filter(a => a !== applicator))
+                                    }}
+                                />
+                            )}
+                        </div>
+                        <div className="card-footer">
+                            <button className="btn btn-primary w-100" onClick={() => {
+                                setApplicators([...applicators,{...defaultApplicator}]);
+                            }}>Add Applicator</button>
+                        </div>
+                    </div>
                 </div>
             </div>
             <pre className="text-white">{JSON.stringify(applicators,null,2)}</pre>
