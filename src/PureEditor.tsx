@@ -170,12 +170,13 @@ export default () => {
                             )}
                         </div>
                         <div className="card-footer">
-                            <button className="btn btn-primary w-100" onClick={() => {
+                            <button className="btn btn-primary btn-sm w-100" onClick={() => {
                                 setApplicators([...applicators,{...defaultApplicator}]);
                             }}>Add Applicator</button>
                         </div>
                     </div>
                 </div>
+
                 <div className="col-12">
                     <div className="card">
                         <div className="card-header">

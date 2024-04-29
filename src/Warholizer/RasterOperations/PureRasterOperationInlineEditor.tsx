@@ -95,7 +95,7 @@ export const PureRasterOperationInlineEditor = ({
                                         : effectiveRightAngles[nextIndex];
                                     onChange({...op, degrees});
                                 }}>
-                                    <Rotate90DegreesCw/>
+                                    <Rotate90DegreesCw fontSize="small" />
                                 </button>
                                 {' '}
                                 {op.degrees.toString().padStart(3,"0")}&deg;
