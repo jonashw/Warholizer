@@ -6,6 +6,7 @@ import { angle, byte } from './Warholizer/RasterOperations/NumberTypes';
 import { ButtonRadiosInput } from './Warholizer/RasterOperations/ButtonRadiosInput';
 
 export const sampleOperations: PureRasterOperation[] = [
+    {"type":"tile",primaryDimension:'x',lineLength:2},
     {"type":"line",direction:'right'},
     {"type":"threshold", value: byte(128)},
     {"type":"invert"},

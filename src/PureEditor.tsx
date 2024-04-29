@@ -13,7 +13,11 @@ import { UndoRedoToolbar } from './undo/UndoRedoToolbar';
 const defaultApplicator: PureRasterApplicator = {
     "type":"flatMap",
     ops:[
-        {type:"line",direction:"left"}
+        {
+            type:"tile",
+            primaryDimension:"x",
+            lineLength: 2
+        }
     ]};
 
 export default () => {

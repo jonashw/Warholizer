@@ -3,7 +3,7 @@ import { Dimension, Direction, PureRasterOperation } from "./PureRasterOperation
 import { ButtonRadiosInput } from "./ButtonRadiosInput";
 import { Rotate90DegreesCw } from "@mui/icons-material";
 
-const NumberInput = <T extends number>(
+const AbstractNumberInput = <T extends number>(
     min:T,
     max:T,
     step:number,
@@ -29,9 +29,10 @@ const NumberInput = <T extends number>(
     />;
 };
 
-const AngleInput = NumberInput<Angle>(0,360,1,angle,"range");
-const PercentageInput = NumberInput<Percentage>(0,100,1,percentage,"range");
-const ByteInput = NumberInput<Byte>(0,255,1,byte,"range");
+const NumberInput = AbstractNumberInput<number>(-Infinity,Infinity,1,n => n,"number");
+const AngleInput = AbstractNumberInput<Angle>(0,360,1,angle,"range");
+const PercentageInput = AbstractNumberInput<Percentage>(0,100,1,percentage,"range");
+const ByteInput = AbstractNumberInput<Byte>(0,255,1,byte,"range");
 const DimensionInput = ({
     value,
     onChange
@@ -130,6 +131,18 @@ export const PureRasterOperationInlineEditor = ({
                                 onChange({...op, pixels: parseInt(e.target.value)});
                             }}/>);
                     case 'invert': return;
+                    case 'tile': return (
+                        <>
+                            <DimensionInput
+                                value={op.primaryDimension}
+                                onChange={primaryDimension => onChange({...op, primaryDimension})}
+                            />
+                            <NumberInput
+                                value={op.lineLength}
+                                onChange={lineLength => onChange({...op, lineLength})}
+                            />
+                        </>
+                    );
                     case 'slideWrap': return (
                         <>
                             <DimensionInput

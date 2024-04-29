@@ -14,8 +14,10 @@ export type RotateHue = { type: "rotateHue", degrees: Angle }
 export type Scale = { type: "scale", x: number, y: number };
 export type ScaleToFit = { type: "scaleToFit", w: PositiveNumber, h: PositiveNumber };
 export type Line = { type: "line", direction: Direction};
+export type Tile = { type: "tile", primaryDimension: Dimension, lineLength: number };
 
 export type PureRasterOperation = 
+  | Tile
   | Line
   | SlideWrap 
   | Scale
@@ -158,6 +160,63 @@ const apply = async (op: PureRasterOperation, inputs: OffscreenCanvas[]): Promis
           ctx.drawImage(input,0,0);
         });
       }));
+    case 'tile': {
+      if(op.lineLength <= 0){
+        return inputs;
+      }
+      const lineCount = Math.ceil(inputs.length / op.lineLength);
+      const lines = 
+        Array(lineCount)
+        .fill(undefined)
+        .map((_,i) => {
+          const lineInputs = inputs.slice(i*op.lineLength,(i+1)*op.lineLength);
+          const [width,height] = 
+          op.primaryDimension === "x"
+          ?  [
+            lineInputs.map(i => i.width).reduce((a,b) => a + b, 0),
+            Math.max(...lineInputs.map(i => i.height))
+          ] : [
+            Math.max(...lineInputs.map(i => i.width)),
+            lineInputs.map(i => i.height).reduce((a,b) => a + b, 0)
+          ];
+          return {
+            inputs: lineInputs,
+            width,
+            height
+          };
+        });
+
+      const [width,height] = 
+        op.primaryDimension === "x"
+        ? [
+          Math.max(...lines.map(l => l.width)),
+          lines.map(l => l.height).reduce((a,b) => a + b, 0)
+        ] : [
+          lines.map(l => l.width).reduce((a,b) => a + b, 0),
+          Math.max(...lines.map(l => l.height))
+        ];
+        
+      return [await offscreenCanvasOperation(width, height, (ctx) => {
+        for(let line of lines){
+          ctx.save();
+          for(let input of line.inputs){
+            ctx.drawImage(input,0,0);
+
+            if(op.primaryDimension === "x"){
+              ctx.translate(input.width,0);
+            } else {
+              ctx.translate(0,input.height);
+            }
+          }
+          ctx.restore();
+          if(op.primaryDimension === "x"){
+            ctx.translate(0,line.height);
+          } else {
+            ctx.translate(line.width,0);
+          }
+        }
+      })];
+    }
     case 'line': {
       const horizontal = op.direction === "left" || op.direction === "right";
       const [width,height] = 
@@ -211,6 +270,7 @@ const stringRepresentation = (op: PureRasterOperation): string => {
     case 'scaleToFit': return `scaleToFit(${op.w},${op.h})`;
     case 'scale'     : return `scale(${op.x},${op.y})`;
     case 'line'      : return `line(${op.direction})`;
+    case 'tile'      : return `tile(${op.primaryDimension},${op.lineLength})`;
     default:
       throw new Error(`Unexpected operation type: ${opType}`);
   }
