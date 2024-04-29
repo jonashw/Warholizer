@@ -160,7 +160,6 @@ const apply = async (op: PureRasterOperation, inputs: OffscreenCanvas[]): Promis
       }));
     case 'line': {
       const horizontal = op.direction === "left" || op.direction === "right";
-      const positive = op.direction === "right" || op.direction === "down";
       const [width,height] = 
         horizontal
         ? [
@@ -170,25 +169,17 @@ const apply = async (op: PureRasterOperation, inputs: OffscreenCanvas[]): Promis
           Math.max(...inputs.map(i => i.width)),
           inputs.map(i => i.height).reduce((a,b) => a + b, 0)
         ];
-        const k = positive ? 1 : -1;
+      const orderedInputs = 
+        op.direction === "up" || op.direction === "left"
+        ? [...inputs].reverse()
+        : inputs;
+        
       return [await offscreenCanvasOperation(width, height, (ctx) => {
-        if(!positive){
-          ctx.translate(
-            horizontal ? (width) : 0,
-            !horizontal ? (height) : 0
-          );
-        }
-        for(let input of inputs){
-          if(!positive && input === inputs[0]){
-            ctx.translate(
-              horizontal ? (k*input.width) : 0,
-              !horizontal ? (k*input.height) : 0
-            );
-          }
+        for(let input of orderedInputs){
           ctx.drawImage(input,0,0);
           ctx.translate(
-            horizontal ? (k*input.width) : 0,
-            !horizontal ? (k*input.height) : 0
+            horizontal ? input.width : 0,
+            !horizontal ? input.height : 0
           );
         }
       })];

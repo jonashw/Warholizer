@@ -10,7 +10,11 @@ import { PureRasterApplicatorListItemEditor } from './PureRasterApplicatorListIt
 import { useUndo } from './undo/useUndo';
 import { UndoRedoToolbar } from './undo/UndoRedoToolbar';
 
-const defaultApplicator: PureRasterApplicator = {"type":"flatMap", ops:[{type:"rotate",degrees:90}]};
+const defaultApplicator: PureRasterApplicator = {
+    "type":"flatMap",
+    ops:[
+        {type:"line",direction:"left"}
+    ]};
 
 export default () => {
     const [inputImages, setInputImages, inputImagesUndoController] = useUndo<{id:string,osc:OffscreenCanvas}[]>([]);
