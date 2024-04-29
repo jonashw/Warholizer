@@ -22,7 +22,7 @@ const createDocWithRootFilter = (id: string, rootOp: PureRasterOperation): Raste
 const defaultDoc: RasterOperationDocument = createDocWithRootFilter(
     'demo',
     {
-        type:"wrap",
+        type:"slideWrap",
         dimension:"x",
         amount:52
     });

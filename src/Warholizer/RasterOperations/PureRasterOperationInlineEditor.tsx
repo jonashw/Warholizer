@@ -110,7 +110,7 @@ export const PureRasterOperationInlineEditor = ({
                                 onChange({...op, pixels: parseInt(e.target.value)});
                             }}/>);
                     case 'invert': return;
-                    case 'wrap': return (
+                    case 'slideWrap': return (
                         <>
                             <DimensionInput
                                 value={op.dimension}

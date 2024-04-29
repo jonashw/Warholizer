@@ -6,7 +6,7 @@ export type Invert = { type: "invert" };
 export type Noop = { type: "noop" };
 export type Threshold = { type: "threshold", value: Byte };
 export type Multiply = { type: "multiply", n: number };
-export type Wrap = { type: "wrap", dimension: Dimension, amount: Percentage };
+export type SlideWrap = { type: "slideWrap", dimension: Dimension, amount: Percentage };
 export type Blur = { type: "blur", pixels: number };
 export type Grayscale = { type: "grayscale", percent: Percentage };
 export type RotateHue = { type: "rotateHue", degrees: Angle }
@@ -16,7 +16,7 @@ export type Line = { type: "line", direction: Direction};
 
 export type PureRasterOperation = 
   | Line
-  | Wrap 
+  | SlideWrap 
   | Scale
   | ScaleToFit
   | Noop
@@ -89,7 +89,7 @@ const apply = async (op: PureRasterOperation, inputs: OffscreenCanvas[]): Promis
           ctx.filter="invert()";
           ctx.drawImage(input,0,0);
         })));
-    case 'wrap': 
+    case 'slideWrap': 
       return Promise.all(inputs.map(input =>
         offscreenCanvasOperation(input.width, input.height,(ctx) => {
           const wrapCoefficient = op.amount/100;
@@ -195,7 +195,7 @@ const stringRepresentation = (op: PureRasterOperation): string => {
     case 'rotateHue' : return `rotateHue(${op.degrees}deg)`;
     case 'blur'      : return `blur(${op.pixels}px)`;
     case 'invert'    : return "invert";
-    case 'wrap'      : return `wrap(${op.dimension},${op.amount}%)`;
+    case 'slideWrap' : return `slideWrap(${op.dimension},${op.amount}%)`;
     case 'scaleToFit': return `scaleToFit(${op.w},${op.h})`;
     case 'scale'     : return `scale(${op.x},${op.y})`;
     case 'line'      : return `line(${op.direction})`;

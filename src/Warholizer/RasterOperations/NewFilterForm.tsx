@@ -1,5 +1,5 @@
 import React from "react";
-import { PureRasterOperation, Scale, Wrap } from "./PureRasterOperation";
+import { PureRasterOperation, Scale, SlideWrap } from "./PureRasterOperation";
 import { Filter } from "./Filter";
 import { percentage } from "./NumberTypes";
 
@@ -11,7 +11,7 @@ export const NewFilterForm = ({
     input: Filter;
     onApply: (r: PureRasterOperation) => void;
 }) => {
-    const [wrap,setWrap] = React.useState<Wrap>({type:'wrap',amount: 50,dimension:'x'});
+    const [wrap,setWrap] = React.useState<SlideWrap>({type:'slideWrap',amount: 50,dimension:'x'});
     const [scale,setScale] = React.useState<Scale>({type:'scale',x:1,y:1});
     return <div>
         Create parent:

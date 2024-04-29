@@ -29,7 +29,7 @@ export default () => {
         ...(
             (['x','y'] as Dimension[]).flatMap(dimension => 
             ([20,50,80] as Percentage[]).map(amount => 
-                pureExample([{type:'wrap',dimension,amount}]),
+                pureExample([{type:'slideWrap',dimension,amount}]),
             ))
         ),
         ...(

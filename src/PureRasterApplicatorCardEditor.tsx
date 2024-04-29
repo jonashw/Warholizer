@@ -11,7 +11,7 @@ export const sampleOperations: PureRasterOperation[] = [
     {"type":"invert"},
     {"type":"rotateHue",degrees: angle(180)},
     {"type":"multiply",n: 2},
-    {"type":"wrap",amount:50,dimension:'x'},
+    {"type":"slideWrap",amount:50,dimension:'x'},
     {"type":"grayscale",percent:100},
     {"type":"blur",pixels:5}
 ];

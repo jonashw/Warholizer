@@ -29,13 +29,13 @@ export default () => {
         ...(
             (['x','y'] as Dimension[]).flatMap(dimension => 
             ([20,50,80] as Percentage[]).map(amount => 
-                pureExample(`Wrap ${dimension} ${amount}%`, {type:'wrap',dimension,amount}),
+                pureExample(`SlideWrap ${dimension} ${amount}%`, {type:'slideWrap',dimension,amount}),
             ))
         ),
         ...(
             (['x','y'] as Dimension[]).flatMap(dimension => 
             [0.2,0.5,0.8].map(amount => 
-                pureExample(`Wrap ${dimension} ${amount*100}%`, {
+                pureExample(`Scale ${dimension} ${amount*100}%`, {
                     type:'scale',
                     x: dimension == 'x' ? amount : 1,
                     y: dimension == 'y' ? amount : 1
