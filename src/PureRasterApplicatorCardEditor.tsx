@@ -6,9 +6,10 @@ import { angle, byte } from './Warholizer/RasterOperations/NumberTypes';
 import { ButtonRadiosInput } from './Warholizer/RasterOperations/ButtonRadiosInput';
 
 export const sampleOperations: PureRasterOperation[] = [
-    {"type":"invert"},
+    {"type":"line",direction:'right'},
     {"type":"stack",dimension:'x'},
     {"type":"threshold", value: byte(128)},
+    {"type":"invert"},
     {"type":"rotateHue",degrees: angle(180)},
     {"type":"multiply",n: 2},
     {"type":"wrap",amount:50,dimension:'x'},

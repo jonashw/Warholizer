@@ -1,5 +1,5 @@
 import { Angle, Byte, Percentage, angle, byte, percentage } from "./NumberTypes";
-import { Dimension, PureRasterOperation } from "./PureRasterOperation";
+import { Dimension, Direction, PureRasterOperation } from "./PureRasterOperation";
 import { ButtonRadiosInput } from "./ButtonRadiosInput";
 
 const NumberInput = <T extends number>(
@@ -41,6 +41,19 @@ const DimensionInput = ({
     <ButtonRadiosInput<Dimension> 
         value={value}
         options={(["x","y"] as Dimension[]).map(value => ({value, label: value}))}
+        onChange={onChange}
+    />;
+
+const DirectionInput = ({
+    value,
+    onChange
+}:{
+    value: Direction,
+    onChange: (d:Direction) => void
+}) =>
+    <ButtonRadiosInput<Direction> 
+        value={value}
+        options={(["up","down","left","right"] as Direction[]).map(value => ({value, label: value}))}
         onChange={onChange}
     />;
 
@@ -112,6 +125,14 @@ export const PureRasterOperationInlineEditor = ({
                     case 'scaleToFit': return `scaleToFit(${op.w},${op.h})`;
                     case 'scale': return (
                         <></>
+                    );
+                    case 'line': return (
+                        <DirectionInput
+                            value={op.direction}
+                            onChange={direction => {
+                                onChange({...op, direction});
+                            }}
+                        />
                     );
                     case 'stack': return (
                         <DimensionInput
