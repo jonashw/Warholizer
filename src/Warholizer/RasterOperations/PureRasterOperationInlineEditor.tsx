@@ -1,6 +1,7 @@
-import { Angle, Byte, Percentage, angle, byte, percentage } from "./NumberTypes";
+import { Angle, Byte, Percentage, angle, byte, percentage, rightAngles } from "./NumberTypes";
 import { Dimension, Direction, PureRasterOperation } from "./PureRasterOperation";
 import { ButtonRadiosInput } from "./ButtonRadiosInput";
+import { Rotate90DegreesCw } from "@mui/icons-material";
 
 const NumberInput = <T extends number>(
     min:T,
@@ -82,6 +83,25 @@ export const PureRasterOperationInlineEditor = ({
                                 onChange({...op, n: parseInt(e.target.value)});
                             }}/>
                         );
+                    case 'rotate': {
+                        const effectiveRightAngles = rightAngles.filter(a => a !== 360);
+                        return (
+                            <span>
+                                <button className="btn btn-sm btn-outline-secondary" onClick={() => {
+                                    const nextIndex = effectiveRightAngles.indexOf(op.degrees) + 1;
+                                    const degrees = 
+                                        nextIndex > effectiveRightAngles.length - 1
+                                        ? effectiveRightAngles[0]
+                                        : effectiveRightAngles[nextIndex];
+                                    onChange({...op, degrees});
+                                }}>
+                                    <Rotate90DegreesCw/>
+                                </button>
+                                {' '}
+                                {op.degrees.toString().padStart(3,"0")}&deg;
+                            </span>
+                        );
+                    }
                     case 'threshold': return (
                         <ByteInput
                             value={op.value}

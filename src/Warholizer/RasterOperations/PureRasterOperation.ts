@@ -1,4 +1,4 @@
-import { Angle, Byte, Percentage, PositiveNumber } from "./NumberTypes";
+import { Angle, Byte, Percentage, PositiveNumber, RightAngle } from "./NumberTypes";
 
 export type Dimension = 'x'|'y';
 export type Direction = 'up' | 'down' | 'left' | 'right';
@@ -9,6 +9,7 @@ export type Multiply = { type: "multiply", n: number };
 export type SlideWrap = { type: "slideWrap", dimension: Dimension, amount: Percentage };
 export type Blur = { type: "blur", pixels: number };
 export type Grayscale = { type: "grayscale", percent: Percentage };
+export type Rotate = { type: "rotate", degrees: RightAngle }
 export type RotateHue = { type: "rotateHue", degrees: Angle }
 export type Scale = { type: "scale", x: number, y: number };
 export type ScaleToFit = { type: "scaleToFit", w: PositiveNumber, h: PositiveNumber };
@@ -22,6 +23,7 @@ export type PureRasterOperation =
   | Noop
   | Blur
   | RotateHue
+  | Rotate
   | Grayscale
   | Threshold
   | Multiply
@@ -123,6 +125,24 @@ const apply = async (op: PureRasterOperation, inputs: OffscreenCanvas[]): Promis
           ctx.drawImage(input,0,0);
         });
       }));
+    case 'rotate':
+      return Promise.all(inputs.map(input => {
+        const dimensionSwitch = op.degrees === 90 || op.degrees === 270;
+        const [width,height] =
+          dimensionSwitch
+          ? [input.height,input.width]
+          : [input.width,input.height];
+        return offscreenCanvasOperation(width, height, (ctx) => {
+          ctx.translate(width/2,height/2);//we want to rotate about the center of the image
+          ctx.rotate(op.degrees * Math.PI / 180);
+          if(dimensionSwitch){
+            ctx.translate(-height/2,-width/2);//we want to rotate about the center of the image
+          } else {
+            ctx.translate(-width/2,-height/2);//we want to rotate about the center of the image
+          }
+          ctx.drawImage(input,0,0);
+        });
+      }));
     case 'scale':
       return Promise.all(inputs.map(input => {
         const scaleWidth = Math.abs(op.x) * input.width;
@@ -193,6 +213,7 @@ const stringRepresentation = (op: PureRasterOperation): string => {
     case 'threshold' : return `threshold(${op.value})`;
     case 'grayscale' : return `grayscale(${op.percent}%)`;
     case 'rotateHue' : return `rotateHue(${op.degrees}deg)`;
+    case 'rotate'    : return `rotate(${op.degrees}deg)`;
     case 'blur'      : return `blur(${op.pixels}px)`;
     case 'invert'    : return "invert";
     case 'slideWrap' : return `slideWrap(${op.dimension},${op.amount}%)`;

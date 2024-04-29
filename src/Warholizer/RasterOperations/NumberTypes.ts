@@ -8,6 +8,9 @@ type IntRange<F extends number, T extends number> = Exclude<Enumerate<T>, Enumer
 export type Byte = IntRange<0,256>;
 export type Percentage = IntRange<0,101>;
 export type Angle = IntRange<0,361>;
+export type RightAngle = 0 | 90 | 180 | 270 | 360;
+export const rightAngles: RightAngle[] = [0,90,180,270,360];
+
 
 type NonNegativeInteger<T extends number> =
     number extends T 

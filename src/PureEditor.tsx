@@ -10,7 +10,7 @@ import { PureRasterApplicatorCardEditor } from './PureRasterApplicatorCardEditor
 import { useUndo } from './useUndo';
 import { Undo as UndoIcon, Redo as RedoIcon } from '@mui/icons-material';
 
-const defaultApplicator: PureRasterApplicator = {"type":"flatMap", ops:[]};
+const defaultApplicator: PureRasterApplicator = {"type":"flatMap", ops:[{type:"rotate",degrees:90}]};
 
 export default () => {
     const [inputImages, setInputImages] = React.useState<{id:string,osc:OffscreenCanvas}[]>([]);
@@ -37,33 +37,35 @@ export default () => {
         .then(setOutputImages);
     },[inputImages,applicators]);
 
-    const prepareInputImage = async (url: string) => {
-        const osc = await ImageUtil.loadOffscreen(url);
-        const op: PureRasterOperation = {
-            type:'scaleToFit',
-            w: positiveNumber(500),
-            h: positiveNumber(500)
-        };
-        const scaled = await PureRasterOperations.apply(op, [osc]);
+    const prepareInputImages = async (urls: string[]) => {
+        const newInputImages = await Promise.all(urls.map(async url => {
+            const osc = await ImageUtil.loadOffscreen(url);
+            const op: PureRasterOperation = {
+                type:'scaleToFit',
+                w: positiveNumber(500),
+                h: positiveNumber(500)
+            };
+            return await PureRasterOperations.apply(op, [osc]);
+        }));
         setInputImages([
             ...inputImages,
-            {
+            ...newInputImages.map(scaled => ({
                 id: newId(),
                 osc: scaled[0]
-            }
+            }))
         ]);
     }
 
     React.useEffect(() => {
-        prepareInputImage("/warhol.jpg")
+        prepareInputImages(["/warhol.jpg","/banana.jpg","/soup-can.jpg"])
         onFilePaste(async (data: ArrayBuffer | string) => {
-            prepareInputImage(data.toString());
+            prepareInputImages([data.toString()]);
         });
     },[]);
 
     const useFile = async (file: File) => {
         const url = await fileToDataUrl(file);
-        prepareInputImage(url.toString());
+        prepareInputImages([url.toString()]);
     };
 
     return (
@@ -162,9 +164,14 @@ export default () => {
                                             height:s,
                                             display:'flex',
                                             alignItems:'center',
-                                            justifyContent:'center'
+                                            justifyContent:'center',
+                                            outline: '1px solid blue'
                                         }}>
-                                            <OffscreenCanvasImage key={img.id} oc={img.osc} style={{maxWidth:s, maxHeight:s}}/>
+                                            <OffscreenCanvasImage key={img.id} oc={img.osc} style={{
+                                                maxWidth:s, 
+                                                maxHeight:s,
+                                                boxShadow: '0 1px 3px black'
+                                            }}/>
                                         </div>
                                     );
                                 })}

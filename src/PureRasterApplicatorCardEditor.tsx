@@ -10,6 +10,7 @@ export const sampleOperations: PureRasterOperation[] = [
     {"type":"threshold", value: byte(128)},
     {"type":"invert"},
     {"type":"rotateHue",degrees: angle(180)},
+    {"type":"rotate",degrees: 90},
     {"type":"multiply",n: 2},
     {"type":"slideWrap",amount:50,dimension:'x'},
     {"type":"grayscale",percent:100},
