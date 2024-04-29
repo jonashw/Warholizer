@@ -61,16 +61,29 @@ const DirectionInput = ({
 
 export const PureRasterOperationInlineEditor = ({
     value,
-    onChange
+    onChange,
+    sampleOperators
 }:{
     value: PureRasterOperation,
-    onChange:(newOp: PureRasterOperation) => void
+    onChange:(newOp: PureRasterOperation) => void,
+    sampleOperators: PureRasterOperation[];
 }) => {
     const op = value;
     const opType = op.type;
     return (
         <>
-            {op.type}
+            <select value={opType}
+                onChange={e => {
+                    const replacementOp = sampleOperators.filter(o => o.type === e.target.value)[0];
+                    onChange(replacementOp);
+                }}
+            >
+                {sampleOperators.map(op =>
+                    <option value={op.type} key={op.type}>
+                        {op.type}
+                    </option>
+                )}
+            </select>
             {(() => {
                 switch (opType) {
                     case 'noop': return;

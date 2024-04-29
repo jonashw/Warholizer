@@ -44,6 +44,7 @@ export const PureRasterApplicatorListItemEditor = ({
             {value.ops.map((op, i) => <div className="list-group-item" key={`${i}-${op.type}`}>
                 <div className="d-flex justify-content-between">
                     <PureRasterOperationInlineEditor
+                        sampleOperators={sampleOperations}
                         value={op}
                         onChange={newOp => {
                             onChange({
