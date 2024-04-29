@@ -7,14 +7,18 @@ import onFilePaste from './Warholizer/onFilePaste';
 import fileToDataUrl from './fileToDataUrl';
 import { PureRasterApplicator, PureRasterApplicators } from './Warholizer/RasterOperations/PureRasterApplicator';
 import { PureRasterApplicatorCardEditor } from './PureRasterApplicatorCardEditor';
+import { useUndo } from './useUndo';
+import { Undo as UndoIcon, Redo as RedoIcon } from '@mui/icons-material';
+
+const defaultApplicator: PureRasterApplicator = {"type":"flatMap", ops:[]};
 
 export default () => {
     const [inputImages, setInputImages] = React.useState<{id:string,osc:OffscreenCanvas}[]>([]);
     const [outputImages, setOutputImages] = React.useState<{id:string,osc:OffscreenCanvas}[]>([]);
-    const defaultApplicator: PureRasterApplicator = {"type":"flatMap", ops:[]};
-    const [applicators,setApplicators] = React.useState<PureRasterApplicator[]>([defaultApplicator]);
+    const undo = useUndo([defaultApplicator]);
+    const applicators = undo.currentState;
+    const setApplicators = undo.onChange;
 
-    //const unixNow = () => new Date().valueOf();
     const newId = () => crypto.randomUUID().toString();
 
     React.useEffect(() => {
@@ -142,6 +146,7 @@ export default () => {
                         </div>
 
                     </div>
+
                     <div className="card mt-3">
                         <div className="card-header">
                             Outputs ({outputImages.length})
@@ -170,9 +175,18 @@ export default () => {
                 </div>
 
                 <div className="col-md-6 mb-3">
+                    <button disabled={!undo.canUndo()} onClick={undo.undo} className="btn btn-success">
+                        <UndoIcon/>
+                        {' '}Undo
+                    </button>
+                    <button disabled={!undo.canRedo()} onClick={undo.redo} className="btn btn-success">
+                        Redo
+                        {' '}<RedoIcon/>
+                    </button>
                     {applicators.map((applicator,i) =>
                         <div key={i} className="mb-3">
                             <PureRasterApplicatorCardEditor
+                                key={"applicator-card-" + i}
                                 value={applicator}
                                 onChange={updatedApplicator => {
                                     setApplicators(applicators.map(a => a === applicator ? updatedApplicator : a))
@@ -184,7 +198,7 @@ export default () => {
                         </div>
                     )}
                     <button className="btn btn-primary w-100" onClick={() => {
-                        setApplicators([...applicators,defaultApplicator]);
+                        setApplicators([...applicators,{...defaultApplicator}]);
                     }}>Add Applicator</button>
                 </div>
             </div>
