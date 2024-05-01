@@ -2,6 +2,7 @@ import { Angle, Byte, Percentage, angle, byte, percentage, rightAngles } from ".
 import { Dimension, Direction, PureRasterOperation } from "./PureRasterOperation";
 import { ButtonRadiosInput } from "./ButtonRadiosInput";
 import { Rotate90DegreesCw } from "@mui/icons-material";
+import { OperationIcon } from "./OperationIcon";
 
 const AbstractNumberInput = <T extends number>(
     min:T,
@@ -72,18 +73,21 @@ export const PureRasterOperationInlineEditor = ({
     const opType = op.type;
     return (
         <>
-            <select value={opType}
-                onChange={e => {
-                    const replacementOp = sampleOperators.filter(o => o.type === e.target.value)[0];
-                    onChange(replacementOp);
-                }}
-            >
-                {sampleOperators.map(op =>
-                    <option value={op.type} key={op.type}>
-                        {op.type}
-                    </option>
-                )}
-            </select>
+            <span>
+                <OperationIcon op={op} className="me-2"/>
+                <select value={opType}
+                    onChange={e => {
+                        const replacementOp = sampleOperators.filter(o => o.type === e.target.value)[0];
+                        onChange(replacementOp);
+                    }}
+                >
+                    {sampleOperators.map(op =>
+                        <option value={op.type} key={op.type}>
+                            {op.type}
+                        </option>
+                    )}
+                </select>
+            </span>
             {(() => {
                 switch (opType) {
                     case 'noop': return;

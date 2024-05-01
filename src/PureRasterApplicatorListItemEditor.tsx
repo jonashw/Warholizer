@@ -2,10 +2,12 @@ import React from 'react';
 import { PureRasterApplicator, PureRasterApplicatorType, PureRasterApplicators } from './Warholizer/RasterOperations/PureRasterApplicator';
 import { PureRasterOperationInlineEditor } from './Warholizer/RasterOperations/PureRasterOperationInlineEditor';
 import { PureRasterOperation } from './Warholizer/RasterOperations/PureRasterOperation';
-import { angle, byte } from './Warholizer/RasterOperations/NumberTypes';
+import { angle, byte, positiveNumber } from './Warholizer/RasterOperations/NumberTypes';
 import { ButtonRadiosInput } from './Warholizer/RasterOperations/ButtonRadiosInput';
 
 export const sampleOperations: PureRasterOperation[] = [
+    {"type":"scale",x:0.5, y:0.5},
+    {"type":"scaleToFit",w: positiveNumber(500), h: positiveNumber(500)},
     {"type":"tile",primaryDimension:'x',lineLength:2},
     {"type":"line",direction:'right'},
     {"type":"grid",rows:2,cols:2},
