@@ -1,30 +1,12 @@
-# React + TypeScript + Vite
+# Warholizer 
 
-This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.
+This is my personal, artwork-focused image editor.  I like to merge digital and analog art.
 
-Currently, two official plugins are available:
+https://warholizer.jonashw.dev
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react/README.md) uses [Babel](https://babeljs.io/) for Fast Refresh
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react-swc) uses [SWC](https://swc.rs/) for Fast Refresh
+## Primary use case: Produce interesting clipart from web images for use in collage artwork.
 
-## Expanding the ESLint configuration
+You can quickly fill a sheet of printer paper with a stylized version of an image you copied to your clipboard, snapped from your camera, or uploaded from your filesystem.  Cut the paper printout with scissors and adhere it to your canvas.  Savor the experience.
 
-If you are developing a production application, we recommend updating the configuration to enable type aware lint rules:
 
-- Configure the top-level `parserOptions` property like this:
-
-```js
-export default {
-  // other rules...
-  parserOptions: {
-    ecmaVersion: 'latest',
-    sourceType: 'module',
-    project: ['./tsconfig.json', './tsconfig.node.json'],
-    tsconfigRootDir: __dirname,
-  },
-}
-```
-
-- Replace `plugin:@typescript-eslint/recommended` to `plugin:@typescript-eslint/recommended-type-checked` or `plugin:@typescript-eslint/strict-type-checked`
-- Optionally add `plugin:@typescript-eslint/stylistic-type-checked`
-- Install [eslint-plugin-react](https://github.com/jsx-eslint/eslint-plugin-react) and add `plugin:react/recommended` & `plugin:react/jsx-runtime` to the `extends` list
+[![Netlify Status](https://api.netlify.com/api/v1/badges/74f5cdc7-1db1-40b9-8981-6734cf18daec/deploy-status)](https://warholizer.jonashw.dev)
