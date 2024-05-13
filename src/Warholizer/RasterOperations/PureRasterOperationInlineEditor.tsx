@@ -148,6 +148,31 @@ export const PureRasterOperationInlineEditor = ({
                                 onChange({...op, pixels: parseInt(e.target.value)});
                             }}/>);
                     case 'invert': return;
+                    case 'crop': return (
+                        <>
+                            <NumberInput
+                                value={op.x}
+                                onChange={x => onChange({...op, x})}
+                            />
+                            <NumberInput
+                                value={op.y}
+                                onChange={y => onChange({...op, y})}
+                            />
+                            <NumberInput
+                                value={op.width}
+                                onChange={width => onChange({...op, width})}
+                            />
+                            <NumberInput
+                                value={op.height}
+                                onChange={height => onChange({...op, height})}
+                            />
+                            <ButtonRadiosInput<'px' | '%'> 
+                                value={op.unit}
+                                options={(["px","%"] as ("px"|"%")[]).map(value => ({value, label: value}))}
+                                onChange={unit => onChange({...op, unit})}
+                            />
+                        </>
+                    );
                     case 'grid': return (
                         <>
                             <NumberInput

@@ -5,7 +5,8 @@ import {
     InvertColors, LinearScale, Palette,
     PhotoSizeSelectLarge,
     Rotate90DegreesCw, Start, WrapText,
-    FitScreen
+    FitScreen,
+    Crop
 } from "@mui/icons-material";
 
 const operationIconElement = (op: PureRasterOperation) => {
@@ -23,6 +24,7 @@ const operationIconElement = (op: PureRasterOperation) => {
         case "tile": return WrapText;
         case "scale": return PhotoSizeSelectLarge;
         case "scaleToFit": return FitScreen;
+        case "crop": return Crop;
         default: return Functions;
     }
 };

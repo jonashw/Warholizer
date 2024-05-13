@@ -4,6 +4,7 @@ export type Dimension = 'x'|'y';
 export type Direction = 'up' | 'down' | 'left' | 'right';
 export type Invert = { type: "invert" };
 export type Noop = { type: "noop" };
+export type Crop = { type: "crop", x: number, y: number, width: number, height: number, unit: 'px' | '%' }
 export type Threshold = { type: "threshold", value: Byte };
 export type Multiply = { type: "multiply", n: number };
 export type SlideWrap = { type: "slideWrap", dimension: Dimension, amount: Percentage };
@@ -18,6 +19,7 @@ export type Tile = { type: "tile", primaryDimension: Dimension, lineLength: numb
 export type Grid = { type: "grid", rows: number, cols: number };
 
 export type PureRasterOperation = 
+  | Crop
   | Grid
   | Tile
   | Line
@@ -52,13 +54,38 @@ const apply = async (op: PureRasterOperation, inputs: OffscreenCanvas[]): Promis
       return inputs;
     case 'multiply': 
       return Array(op.n).fill(inputs).flatMap(inputs => inputs);
+    case 'crop': 
+      return Promise.all(inputs.map(input => {
+        const [x,y,w,h] =
+          op.unit === "px" 
+          ? [op.x, op.y, op.width, op.height] 
+          : [
+            input.width * op.x / 100,
+            input.height * op.y / 100,
+            input.width * op.width / 100,
+            input.height * op.height / 100
+          ];
+        return offscreenCanvasOperation(w,h,(ctx) => {
+          ctx.drawImage(
+            input,
+            x, //sx
+            y, //sy
+            w, //sw
+            h,//sh
+            0,//dx
+            0,//dy
+            w,//dw
+            h//dh
+          );
+        });
+      }));
     case 'threshold': 
       return Promise.all(inputs.map(input =>
         offscreenCanvasOperation(input.width, input.height,(ctx) => {
           ctx.drawImage(input,0,0);
           const imgData = ctx.getImageData(0,0,input.width,input.height);
-          for (var i=0; i<imgData.data.length; i+=4) { // 4 is for RGBA channels
-            var currentPixelValue = rgbaValue(
+          for (let i=0; i<imgData.data.length; i+=4) { // 4 is for RGBA channels
+            const currentPixelValue = rgbaValue(
               imgData.data[i+0],
               imgData.data[i+1],
               imgData.data[i+2],
@@ -284,6 +311,7 @@ const stringRepresentation = (op: PureRasterOperation): string => {
     case 'rotate'    : return `rotate(${op.degrees}deg)`;
     case 'blur'      : return `blur(${op.pixels}px)`;
     case 'invert'    : return "invert";
+    case 'crop'      : return `crop(${op.x},${op.y},${op.width},${op.height},${op.unit})`;
     case 'grid'      : return `grid(${op.rows},${op.cols})`;
     case 'slideWrap' : return `slideWrap(${op.dimension},${op.amount}%)`;
     case 'scaleToFit': return `scaleToFit(${op.w},${op.h})`;

@@ -6,14 +6,17 @@ import { positiveNumber } from './Warholizer/RasterOperations/NumberTypes';
 import onFilePaste from './Warholizer/onFilePaste';
 import fileToDataUrl from './fileToDataUrl';
 import { PureRasterApplicator, PureRasterApplicators } from './Warholizer/RasterOperations/PureRasterApplicator';
-import { PureRasterApplicatorListItemEditor, sampleOperations } from './PureRasterApplicatorListItemEditor';
+import { PureRasterApplicatorListItemEditor} from './PureRasterApplicatorListItemEditor';
 import { useUndo } from './undo/useUndo';
 import { UndoRedoToolbar } from './undo/UndoRedoToolbar';
 
 const defaultApplicator: PureRasterApplicator = {
-    "type":"pipe",
+    "type":"flatMap",
     ops:[
-        ...sampleOperations
+        {type:'crop',unit:'%',width:50, height:50,x:0,y:0},
+        {type:'crop',unit:'%',width:50, height:50,x:50,y:0},
+        {type:'crop',unit:'%',width:50, height:50,x:0,y:50},
+        {type:'crop',unit:'%',width:50, height:50,x:50,y:50}
     ]};
 
 export default () => {
