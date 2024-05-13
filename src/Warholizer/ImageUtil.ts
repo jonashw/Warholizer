@@ -5,7 +5,6 @@ import RasterOperations from "./RasterOperations";
 import { PureRasterOperation, PureRasterOperations } from "./RasterOperations/PureRasterOperation";
 import { Byte } from "./RasterOperations/NumberTypes";
 
-export type Cropping = {crop: Crop, adjustRatio: {x: number, y: number}};
 export type ImagePayload = {dataUrl: string; width:number; height: number,imageData: ImageData};
 
 export class WarholizerImage {
@@ -245,16 +244,14 @@ export const load = (src: string): Promise<ImagePayload> =>
     };
 });
 
-export const crop = (img: ImagePayload, cropping: Cropping): Promise<ImagePayload> => 
+export const crop = (img: ImagePayload, crop: Crop): Promise<ImagePayload> => 
   editImage(img.dataUrl, (img, c, ctx) => {
-    let crop = cropping.crop;
-    let ar = cropping.adjustRatio;
-    c.width = crop.width*ar.x;
-    c.height = crop.height*ar.y;
+    c.width = crop.width;
+    c.height = crop.height;
     ctx.drawImage(
       img,
-      crop.x * ar.x, //sx
-      crop.y * ar.y, //sy
+      crop.x, //sx
+      crop.y, //sy
       c.width, //sw
       c.height,//sh
       0,//dx

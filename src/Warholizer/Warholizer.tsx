@@ -1,13 +1,13 @@
 import React from 'react';
 import onFilePaste from './onFilePaste';
-import ImageUtil, {applyImageValueRanges,ImagePayload,crop as cropImg, Cropping, text, load, Quantization, quantize, MAX_QUANITIZATION_DEPTH, getValueHistogram} from './ImageUtil';
+import ImageUtil, {applyImageValueRanges,ImagePayload,crop as cropImg, text, load, Quantization, quantize, MAX_QUANITIZATION_DEPTH, getValueHistogram} from './ImageUtil';
 import "./Warholizer.css";
 import PrintPreview from './PrintPreview';
 import fileToDataUrl from '../fileToDataUrl';
 import FloatingActionButton from './FloatingActionButton';
 import { PAPER, Paper } from './Paper';
 import OffCanvas from './OffCanvas';
-import ReactCrop from 'react-image-crop'
+import ReactCrop, { Crop } from 'react-image-crop'
 import 'react-image-crop/dist/ReactCrop.css'
 import Fonts from './Fonts';
 import { tilingPatterns, defaultTilingPattern,  TILINGPATTERN} from './TilingPattern';
@@ -53,11 +53,8 @@ const Warholizer = ({
   const [sampleTilingPatternImages,setSampleTilingPatternImages] = React.useState<ImagePayload[]>([]);
   const [bgColorPalette,setBgColorPalette] = React.useState(colors);
   const [fontPreviewText, setFontPreviewText] = React.useState<string>('');
-  const defaultCropping: Cropping = React.useMemo(() => ({
-    crop: {x:0,y:0,width:0,height:0,unit:'px'},
-    adjustRatio: {x:1, y:1}
-  }),[]);
-  const [cropping, setCropping] = React.useState<Cropping>(defaultCropping);
+  const defaultCrop: Crop = React.useMemo(() => ({x:0,y:0,width:0,height:0,unit:'px' }),[]);
+  const [crop, setCrop] = React.useState<Crop>(defaultCrop);
   let [paper,setPaper] = React.useState<Paper>(PAPER.LETTER_PORTRAIT);
 	let [thresholdIsInEffect, setThresholdIsInEffect] = React.useState<boolean>(initialThresholdIsInEffect === undefined ? true : initialThresholdIsInEffect)
   let [colorAdjustedImg,setColorAdjustedImg] = React.useState<ImagePayload|undefined>();
@@ -66,8 +63,8 @@ const Warholizer = ({
   const [stencilMaskImgs,setStencilMaskImgs] = React.useState<ImagePayload[]>([]);
   const [valueHistogramImg,setValueHistogramImg] = React.useState<ImagePayload | undefined>();
   const [tilingPatternId,setTilingPatternId] = React.useState<string>(defaultTilingPattern.id);
-  let [originalImg,setOriginalImg] = React.useState<ImagePayload|undefined>();
-  let [croppedImg,setCroppedImg] = React.useState<ImagePayload|undefined>();
+  const [originalImg,setOriginalImg] = React.useState<ImagePayload|undefined>();
+  const [croppedImg,setCroppedImg] = React.useState<ImagePayload|undefined>();
   const [rowSize, setRowSize] = React.useState(initialRowSize || 5);
   const [thresholds, setThresholds] = React.useState<Byte[]>([initialThreshold || byte(122)]);
   const [selectedBGColorOption, setSelectedBGColorOption] = React.useState(bgcolorOptions[0]);
@@ -84,6 +81,7 @@ const Warholizer = ({
 
   const [wholeTilesOnly,setWholeTilesOnly] = React.useState(false);
   const cropImgRef = React.createRef<HTMLImageElement>();
+  const [prevCropImgRef,setPrevCropImgRef] = React.useState<HTMLImageElement | null>(null);
   const [fonts,setFonts] = React.useState<string[]>([]);
   const [replacementCSSColors,setReplacementCSSColors] = React.useState<string[]>([]);
   const [replacementColors,setReplacementColors] = React.useState<([number,number,number]|undefined)[]>([]);
@@ -113,8 +111,8 @@ const Warholizer = ({
   }, []);
 
   React.useEffect(() => {
-    setCropping(defaultCropping);
-  },[originalImg,defaultCropping]);
+    setCrop(defaultCrop);
+  },[originalImg,defaultCrop]);
 
   React.useEffect(() => {
     const effect = async () => {
@@ -163,6 +161,20 @@ const Warholizer = ({
     setReplacementColors([]);
     setReplacementCSSColors([]);
   },[croppedImg, quantizationDepth]);
+  
+  React.useEffect(() => {
+    console.log('originalImg changed');
+  }, [originalImg]);
+  React.useEffect(() => {
+    console.log('crop changed');
+  }, [crop]);
+  React.useEffect(() => {
+    if(cropImgRef.current === prevCropImgRef){
+      return;
+    }
+    setPrevCropImgRef(cropImgRef.current);
+    console.log('cropImgRef changed',cropImgRef.current);
+  }, [cropImgRef, prevCropImgRef]);
 
   React.useEffect(() => {
     const effect = async () => {
@@ -170,17 +182,45 @@ const Warholizer = ({
         setCroppedImg(undefined);
         return;
       }
-      const img = 
-        !cropping || cropping.crop.width === 0 || cropping.crop.height === 0
-        ? originalImg
-        : await cropImg(originalImg, cropping);
+
+      if(!cropImgRef.current){
+        setCroppedImg(originalImg);
+        return;
+      }
+      if(!crop){
+        setCroppedImg(originalImg);
+        return;
+      }
+      if(crop.width === 0 || crop.height === 0){
+        setCroppedImg(originalImg);
+        return;
+      }
+      if(!prevCropImgRef){
+        return;
+      }
+      /* The ReactCrop component pays no mind to the automatic scaling that
+      ** may occur when cropping a large image.  Its coordinate space respects 
+      ** the scaled image, not the original.  We should retain the original for
+      ** optimal quality in our end artwork, so we must apply x/y adjustment ratios
+      ** to enable accurate cropping.  */
+      const el = prevCropImgRef;
+      const arX = el.naturalWidth/el.width;
+      const arY = el.naturalHeight/el.height;
+      const scaledCrop: Crop = {
+        unit: crop.unit,
+        x: crop.x * arX,
+        y: crop.y * arY,
+        width: crop.width * arX,
+        height: crop.height * arY
+      };
+      const img = await cropImg(originalImg, scaledCrop);
 
       setCroppedImg(img);
       console.log('crop');
       //console.log('crop',img);
     }
     effect();
-  }, [originalImg,cropping]);
+  }, [originalImg, crop, prevCropImgRef]);
 
   const fabs = 
   [
@@ -390,26 +430,10 @@ const Warholizer = ({
       </OffCanvas>
 
       <OffCanvas title="Input Image" style={{background:'rgba(255,255,255,0.95'}} open={offCanvasIsVisible('inputImage')} setOpen={() => toggleOffCanvas('inputImage')} >
-        {originalImg && cropping
+        {originalImg && crop
           ?
           <div className="card mb-3">
-            <ReactCrop crop={cropping.crop} onChange={c => {
-              /* The ReactCrop component pays no mind to the automatic scaling that may occur when cropping a large image.
-              ** Its coordinate space respects the scaled image, not the original.  
-              ** We should retain the original for optimal quality in our end artwork, so we must provide x/y adjustment ratios
-              ** to enable accurate cropping of the original image.  */
-              if(!cropImgRef.current){
-                return;
-              }
-              let img = cropImgRef.current;
-              setCropping({
-                crop: c,
-                adjustRatio: {
-                  x: img.naturalWidth/img.width,
-                  y: img.naturalHeight/img.height
-                }
-              });
-            }}>
+            <ReactCrop crop={crop} onChange={setCrop}>
               <img src={originalImg.dataUrl} alt="preview" ref={cropImgRef}/>
             </ReactCrop>
 
@@ -456,7 +480,7 @@ const Warholizer = ({
                     //setFonts(fonts => fonts.filter((_,ffi) => ffi !== fi));
                     let textToDraw = !!fontPreviewText ? fontPreviewText : f;
                     let img = await text(` ${textToDraw} `, f, 320);
-                    setCropping(defaultCropping);
+                    setCrop(defaultCrop);
                     setOriginalImg(img);
                   }}
                 >

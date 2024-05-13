@@ -71,14 +71,11 @@ export default () => {
             'Cropped',
             (img:ImagePayload) =>
                 ImageUtil.crop(img, {
-                    crop: {
-                        height:300,
-                        width:300,
-                        unit:'px',
-                        x:0,
-                        y:0
-                    },
-                    adjustRatio: {x:1,y:1}
+                    height:300,
+                    width:300,
+                    unit:'px',
+                    x:0,
+                    y:0
                 })
         ],
         [
