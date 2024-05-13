@@ -11,8 +11,9 @@ export const OffscreenCanvasImage = ({
     const [payload, setPayload] = React.useState<ImagePayload>();
     React.useEffect(() => {
         ImageUtil.offscreenCanvasToPayload(oc).then(setPayload);
-    }, []);
+    }, [oc]);
     return <img
+        alt="img"
         src={payload?.dataUrl}
         className={className}
         style={style} />;

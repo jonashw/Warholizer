@@ -9,6 +9,7 @@ import { PureRasterApplicator, PureRasterApplicators } from './Warholizer/Raster
 import { PureRasterApplicatorListItemEditor} from './PureRasterApplicatorListItemEditor';
 import { useUndo } from './undo/useUndo';
 import { UndoRedoToolbar } from './undo/UndoRedoToolbar';
+import { WarholizerImage } from './WarholizerImage';
 
 const defaultApplicator: PureRasterApplicator = {
     "type":"flatMap",
@@ -19,7 +20,7 @@ const defaultApplicator: PureRasterApplicator = {
         {type:'crop',unit:'%',width:50, height:50,x:50,y:50}
     ]};
 
-export default () => {
+export default function PureEditor() {
     const [inputImages, setInputImages, inputImagesUndoController] = useUndo<{id:string,osc:OffscreenCanvas}[]>([]);
     const [applicators, setApplicators, applicatorUndoController] = useUndo([defaultApplicator]);
     const [outputImages, setOutputImages] = React.useState<{id:string,osc:OffscreenCanvas}[]>([]);
@@ -218,6 +219,16 @@ export default () => {
                 </div>
             </div>
             <pre className="text-white">{JSON.stringify(applicators,null,2)}</pre>
+            <WarholizerImage 
+                src="/warhol.jpg"
+                combinator={'pipe'}
+                operations={[
+                    {type:'scaleToFit',h:positiveNumber(600),w:positiveNumber(600)},
+                    {type:'scale',x:1,y:-1},
+                    {type:'slideWrap',amount:50,dimension:'x'},
+                    {type:'slideWrap',amount:50,dimension:'y'}
+                ]}
+            />
         </div>
     );
-};
+}

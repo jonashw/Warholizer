@@ -323,4 +323,18 @@ const stringRepresentation = (op: PureRasterOperation): string => {
   }
 }
 
-export const PureRasterOperations = {apply, stringRepresentation};
+const applyFlatMap = async (ops: PureRasterOperation[], inputs: OffscreenCanvas[]): Promise<OffscreenCanvas[]> => {
+  return (await Promise.all(ops.flatMap(op => apply(op, inputs)))).flatMap(d => d);
+};
+
+const applyPipeline = async (ops: PureRasterOperation[], inputs: OffscreenCanvas[]): Promise<OffscreenCanvas[]> => {
+  const pipeds = await Promise.all(inputs.flatMap(input => {
+    const piped = ops.reduce(
+      async (oscs,op) => apply(op, await oscs),
+      Promise.resolve([input]));
+    return piped;
+  }));
+  return pipeds.flatMap(p => p);
+};
+
+export const PureRasterOperations = {apply, stringRepresentation, applyPipeline, applyFlatMap};
