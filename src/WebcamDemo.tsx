@@ -2,8 +2,8 @@ import React from "react";
 import { WarholizerImage } from "./WarholizerImage";
 import { angle, positiveNumber } from "./Warholizer/RasterOperations/NumberTypes";
 import { loadOffscreen } from "./Warholizer/ImageUtil";
-import { PureRasterApplicatorListItemEditor } from "./PureRasterApplicatorListItemEditor";
 import { PureRasterApplicatorRecord, PureRasterOperationRecord } from "./Warholizer/RasterOperations/PureRasterApplicator";
+import { PureRasterApplicatorsEditor } from "./PureRasterApplicatorsEditor";
 
 export function WebcamDemo() {
   const videoElementRef = React.useRef<HTMLVideoElement>(null);
@@ -72,18 +72,10 @@ const [applicators,setApplicators] = React.useState<PureRasterApplicatorRecord[]
         {!screenshot && <div className="text-light">Loading...</div>}
       </div>
       <div className="col-md-6">
-        {applicators.map((applicator, i) =>
-          <PureRasterApplicatorListItemEditor
-            key={i}
-            value={applicator}
-            onChange={updatedApplicator => {
-              setApplicators(applicators.map(a => a === applicator ? updatedApplicator : a))
-            }}
-            onRemove={() => {
-              setApplicators(applicators.filter(a => a !== applicator))
-            }}
-          />
-        )}
+        <PureRasterApplicatorsEditor
+          defaultApplicators={applicators}
+          onChange={setApplicators}
+        />
       </div>
     </div>
   </div>;
