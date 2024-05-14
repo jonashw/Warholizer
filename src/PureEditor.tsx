@@ -189,9 +189,9 @@ export default function PureEditor() {
                     type:'pipe',
                     ops: [
                         {type:'scaleToFit',h:positiveNumber(600),w:positiveNumber(600)},
-                        {type:'scale',x:1,y:-1},
                         {type:'slideWrap',amount:50,dimension:'x'},
-                        {type:'slideWrap',amount:50,dimension:'y'}
+                        {type:'slideWrap',amount:50,dimension:'y'},
+                        {type:'grid',cols:2,rows:2}
                     ]}]}
             />
         </div>
