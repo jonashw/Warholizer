@@ -17,8 +17,45 @@ export type ScaleToFit = { type: "scaleToFit", w: PositiveNumber, h: PositiveNum
 export type Line = { type: "line", direction: Direction};
 export type Tile = { type: "tile", primaryDimension: Dimension, lineLength: number };
 export type Grid = { type: "grid", rows: number, cols: number };
+export type Stack = {type: "stack", blendingMode: BlendingMode};
+export type BlendingMode = 
+  | "source-over" | "source-in" | "source-out" | "source-atop"
+  | "destination-over" | "destination-in" | "destination-out" | "destination-atop"
+  | "lighter" | "copy" | "xor" | "multiply" | "screen" | "overlay" | "darken"
+  | "lighten" | "color-dodge" | "color-burn" | "hard-light" | "soft-light"
+  | "difference" | "exclusion" | "hue" | "saturation" | "color" | "luminosity";
+  
+export const BlendingModes: BlendingMode[] = [
+  "source-over",
+  "source-in",
+  "source-out",
+  "source-atop",
+  "destination-over",
+  "destination-in",
+  "destination-out",
+  "destination-atop",
+  "lighter",
+  "copy",
+  "xor",
+  "multiply",
+  "screen",
+  "overlay",
+  "darken",
+  "lighten",
+  "color-dodge",
+  "color-burn",
+  "hard-light",
+  "soft-light",
+  "difference",
+  "exclusion",
+  "hue",
+  "saturation",
+  "color",
+  "luminosity"
+];
 
 export type PureRasterOperation = 
+  | Stack
   | Crop
   | Grid
   | Tile
@@ -42,7 +79,7 @@ const offscreenCanvasOperation = async (
   action: (ctx: OffscreenCanvasRenderingContext2D) => void
 ): Promise<OffscreenCanvas> => {
   const c = new OffscreenCanvas(width,height);
-  let ctx = c.getContext('2d')!;
+  const ctx = c.getContext('2d')!;
   action(ctx);
   return c;
 };
@@ -50,6 +87,19 @@ const offscreenCanvasOperation = async (
 const apply = async (op: PureRasterOperation, inputs: OffscreenCanvas[]): Promise<OffscreenCanvas[]> => {
   const opType = op.type;
   switch(opType){
+    case 'stack':
+      {
+        if(inputs.length === 0){
+          return inputs;
+        }
+        const inp = inputs[0];
+        return offscreenCanvasOperation(inp.width, inp.height, (ctx) => {
+          ctx.globalCompositeOperation = op.blendingMode;
+          for(const inp of inputs){
+            ctx.drawImage(inp,0,0);
+          }
+        }).then(osc => [osc]);
+      }
     case 'noop': 
       return inputs;
     case 'multiply': 

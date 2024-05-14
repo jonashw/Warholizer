@@ -1,5 +1,5 @@
 import { Angle, Byte, Percentage, angle, byte, percentage, rightAngles } from "./NumberTypes";
-import { Dimension, Direction, PureRasterOperation } from "./PureRasterOperation";
+import { BlendingMode, BlendingModes, Dimension, Direction, PureRasterOperation } from "./PureRasterOperation";
 import { ButtonRadiosInput } from "./ButtonRadiosInput";
 import { Rotate90DegreesCw } from "@mui/icons-material";
 import { OperationIcon } from "./OperationIcon";
@@ -173,6 +173,17 @@ export const PureRasterOperationInlineEditor = ({
                             />
                         </>
                     );
+                    case 'stack': return(
+                        <select value={op.blendingMode} onChange={e => {
+                            onChange({...op, blendingMode: e.target.value as BlendingMode})
+                        }}>
+                            {BlendingModes.map(bm => 
+                                <option value={bm} key={bm}>
+                                    {bm}
+                                </option>
+                            )}
+                        </select>
+                        );
                     case 'grid': return (
                         <>
                             <NumberInput
