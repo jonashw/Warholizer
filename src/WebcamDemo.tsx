@@ -3,7 +3,7 @@ import { WarholizerImage } from "./WarholizerImage";
 import { angle, positiveNumber } from "./Warholizer/RasterOperations/NumberTypes";
 import { loadOffscreen } from "./Warholizer/ImageUtil";
 import { PureRasterApplicatorListItemEditor } from "./PureRasterApplicatorListItemEditor";
-import { PureRasterApplicator } from "./Warholizer/RasterOperations/PureRasterApplicator";
+import { PureRasterApplicatorRecord, PureRasterOperationRecord } from "./Warholizer/RasterOperations/PureRasterApplicator";
 
 export function WebcamDemo() {
   const videoElementRef = React.useRef<HTMLVideoElement>(null);
@@ -48,15 +48,16 @@ export function WebcamDemo() {
     }
   },[screenshot])
 
-const defaultApplicator: PureRasterApplicator = {
+const defaultApplicator: PureRasterApplicatorRecord = {
+    id:crypto.randomUUID(),
     "type":"pipe",
     ops:[
         { type: 'rotateHue',degrees:angle(90)},
         { type: 'grid',cols:4,rows:4},
         { type: 'scaleToFit',w:positiveNumber(800),h:positiveNumber(800)}
-    ]};
+    ].map(op => ({...op, id: crypto.randomUUID()} as PureRasterOperationRecord))};
 
-const [applicators,setApplicators] = React.useState<PureRasterApplicator[]>([defaultApplicator]);
+const [applicators,setApplicators] = React.useState<PureRasterApplicatorRecord[]>([defaultApplicator]);
 
   return <div className="container-fluid">
     <div className="row">

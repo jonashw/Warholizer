@@ -6,7 +6,22 @@ export type PureRasterApplicator = {
     type: PureRasterApplicatorType,
     ops: PureRasterOperation[]
 }
+export type PureRasterOperationRecord = PureRasterOperation & {id:string};
+export type PureRasterApplicatorRecord = {
+  id: string,
+  type: PureRasterApplicatorType,
+  ops: PureRasterOperationRecord[]
+};
 
+export const applicatorAsRecord = (app: PureRasterApplicator): PureRasterApplicatorRecord => 
+  ({
+      id: crypto.randomUUID(),
+      type: app.type,
+      ops: app.ops.map(operationAsRecord)
+  });
+
+export const operationAsRecord = (op: PureRasterOperation): PureRasterOperationRecord => 
+  ({...op, id: crypto.randomUUID()});
 
 const apply = (app: PureRasterApplicator, imgs: OffscreenCanvas[]): Promise<OffscreenCanvas[]> => {
     switch(app.type){

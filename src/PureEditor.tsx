@@ -5,24 +5,17 @@ import { PureRasterOperation, PureRasterOperations } from './Warholizer/RasterOp
 import { positiveNumber } from './Warholizer/RasterOperations/NumberTypes';
 import onFilePaste from './Warholizer/onFilePaste';
 import fileToDataUrl from './fileToDataUrl';
-import { PureRasterApplicator, PureRasterApplicators } from './Warholizer/RasterOperations/PureRasterApplicator';
+import { PureRasterApplicator, applicatorAsRecord, PureRasterApplicators } from './Warholizer/RasterOperations/PureRasterApplicator';
 import { PureRasterApplicatorListItemEditor} from './PureRasterApplicatorListItemEditor';
 import { useUndo } from './undo/useUndo';
 import { UndoRedoToolbar } from './undo/UndoRedoToolbar';
 import { WarholizerImage } from './WarholizerImage';
 
-const defaultApplicator: PureRasterApplicator = {
-    "type":"flatMap",
-    ops:[
-        {type:'crop',unit:'%',width:50, height:50,x:0,y:0},
-        {type:'crop',unit:'%',width:50, height:50,x:50,y:0},
-        {type:'crop',unit:'%',width:50, height:50,x:0,y:50},
-        {type:'crop',unit:'%',width:50, height:50,x:50,y:50}
-    ]};
+const defaultApplicator: PureRasterApplicator = { "type":"flatMap", ops:[ ]};
 
 export default function PureEditor() {
     const [inputImages, setInputImages, inputImagesUndoController] = useUndo<{id:string,osc:OffscreenCanvas}[]>([]);
-    const [applicators, setApplicators, applicatorUndoController] = useUndo([defaultApplicator]);
+    const [applicators, setApplicators, applicatorUndoController] = useUndo([ applicatorAsRecord(defaultApplicator)    ]);
     const [outputImages, setOutputImages] = React.useState<{id:string,osc:OffscreenCanvas}[]>([]);
 
     const newId = () => crypto.randomUUID().toString();
@@ -64,7 +57,7 @@ export default function PureEditor() {
         });
     },[]);
 
-    const useFile = async (file: File) => {
+    const prepareFile = async (file: File) => {
         const url = await fileToDataUrl(file);
         prepareInputImages([url.toString()]);
     };
@@ -137,11 +130,11 @@ export default function PureEditor() {
                                             capture={o.capture}
                                             accept="image/jpeg, image/png, image/gif"
                                             onChange={e => {
-                                                var files = Array.from(e.target.files || []);
+                                                const files = Array.from(e.target.files || []);
                                                 if (files.length !== 1) {
                                                     return;
                                                 }
-                                                useFile(files[0]);
+                                                prepareFile(files[0]);
                                             }}
                                         />
                                     </label>
@@ -159,9 +152,9 @@ export default function PureEditor() {
                             <UndoRedoToolbar controller={applicatorUndoController} />
                         </div>
                         <div className="list-group list-group-flush">
-                            {applicators.map((applicator,i) =>
+                            {applicators.map((applicator) =>
                                 <PureRasterApplicatorListItemEditor
-                                    key={"applicator-card-" + i}
+                                    key={applicator.id}
                                     value={applicator}
                                     onChange={updatedApplicator => {
                                         setApplicators(applicators.map(a => a === applicator ? updatedApplicator : a))
@@ -174,7 +167,7 @@ export default function PureEditor() {
                         </div>
                         <div className="card-footer">
                             <button className="btn btn-primary btn-sm w-100" onClick={() => {
-                                setApplicators([...applicators,{...defaultApplicator}]);
+                                setApplicators([...applicators,{...applicatorAsRecord(defaultApplicator)}]);
                             }}>Add Applicator</button>
                         </div>
                     </div>
