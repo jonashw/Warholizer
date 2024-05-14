@@ -33,14 +33,9 @@ export default function PureEditor() {
             return;
         }
         const inputOffscreenCanvases = inputImages.map(i => i.osc);
-        applicators.reduce(
-            async (oscs,applicator) => 
-                applicator.ops.length > 0 
-                ? PureRasterApplicators.apply(applicator, await oscs)
-                : oscs,
-            Promise.resolve(inputOffscreenCanvases))
-        .then(oscs => oscs.map(osc => ({osc, id: newId()})))
-        .then(setOutputImages);
+        PureRasterApplicators.applyAll(applicators, inputOffscreenCanvases)
+            .then(oscs => oscs.map(osc => ({osc, id: newId()})))
+            .then(setOutputImages);
     },[inputImages,applicators]);
 
     const prepareInputImages = async (urls: string[]) => {
@@ -221,13 +216,14 @@ export default function PureEditor() {
             <pre className="text-white">{JSON.stringify(applicators,null,2)}</pre>
             <WarholizerImage 
                 src="/warhol.jpg"
-                combinator={'pipe'}
-                operations={[
-                    {type:'scaleToFit',h:positiveNumber(600),w:positiveNumber(600)},
-                    {type:'scale',x:1,y:-1},
-                    {type:'slideWrap',amount:50,dimension:'x'},
-                    {type:'slideWrap',amount:50,dimension:'y'}
-                ]}
+                applicators={[{
+                    type:'pipe',
+                    ops: [
+                        {type:'scaleToFit',h:positiveNumber(600),w:positiveNumber(600)},
+                        {type:'scale',x:1,y:-1},
+                        {type:'slideWrap',amount:50,dimension:'x'},
+                        {type:'slideWrap',amount:50,dimension:'y'}
+                    ]}]}
             />
         </div>
     );

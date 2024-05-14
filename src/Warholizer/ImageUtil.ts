@@ -223,8 +223,8 @@ const loadImgElement = (src:string): Promise<HTMLImageElement> =>
     img.src = src;
   });
 
-export const loadOffscreen = async (src: string): Promise<OffscreenCanvas> =>{
-  const img = await loadImgElement(src);
+export const loadOffscreen = async (src: string | HTMLVideoElement): Promise<OffscreenCanvas> =>{
+  const img = typeof src === "string" ? await loadImgElement(src) : src;
   const c = new OffscreenCanvas(img.width, img.height);
   const ctx = c.getContext('2d')!;
   ctx.drawImage(img,0,0);

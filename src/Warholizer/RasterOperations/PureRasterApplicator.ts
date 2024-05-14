@@ -32,4 +32,13 @@ const apply = (app: PureRasterApplicator, imgs: OffscreenCanvas[]): Promise<Offs
     }
 };
 
-export const PureRasterApplicators = {apply,types};
+
+const applyAll = (applicators: PureRasterApplicator[], inputs: OffscreenCanvas[]) =>
+  applicators.reduce(
+      async (oscs,applicator) => 
+          applicator.ops.length > 0 
+          ? PureRasterApplicators.apply(applicator, await oscs)
+          : oscs,
+      Promise.resolve(inputs));
+
+export const PureRasterApplicators = {apply,types,applyAll};
