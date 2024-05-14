@@ -1,8 +1,6 @@
 import { Outlet, RouteObject } from "react-router-dom"
 import App from "./App";
-import TilingPatternGallery from "./TilingPatternGallery";
 import Gallery from "./Gallery";
-import OperationEditorDemo from "./OperationEditorDemo";
 import PureGallery from "./PureGallery";
 import PureEditor from "./PureEditor";
 import { WebcamDemo } from "./WebcamDemo";
@@ -19,8 +17,6 @@ export const routeConfig: RouteObject[] = [
           {href:'/gallery',label:'Gallery'},
           {href:'/pure-gallery',label:'Pure Gallery'},
           {href:'/pure-editor',label:'Pure Editor'},
-          {href:'/tiling-patterns',label:'Tiling Patterns'},
-          {href:'/edit',label:'Operation Editor Demo'},
           {href:'/webcam',label:'Webcam input'}
         ].map(route => (
           <li className="nav-item" key={route.label}>
@@ -41,10 +37,6 @@ export const routeConfig: RouteObject[] = [
         element: <App />,
       },
       {
-        path: 'tiling-patterns',
-        element: <TilingPatternGallery/>
-      },
-      {
         path: 'gallery',
         element: <Gallery/>
       },
@@ -59,10 +51,6 @@ export const routeConfig: RouteObject[] = [
       {
         path: 'pure-editor',
         element: <PureEditor/>
-      },
-      {
-        path: 'edit',
-        element: <OperationEditorDemo/>
       }
     ]
   }
