@@ -4,6 +4,7 @@ import { PureRasterOperationInlineEditor } from './Warholizer/RasterOperations/P
 import { PureRasterOperation } from './Warholizer/RasterOperations/PureRasterOperation';
 import { angle, byte, positiveNumber } from './Warholizer/RasterOperations/NumberTypes';
 import { ButtonRadiosInput } from './Warholizer/RasterOperations/ButtonRadiosInput';
+import { DragDropContext, Draggable, Droppable } from 'react-beautiful-dnd';
 
 export const sampleOperations: PureRasterOperation[] = [
     {"type":"scale",x:0.5, y:0.5},
@@ -45,30 +46,68 @@ export const PureRasterApplicatorListItemEditor = ({
                         onClick={onRemove}
                     >&times;</button>)}
             </div>
-            {value.ops.map((op, i) => <div className="list-group-item" key={`${i}-${op.type}`}>
-                <div className="d-flex justify-content-between">
-                    <PureRasterOperationInlineEditor
-                        sampleOperators={sampleOperations}
-                        value={op}
-                        onChange={newOp => {
-                            onChange({
-                                ...value,
-                                ops: value.ops.map(o => o == op ? newOp : o)
-                            });
-                        }}
-                    />
-                    <button className="btn btn-sm btn-outline-danger"
-                        onClick={() => {
-                            onChange({
-                                ...value,
-                                ops: value.ops.filter(o => o !== op)
-                            });
-                        }}
-                        title="Remove this filter"
-                    >Remove</button>
-                </div>
-            </div>
-            )}
+            <DragDropContext onDragEnd={result => {
+                function reorder<T>(list:T[], startIndex: number, endIndex:number): T[] {
+                    const result = Array.from(list);
+                    const [removed] = result.splice(startIndex, 1);
+                    result.splice(endIndex, 0, removed);
+                    return result;
+                }
+
+                if (!result.destination) {
+                    return;
+                }
+
+                if (result.destination.index === result.source.index) {
+                    return;
+                }
+                const reordered = reorder(
+                    value.ops,
+                    result.source.index,
+                    result.destination.index);
+                onChange({...value, ops: reordered});
+            }} >
+                <Droppable droppableId="list">
+                    {provided => (
+                        <div ref={provided.innerRef} {...provided.droppableProps}>
+                            {value.ops.map((op, i) => (
+                                <Draggable draggableId={op.type} index={i} key={op.type}>
+                                    {provided => (
+                                        <div className="list-group-item" key={`${i}-${op.type}`}
+                                            ref={provided.innerRef}
+                                            {...provided.draggableProps}
+                                            {...provided.dragHandleProps}
+                                        >
+                                            <div className="d-flex justify-content-between">
+                                                <PureRasterOperationInlineEditor
+                                                    sampleOperators={sampleOperations}
+                                                    value={op}
+                                                    onChange={newOp => {
+                                                        onChange({
+                                                            ...value,
+                                                            ops: value.ops.map(o => o == op ? newOp : o)
+                                                        });
+                                                    }}
+                                                />
+                                                <button className="btn btn-sm btn-outline-danger"
+                                                    onClick={() => {
+                                                        onChange({
+                                                            ...value,
+                                                            ops: value.ops.filter(o => o !== op)
+                                                        });
+                                                    }}
+                                                    title="Remove this filter"
+                                                >Remove</button>
+                                            </div>
+                                        </div>
+                                    )}
+                                </Draggable>
+                            ))}
+                            {provided.placeholder}
+                        </div>
+                    )}
+                </Droppable>
+            </DragDropContext>
             <div className="list-group-item">
                 <select
                     className="form-select form-select-sm"
