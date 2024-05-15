@@ -1,8 +1,9 @@
-import { Angle, Byte, Percentage, angle, byte, percentage, rightAngles } from "./NumberTypes";
+import { Angle, Byte, Percentage, PositiveNumber, angle, byte, percentage, positiveNumber, rightAngles } from "./NumberTypes";
 import { BlendingMode, BlendingModes, Dimension, Direction, PureRasterOperation } from "./PureRasterOperation";
 import { ButtonRadiosInput } from "./ButtonRadiosInput";
 import { Rotate90DegreesCw } from "@mui/icons-material";
 import { OperationIcon } from "./OperationIcon";
+import { PureRasterOperationRecord, operationAsRecord } from "./PureRasterApplicator";
 
 const AbstractNumberInput = <T extends number>(
     min:T,
@@ -25,15 +26,17 @@ const AbstractNumberInput = <T extends number>(
         className={className}
         style={{width}}
         onChange={e => {
-            onChange(sanitize(parseInt(e.target.value)));
+            onChange(sanitize(parseFloat(e.target.value)));
         }}
     />;
 };
 
 const NumberInput = AbstractNumberInput<number>(-Infinity,Infinity,1,n => n,"number");
+const FractionalNumberInput = AbstractNumberInput<number>(-Infinity,Infinity,.1,n => n,"number");
 const AngleInput = AbstractNumberInput<Angle>(0,360,1,angle,"range");
 const PercentageInput = AbstractNumberInput<Percentage>(0,100,1,percentage,"range");
 const ByteInput = AbstractNumberInput<Byte>(0,255,1,byte,"range");
+const PositiveNumberInput = AbstractNumberInput<PositiveNumber>(positiveNumber(0),positiveNumber(Infinity),1,positiveNumber,"number");
 const DimensionInput = ({
     value,
     onChange
@@ -65,8 +68,8 @@ export const PureRasterOperationInlineEditor = ({
     onChange,
     sampleOperators
 }:{
-    value: PureRasterOperation,
-    onChange:(newOp: PureRasterOperation) => void,
+    value: PureRasterOperationRecord,
+    onChange:(newOp: PureRasterOperationRecord) => void,
     sampleOperators: PureRasterOperation[];
 }) => {
     const op = value;
@@ -78,7 +81,7 @@ export const PureRasterOperationInlineEditor = ({
                 <select value={opType}
                     onChange={e => {
                         const replacementOp = sampleOperators.filter(o => o.type === e.target.value)[0];
-                        onChange(replacementOp);
+                        onChange(operationAsRecord(replacementOp));
                     }}
                 >
                     {sampleOperators.map(op =>
@@ -148,6 +151,32 @@ export const PureRasterOperationInlineEditor = ({
                                 onChange({...op, pixels: parseInt(e.target.value)});
                             }}/>);
                     case 'invert': return;
+                    case 'scale': return (
+                        <>
+                            <FractionalNumberInput
+                                value={op.x}
+                                onChange={x => onChange({...op, x})}
+                            />
+                            &times;
+                            <FractionalNumberInput
+                                value={op.y}
+                                onChange={y => onChange({...op, y})}
+                            />
+                        </>
+                    );
+                    case 'scaleToFit': return (
+                        <>
+                            <PositiveNumberInput
+                                value={op.w}
+                                onChange={w => onChange({...op, w})}
+                            />
+                            &times;
+                            <PositiveNumberInput
+                                value={op.h}
+                                onChange={h => onChange({...op, h})}
+                            />
+                        </>
+                    );
                     case 'crop': return (
                         <>
                             <NumberInput
@@ -219,10 +248,6 @@ export const PureRasterOperationInlineEditor = ({
                                 onChange={amount => onChange({...op, amount})}
                             />
                         </>
-                    );
-                    case 'scaleToFit': return `scaleToFit(${op.w},${op.h})`;
-                    case 'scale': return (
-                        <></>
                     );
                     case 'line': return (
                         <DirectionInput

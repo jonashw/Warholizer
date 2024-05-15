@@ -46,7 +46,7 @@ export const PureRasterApplicatorListItemEditor = ({
                                                 onChange={newOp => {
                                                     onChange({
                                                         ...value,
-                                                        ops: value.ops.map(o => o == op ? operationAsRecord(newOp) : o)
+                                                        ops: value.ops.map(o => o == op ? newOp : o)
                                                     });
                                                 }}
                                             />
