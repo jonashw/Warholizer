@@ -5,7 +5,7 @@ import { useUndo } from './undo/useUndo';
 import { UndoRedoToolbar } from './undo/UndoRedoToolbar';
 import { defaultApplicator } from './defaultApplicator';
 import { DragDropContext } from 'react-beautiful-dnd';
-
+import { DragDropHelper } from './DragDropHelper';
 
 export function PureRasterApplicatorsEditor({
     defaultApplicators, onChange
@@ -39,15 +39,15 @@ export function PureRasterApplicatorsEditor({
                 if(destination.index === source.index){
                     return;
                 }
-                const updatedOps = reorder(sourceApp.ops, source.index, destination.index);
+                const updatedOps = DragDropHelper.reorder(sourceApp.ops, source.index, destination.index);
                 setApplicators(applicators.map(a => 
                     a === sourceApp 
                     ? { ...sourceApp, ops: updatedOps }
                     : a));
             } else {
-                const [updatedSourceOps,updatedDestinationOps] = move(
-                    sourceApp     .ops,      source.index,
-                    destinationApp.ops, destination.index);
+                const [updatedSourceOps,updatedDestinationOps] = 
+                    DragDropHelper.move(sourceApp     .ops,      source.index,
+                                        destinationApp.ops, destination.index);
                 console.log({updatedSourceOps,updatedDestinationOps});
                 setApplicators(applicators.map(a => 
                     a === sourceApp 
@@ -55,19 +55,6 @@ export function PureRasterApplicatorsEditor({
                     : a === destinationApp 
                     ? { ...destinationApp, ops: updatedDestinationOps }
                     : a));
-            }
-            function move<T>(fromArray: T[], fromIndex: number, toArray:T[], toIndex: number): [T[],T[]] {
-                const fromArrayUpdated = [...fromArray];
-                const [removed] = fromArrayUpdated.splice(fromIndex, 1);
-                const toArrayUpdated = [...toArray];
-                toArrayUpdated.splice(toIndex, 0, removed);
-                return [fromArrayUpdated,toArrayUpdated];
-            }
-            function reorder<T>(array: T[], fromIndex: number, toIndex: number): T[] {
-                const result = [...array];
-                const [removed] = result.splice(fromIndex, 1);
-                result.splice(toIndex, 0, removed);
-                return result;
             }
         }}>
             <div className="list-group list-group-flush">

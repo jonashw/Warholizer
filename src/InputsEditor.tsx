@@ -8,6 +8,8 @@ import fileToDataUrl from './fileToDataUrl';
 import { useUndo } from './undo/useUndo';
 import { UndoRedoToolbar } from './undo/UndoRedoToolbar';
 import { ImageRecord } from './ImageRecord';
+import { DragDropContext, Draggable, Droppable } from 'react-beautiful-dnd';
+import { DragDropHelper } from './DragDropHelper';
 
 
 export function InputsEditor({
@@ -59,29 +61,57 @@ export function InputsEditor({
                 <UndoRedoToolbar controller={controller} />
             </div>
 
-            <div className="list-group list-group-flush">
-                {inputs.map(img => {
-                    const s = '30px';
-                    return <div className="list-group-item" key={img.id}>
-                        <div className="d-flex justify-content-between align-items-center">
-                            <div style={{
-                                width: s,
-                                height: s,
-                                display: 'flex',
-                                alignItems: 'center',
-                                justifyContent: 'center'
-                            }}>
-                                <OffscreenCanvasImage key={img.id} oc={img.osc} style={{ maxWidth: s, maxHeight: s }} />
-                            </div>
-                            {img.osc.width}&times;{img.osc.height}
-                            <button className="btn btn-outline-danger btn-sm"
-                                onClick={() => {
-                                    setInputs(inputs.filter(m => m !== img));
-                                }}>Remove</button>
+            <DragDropContext onDragEnd={result => {
+                if (!result.destination) {
+                    return;
+                }
+                const destination = result.destination!;
+                const source = result.source;
+                if (destination.index === source.index) {
+                    return;
+                }
+                const reordered = DragDropHelper.reorder(inputs, source.index, destination.index);
+                setInputs(reordered);
+            }}>
+                <Droppable droppableId={"inputs"}>
+                    {provided => (
+                        <div className="list-group list-group-flush" ref={provided.innerRef} {...provided.droppableProps}>
+                            {inputs.map((img, i) => {
+                                const s = '30px';
+                                return (
+                                    <Draggable draggableId={img.id} index={i} key={img.id}>
+                                        {provided => (
+                                            <div className="list-group-item" key={img.id}
+                                                ref={provided.innerRef}
+                                                {...provided.draggableProps}
+                                                {...provided.dragHandleProps}
+                                            >
+                                                <div className="d-flex justify-content-between align-items-center">
+                                                    <div style={{
+                                                        width: s,
+                                                        height: s,
+                                                        display: 'flex',
+                                                        alignItems: 'center',
+                                                        justifyContent: 'center'
+                                                    }}>
+                                                        <OffscreenCanvasImage key={img.id} oc={img.osc} style={{ maxWidth: s, maxHeight: s }} />
+                                                    </div>
+                                                    {img.osc.width}&times;{img.osc.height}
+                                                    <button className="btn btn-outline-danger btn-sm"
+                                                        onClick={() => {
+                                                            setInputs(inputs.filter(m => m !== img));
+                                                        }}>Remove</button>
+                                                </div>
+                                            </div>)}
+                                    </Draggable>
+
+                                );
+                            })}
+                            {provided.placeholder}
                         </div>
-                    </div>;
-                })}
-            </div>
+                    )}
+                </Droppable>
+            </DragDropContext>
 
             <div className="card-footer">
                 <div className="d-flex justify-content-between align-items-center">
