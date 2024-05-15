@@ -9,17 +9,6 @@ const wait = (ms: number) => () => new Promise<void>(resolve => {
   }, ms);
 });
 
-type FPSMeasurement = {totalMsElapsed: number; totalFrames: number; average: number};
-const measureNextFrame = (totalMsElapsed: number, measurement: FPSMeasurement): FPSMeasurement => {
-  const totalFrames = measurement.totalFrames+1;
-  console.log({totalMsElapsed});
-  return {
-    totalMsElapsed,
-    totalFrames, 
-    average: totalMsElapsed/totalFrames
-  };
-};
-
 export function Webcam({
   onFrame
 }: {
@@ -27,6 +16,7 @@ export function Webcam({
 }) {
   const [fps,setFps] = React.useState<FPS>(1);
   const videoElementRef = React.useRef<HTMLVideoElement>(null);
+
   React.useEffect(() => {
     if (!videoElementRef.current) {
       console.log('no video element yet');
@@ -34,14 +24,16 @@ export function Webcam({
     }
     let looping = true;
     const video = videoElementRef.current!;
-    console.log('preparing video stream');
-    const captureFrame = () => loadOffscreen(videoElementRef.current!).then(onFrame);
+
+    const captureFrame = () => 
+      loadOffscreen(video)
+      .then(onFrame);
+
     const startPollingForFrames = async () => {
+      console.log('preparing video stream');
       const stream = await navigator.mediaDevices.getUserMedia({ video: true, audio: false });
+      video.autoplay = true;
       video.srcObject = stream;
-      video.oncanplay = () => {
-        video.play();
-      };
       video.onplaying = () => {
         const loop = () => { 
           if(!looping){
@@ -54,16 +46,16 @@ export function Webcam({
         setTimeout(() => {
           video.width = video.videoWidth;
           video.height = video.videoHeight;
-          console.log('started playing', video.videoWidth, video.videoHeight, video);
-          //setVideo(video);
+          console.log('started playing', video);
           loop();
         }, 1000);
       };
 
     };
+
     startPollingForFrames();
+
     return () => {
-      //cleanup
       console.log('cleanup')
       video.onplaying = null;
       looping = false;
@@ -77,9 +69,17 @@ export function Webcam({
 
   return (
     <div className="card">
+      <div className="card-header">
+        Webcam Input
+      </div>
       <div className="card-body">
         <label className="form-label">Target FPS ({fps})</label>
-        <input className="form-range" type="range" min={1} max={5} step={1} value={fps} onChange={e => setFps(e.target.value as unknown as FPS)}/>
+        <input className="form-range"
+          type="range"
+          value={fps} 
+          min={1} max={5} step={1}
+          onChange={e => setFps(e.target.value as unknown as FPS)}
+        />
       </div>
       {videoElement}
     </div>

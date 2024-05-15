@@ -24,11 +24,15 @@ const [applicators,setApplicators] = React.useState<PureRasterApplicatorRecord[]
 
       <div className="col-md-6">
         <Webcam onFrame={setScreenshot}/>
-        {screenshot && <div className="card mt-4"><WarholizerImage
-          src={screenshot}
-          className="card-img-top card-img-bottom"
-          applicators={applicators}
-        /></div>}
+        {screenshot && (
+          <div className="card mt-4">
+            <WarholizerImage
+              src={screenshot}
+              className="card-img-top card-img-bottom"
+              applicators={applicators}
+            />
+          </div>
+        )}
         {!screenshot && <div className="text-light">Loading...</div>}
       </div>
       <div className="col-md-6">
