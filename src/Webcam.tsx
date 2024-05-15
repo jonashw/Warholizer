@@ -1,20 +1,11 @@
 import React from "react";
 import { loadOffscreen } from "./Warholizer/ImageUtil";
 
-type FPS = 1|2|3|4|5;
-
-const wait = (ms: number) => () => new Promise<void>(resolve => {
-  setTimeout(() => {
-    resolve();
-  }, ms);
-});
-
-export function Webcam({
+export const Webcam = React.forwardRef(function ({
   onFrame
 }: {
   onFrame: (osc: OffscreenCanvas) => void;
-}) {
-  const [fps,setFps] = React.useState<FPS>(1);
+},ref) {
   const videoElementRef = React.useRef<HTMLVideoElement>(null);
 
   React.useEffect(() => {
@@ -22,66 +13,67 @@ export function Webcam({
       console.log('no video element yet');
       return;
     }
-    let looping = true;
     const video = videoElementRef.current!;
-
-    const captureFrame = () => 
-      loadOffscreen(video)
-      .then(onFrame);
-
-    const startPollingForFrames = async () => {
+    const init = async () => {
       console.log('preparing video stream');
       const stream = await navigator.mediaDevices.getUserMedia({ video: true, audio: false });
       video.autoplay = true;
       video.srcObject = stream;
       video.onplaying = () => {
-        const loop = () => { 
-          if(!looping){
-            return;
-          }
-          captureFrame()
-          .then(wait(1000/fps))
-          .then(() => requestAnimationFrame(loop));
-        };
-        setTimeout(() => {
-          video.width = video.videoWidth;
-          video.height = video.videoHeight;
-          console.log('started playing', video);
-          loop();
-        }, 1000);
+        console.log('started playing', video);
       };
 
     };
 
-    startPollingForFrames();
+    init();
 
     return () => {
       console.log('cleanup')
       video.onplaying = null;
-      looping = false;
     };
-  }, [fps, onFrame, videoElementRef]);
+  }, [onFrame, videoElementRef]);
+
+  const capture = () => {
+    if (!videoElementRef.current) {
+      console.log('no video element yet');
+      return;
+    }
+    const video = videoElementRef.current!;
+    loadOffscreen(video).then(onFrame).then(() => {
+    });
+  };
+
+  React.useImperativeHandle(ref, () => {
+    return {
+      capture: () => new Promise(resolve => {
+        if (!videoElementRef.current) {
+          console.log('no video element yet');
+          return Promise.resolve();
+        }
+        const video = videoElementRef.current!;
+
+        loadOffscreen(video).then(resolve).then(() => {
+        });
+      })
+    };
+  });
 
   const videoElement = React.useMemo(() => {
     console.log('rendering video element');
-    return <video key={"THE VIDEO STREAM"} ref={videoElementRef} style={{ display: 'none' }} />;
-  }, [videoElementRef]);
+    return (
+      <video 
+        style={{maxWidth:'100%'}}
+        key={"THE VIDEO STREAM"}
+        ref={videoElementRef}
+      />
+    );
+  }, []);
 
-  return (
-    <div className="card">
-      <div className="card-header">
-        Webcam Input
-      </div>
-      <div className="card-body">
-        <label className="form-label">Target FPS ({fps})</label>
-        <input className="form-range"
-          type="range"
-          value={fps} 
-          min={1} max={5} step={1}
-          onChange={e => setFps(e.target.value as unknown as FPS)}
-        />
-      </div>
-      {videoElement}
-    </div>
-  );
-}
+  return (<div 
+    style={{cursor:'pointer'}}
+    onClick={capture}
+  >
+    {videoElement}
+    <div>Click/tap the video to capture</div>
+  </div>);
+});

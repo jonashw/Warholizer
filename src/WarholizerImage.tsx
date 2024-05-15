@@ -9,7 +9,7 @@ export function WarholizerImage({
     className,
     style
 }:{
-    src: string | OffscreenCanvas | HTMLVideoElement,
+    src: (string | OffscreenCanvas | HTMLVideoElement)[],
     applicators: PureRasterApplicator[],
     className?: string;
     style?: React.CSSProperties;
@@ -18,10 +18,10 @@ export function WarholizerImage({
 
     React.useEffect(() => {
         const effect = async () => {
-            const osc = src instanceof OffscreenCanvas  
-                ? src 
-                : await ImageUtil.loadOffscreen(src) ;
-            setFinalImages(await PureRasterApplicators.applyAll(applicators, [osc]));
+            const oscs = await Promise.all(src.map(s => s instanceof OffscreenCanvas  
+                ? s
+                : ImageUtil.loadOffscreen(s)));
+            setFinalImages(await PureRasterApplicators.applyAll(applicators, oscs));
         };
         effect();
     },[src, applicators])

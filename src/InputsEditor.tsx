@@ -10,7 +10,7 @@ import { UndoRedoToolbar } from './undo/UndoRedoToolbar';
 import { ImageRecord } from './ImageRecord';
 import { DragDropContext, Draggable, Droppable } from 'react-beautiful-dnd';
 import { DragDropHelper } from './DragDropHelper';
-
+import { WebcamModal } from "./WebcamModal";
 
 export function InputsEditor({
     defaultInputs, onChange
@@ -19,21 +19,26 @@ export function InputsEditor({
     onChange: (inputs: ImageRecord[]) => void;
 }) {
     const [inputs, setInputs, controller] = useUndo<ImageRecord[]>(defaultInputs);
+    const [webcamVisible, setWebcamVisible] = React.useState(false);
 
     React.useEffect(() => {
         onChange(inputs);
     }, [inputs, onChange]);
 
-    const prepareInputImages = async (urls: string[]) => {
-        const newInputImages = await Promise.all(urls.map(async (url) => {
-            const osc = await ImageUtil.loadOffscreen(url);
-            const op: PureRasterOperation = {
-                type: 'scaleToFit',
-                w: positiveNumber(500),
-                h: positiveNumber(500)
-            };
-            return await PureRasterOperations.apply(op, [osc]);
-        }));
+    const prepareInputUrls = async (urls: string[]) => {
+        const oscs = await Promise.all(urls.map(ImageUtil.loadOffscreen));
+        await prepareInputImages(oscs);
+    };
+
+    const prepareInputImages = async (oscs: OffscreenCanvas[]) => {
+        const op: PureRasterOperation = {
+            type: 'scaleToFit',
+            w: positiveNumber(500),
+            h: positiveNumber(500)
+        };
+        const newInputImages = await Promise.all(oscs.map((osc) => 
+            PureRasterOperations.apply(op, [osc])
+        ));
         setInputs([
             ...inputs,
             ...newInputImages.map(scaled => ({
@@ -44,22 +49,38 @@ export function InputsEditor({
     };
 
     React.useEffect(() => {
-        prepareInputImages(["/warhol.jpg", "/banana.jpg", "/soup-can.jpg"]);
+        prepareInputUrls(["/warhol.jpg", "/banana.jpg", "/soup-can.jpg"]);
         onFilePaste(async (data: ArrayBuffer | string) => {
-            prepareInputImages([data.toString()]);
+            prepareInputUrls([data.toString()]);
         });
     }, []);
 
     const prepareFile = async (file: File) => {
         const url = await fileToDataUrl(file);
-        prepareInputImages([url.toString()]);
+        prepareInputUrls([url.toString()]);
     };
+
+    const showWebcam = () => {
+        setWebcamVisible(true);
+    };
+
     return (
         <div className="card">
             <div className="card-header d-flex justify-content-between align-items-center">
                 Inputs
                 <UndoRedoToolbar controller={controller} />
             </div>
+
+            {webcamVisible && (
+                <WebcamModal
+                    onClose={oscs => {
+                        setWebcamVisible(false);
+                        if(oscs){
+                            prepareInputImages(oscs);
+                        }
+                    }}
+                />
+            )}
 
             <DragDropContext onDragEnd={result => {
                 if (!result.destination) {
@@ -121,11 +142,6 @@ export function InputsEditor({
                             label: "Upload",
                             id: "file-upload-regular",
                             capture: undefined
-                        },
-                        {
-                            label: "Capture",
-                            id: "file-upload-capture",
-                            capture: "user"
                         }
                     ] as {
                         label: string;
@@ -153,6 +169,7 @@ export function InputsEditor({
                             }} />
                     </label>
                     )}
+                    <button className="btn btn-sm btn-primary" onClick={showWebcam}>Webcam</button>
                 </div>
             </div>
         </div>

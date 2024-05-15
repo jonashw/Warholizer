@@ -224,11 +224,21 @@ const loadImgElement = (src:string): Promise<HTMLImageElement> =>
   });
 
 export const loadOffscreen = async (src: string | HTMLVideoElement): Promise<OffscreenCanvas> =>{
-  const img = typeof src === "string" ? await loadImgElement(src) : src;
-  const c = new OffscreenCanvas(img.width, img.height);
-  const ctx = c.getContext('2d')!;
-  ctx.drawImage(img,0,0);
-  return c;
+  if(src instanceof HTMLVideoElement){
+    const video: HTMLVideoElement = src;
+    //const {width,height} = video.getBoundingClientRect();
+    const [width,height] = [video.videoWidth, video.videoHeight];
+    const c = new OffscreenCanvas(width, height);
+    const ctx = c.getContext('2d')!;
+    ctx.drawImage(video,0,0,width,height);
+    return c;
+  } else {
+    const img = typeof src === "string" ? await loadImgElement(src) : src;
+    const c = new OffscreenCanvas(img.width, img.height);
+    const ctx = c.getContext('2d')!;
+    ctx.drawImage(img,0,0);
+    return c;
+  }
 }
 
 export const load = (src: string): Promise<ImagePayload> =>
