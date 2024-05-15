@@ -1,27 +1,59 @@
 import React from "react";
-
+import './Modal.css';
 
 export function Modal<T>({
-  title, onClose, body, footer
+  title, onClose, 
+  flush,
+  body, footer, isStatic, noHeader
 }: {
   title: string;
   onClose?: (value?: T) => void;
+  flush?: boolean;
   body: React.ReactElement;
   footer?: React.ReactElement;
+  isStatic?: boolean;
+  noHeader?: boolean;
 }) {
-  const cancel = () => {
+
+  const cancel = React.useCallback(() => {
     if (onClose) {
       onClose(undefined);
     }
-  };
+  },[onClose]);
+
+  const cancelImplicitly = React.useCallback(() => {
+    if (isStatic) {
+      return;
+    }
+    cancel();
+  },[cancel, isStatic]);
+
+  React.useEffect(() => {
+    document.onkeydown = e => {
+      console.log(e);
+      if(e.key === "Escape"){
+        cancelImplicitly();
+      }
+    }
+    return () => {
+      document.onkeydown = null;
+    };
+  },[cancelImplicitly]);
+
   return <>
-    <div className="modal fade show" tabIndex={-1} style={{ display: 'block' }}>
-      <div className="modal-dialog">
+    <div
+      className={"modal fade show" + (flush ? " modal-flush" : "")}
+      tabIndex={-1}
+      onClick={cancelImplicitly}
+    >
+      <div className="modal-dialog" onClick={e => e.stopPropagation()}>
         <div className="modal-content">
-          <div className="modal-header">
-            <h5 className="modal-title">{title}</h5>
-            <button type="button" className="btn-close" aria-label="Close" onClick={cancel}></button>
-          </div>
+          {!noHeader && (
+            <div className="modal-header">
+              <h5 className="modal-title">{title}</h5>
+              <button type="button" className="btn-close" aria-label="Close" onClick={cancel}></button>
+            </div>
+          )}
           <div className="modal-body">
             {body}
           </div>

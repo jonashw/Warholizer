@@ -10,10 +10,17 @@ export function WebcamModal({
 }) {
   const ref = React.createRef();
   const [frames, setFrames] = React.useState<OffscreenCanvas[]>([]);
+  const close = () => {
+    if (onClose) {
+      onClose(frames);
+    }
+  };
 
   return <Modal
       title="Webcam Capture" 
-      body={<>
+      flush
+      onClose={close}
+      body={<div className="text-center">
         <Webcam onFrame={frame => setFrames([...frames, frame])} ref={ref} />
         {frames.map((frame, i) => 
           <OffscreenCanvasImage
@@ -25,17 +32,13 @@ export function WebcamModal({
             }}
             style={{maxWidth:'50px',cursor:'pointer'}}
           />)}
-      </>}
+      </div>}
       footer={
         <button
           type="button"
           className="btn btn-primary w-100"
           disabled={frames.length === 0}
-          onClick={() => {
-            if (onClose) {
-              onClose(frames);
-            }
-          }}
+          onClick={close}
         >Use Captured Images</button>
       }
     />;
