@@ -14,9 +14,10 @@ export const Webcam = React.forwardRef(function ({
       return;
     }
     const video = videoElementRef.current!;
+    let stream: MediaStream;
     const init = async () => {
       console.log('preparing video stream');
-      const stream = await navigator.mediaDevices.getUserMedia({ video: true, audio: false });
+      stream = await navigator.mediaDevices.getUserMedia({ video: true, audio: false });
       video.autoplay = true;
       video.srcObject = stream;
       video.onplaying = () => {
@@ -30,6 +31,12 @@ export const Webcam = React.forwardRef(function ({
     return () => {
       console.log('cleanup')
       video.onplaying = null;
+      if(stream){
+        //reference: https://stackoverflow.com/a/12436772/943730
+        for(const track of stream.getTracks()){
+          track.stop();
+        }
+      }
     };
   }, [onFrame, videoElementRef]);
 
