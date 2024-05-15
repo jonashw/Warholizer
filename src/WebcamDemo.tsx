@@ -1,52 +1,12 @@
 import React from "react";
 import { WarholizerImage } from "./WarholizerImage";
 import { angle, positiveNumber } from "./Warholizer/RasterOperations/NumberTypes";
-import { loadOffscreen } from "./Warholizer/ImageUtil";
 import { PureRasterApplicatorRecord, PureRasterOperationRecord } from "./Warholizer/RasterOperations/PureRasterApplicator";
 import { PureRasterApplicatorsEditor } from "./PureRasterApplicatorsEditor";
+import { Webcam } from "./Webcam";
 
 export function WebcamDemo() {
-  const videoElementRef = React.useRef<HTMLVideoElement>(null);
   const [screenshot,setScreenshot] = React.useState<OffscreenCanvas>();
-  React.useEffect(() => {
-    const effect = async () => {
-      if (!videoElementRef.current) {
-        console.log('no video element yet');
-        return;
-      }
-      console.log('preparing video stream');
-      const video = videoElementRef.current!;
-      const stream = await navigator.mediaDevices.getUserMedia({ video: true, audio: false });
-      //setStream(stream);
-      video.srcObject = stream;
-      video.oncanplay = () => {
-        video.play();
-      };
-      video.onplaying = () => {
-        setTimeout(() => {
-          video.width = video.videoWidth;
-          video.height = video.videoHeight;
-          console.log('started playing',video.videoWidth,video.videoHeight,video);
-          //setVideo(video);
-          setInterval(() => {
-            loadOffscreen(videoElementRef.current!).then(setScreenshot)
-          },200);
-        },1000);
-      }
-    };
-    effect();
-  }, [videoElementRef]);
-
-  const videoElement = React.useMemo(() => {
-    console.log('rendering video element');
-    return <video key={"THE VIDEO STREAM"} ref={videoElementRef} style={{display:'none'}}/>
-  }, [videoElementRef]);
-
-  React.useEffect(() => {
-    if(!screenshot){
-      return;
-    }
-  },[screenshot])
 
 const defaultApplicator: PureRasterApplicatorRecord = {
     id:crypto.randomUUID(),
@@ -61,6 +21,7 @@ const [applicators,setApplicators] = React.useState<PureRasterApplicatorRecord[]
 
   return <div className="container-fluid">
     <div className="row">
+
       <div className="col-md-6">
         {screenshot && <WarholizerImage
           src={screenshot}
@@ -68,7 +29,7 @@ const [applicators,setApplicators] = React.useState<PureRasterApplicatorRecord[]
           style={{ border: '1px solid white' }}
           applicators={applicators}
         />}
-        {videoElement}
+        <Webcam onFrame={setScreenshot}/>
         {!screenshot && <div className="text-light">Loading...</div>}
       </div>
       <div className="col-md-6">
