@@ -31,12 +31,12 @@ const AbstractNumberInput = <T extends number>(
     />;
 };
 
-const NumberInput = AbstractNumberInput<number>(-Infinity,Infinity,1,n => n,"number");
-const FractionalNumberInput = AbstractNumberInput<number>(-Infinity,Infinity,.1,n => n,"number");
-const AngleInput = AbstractNumberInput<Angle>(0,360,1,angle,"range");
-const PercentageInput = AbstractNumberInput<Percentage>(0,100,1,percentage,"range");
-const ByteInput = AbstractNumberInput<Byte>(0,255,1,byte,"range");
-const PositiveNumberInput = AbstractNumberInput<PositiveNumber>(positiveNumber(0),positiveNumber(Infinity),1,positiveNumber,"number");
+export const NumberInput = AbstractNumberInput<number>(-Infinity,Infinity,1,n => n,"number");
+export const FractionalNumberInput = AbstractNumberInput<number>(-Infinity,Infinity,.1,n => n,"number");
+export const AngleInput = AbstractNumberInput<Angle>(0,360,1,angle,"range");
+export const PercentageInput = AbstractNumberInput<Percentage>(0,100,1,percentage,"range");
+export const ByteInput = AbstractNumberInput<Byte>(0,255,1,byte,"range");
+export const PositiveNumberInput = AbstractNumberInput<PositiveNumber>(positiveNumber(0),positiveNumber(Infinity),1,positiveNumber,"number");
 const DimensionInput = ({
     value,
     onChange

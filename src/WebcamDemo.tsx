@@ -23,13 +23,12 @@ const [applicators,setApplicators] = React.useState<PureRasterApplicatorRecord[]
     <div className="row">
 
       <div className="col-md-6">
-        {screenshot && <WarholizerImage
-          src={screenshot}
-          className="img-fluid"
-          style={{ border: '1px solid white' }}
-          applicators={applicators}
-        />}
         <Webcam onFrame={setScreenshot}/>
+        {screenshot && <div className="card mt-4"><WarholizerImage
+          src={screenshot}
+          className="card-img-top card-img-bottom"
+          applicators={applicators}
+        /></div>}
         {!screenshot && <div className="text-light">Loading...</div>}
       </div>
       <div className="col-md-6">
