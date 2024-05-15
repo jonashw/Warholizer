@@ -3,7 +3,7 @@ import { applicatorAsRecord, PureRasterApplicatorRecord } from './Warholizer/Ras
 import { PureRasterApplicatorListItemEditor } from './PureRasterApplicatorListItemEditor';
 import { useUndo } from './undo/useUndo';
 import { UndoRedoToolbar } from './undo/UndoRedoToolbar';
-import { defaultApplicator } from './PureEditor';
+import { defaultApplicator } from './defaultApplicator';
 import { DragDropContext } from 'react-beautiful-dnd';
 
 
