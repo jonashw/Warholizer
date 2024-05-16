@@ -3,7 +3,6 @@ import App from "./App";
 import Gallery from "./Gallery";
 import PureGallery from "./PureGallery";
 import PureEditor from "./PureEditor";
-import { WebcamDemo } from "./WebcamDemo";
 
 export const routeConfig: RouteObject[] = [
   {
@@ -17,7 +16,6 @@ export const routeConfig: RouteObject[] = [
           {href:'/gallery',label:'Gallery'},
           {href:'/pure-gallery',label:'Pure Gallery'},
           {href:'/pure-editor',label:'Pure Editor'},
-          {href:'/webcam',label:'Webcam input'}
         ].map(route => (
           <li className="nav-item" key={route.label}>
             <a 
@@ -39,10 +37,6 @@ export const routeConfig: RouteObject[] = [
       {
         path: 'gallery',
         element: <Gallery/>
-      },
-      {
-        path: 'webcam',
-        element: <WebcamDemo/>
       },
       {
         path: 'pure-gallery',
