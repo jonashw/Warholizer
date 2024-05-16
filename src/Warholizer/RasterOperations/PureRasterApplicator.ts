@@ -13,6 +13,21 @@ export type PureRasterApplicatorRecord = {
   ops: PureRasterOperationRecord[]
 };
 
+export type PureRasterTransformer = {
+  applicators: PureRasterApplicator[]
+}
+
+export type PureRasterTransformerRecord = {
+  id: string,
+  applicators: PureRasterApplicatorRecord[]
+}
+
+export const transformerAsRecord = (t: PureRasterTransformer | PureRasterApplicator[]): PureRasterTransformerRecord => 
+  ({
+      id: crypto.randomUUID(),
+      applicators: ('length' in t ? t : t.applicators).map(applicatorAsRecord)
+  });
+
 export const applicatorAsRecord = (app: PureRasterApplicator): PureRasterApplicatorRecord => 
   ({
       id: crypto.randomUUID(),
@@ -23,30 +38,42 @@ export const applicatorAsRecord = (app: PureRasterApplicator): PureRasterApplica
 export const operationAsRecord = (op: PureRasterOperation): PureRasterOperationRecord => 
   ({...op, id: crypto.randomUUID()});
 
-const apply = (app: PureRasterApplicator, imgs: OffscreenCanvas[]): Promise<OffscreenCanvas[]> => {
-    switch(app.type){
-        case 'flatMap':
-          return Promise.all(app.ops.map(op =>
-            PureRasterOperations.apply(op, imgs)))
-            .then(groups => groups.flatMap(g => g));
-        case 'pipe':
-          if(app.ops.length === 0){
-            return Promise.resolve(imgs);
-          }
-          return app.ops.reduce(
-            async (prevImgs,op) => PureRasterOperations.apply(op, await prevImgs),
-            Promise.resolve(imgs));
-        case 'zip':
-          const n = Math.min(app.ops.length,imgs.length);
-          const zipped = Promise.all(Array(n).fill(undefined).flatMap((_,i) => 
-            PureRasterOperations.apply(app.ops[i], [imgs[i]])
-          )).then(groups => groups.flatMap(g => g));
-          return zipped;
-        default:
-          throw new Error(`Unexpected applicator type: ${app.type}`);
+const map = function<T>(
+  fn: (op: PureRasterOperation, inputs: T[]) => Promise<T[]>,
+  app: PureRasterApplicator,
+  inputs: T[]
+): Promise<T[]> {
+  switch (app.type) {
+    case 'flatMap':
+      return Promise.all(app.ops.map(op =>
+        fn(op, inputs)))
+        .then(groups => groups.flatMap(g => g));
+    case 'pipe':
+      if (app.ops.length === 0) {
+        return Promise.resolve(inputs);
+      }
+      return app.ops.reduce(
+        async (prevInputs, op) => fn(op, await prevInputs),
+        Promise.resolve(inputs));
+    case 'zip': {
+      const n = Math.min(app.ops.length, inputs.length);
+      const zipped =
+        Promise.all(
+          [...Array(n).keys()]
+            .flatMap(i => fn(app.ops[i], [inputs[i]]))
+        ).then(groups => groups.flatMap(g => g));
+      return zipped;
     }
-};
+    default:
+      throw new Error(`Unexpected applicator type: ${app.type}`);
+  }
+}
 
+const apply = (app: PureRasterApplicator, inputs: OffscreenCanvas[]): Promise<OffscreenCanvas[]> => 
+  map(
+    PureRasterOperations.apply,
+    app,
+    inputs);
 
 const applyAll = (applicators: PureRasterApplicator[], inputs: OffscreenCanvas[]) =>
   applicators.reduce(
@@ -56,4 +83,4 @@ const applyAll = (applicators: PureRasterApplicator[], inputs: OffscreenCanvas[]
           : oscs,
       Promise.resolve(inputs));
 
-export const PureRasterApplicators = {apply,types,applyAll};
+export const PureRasterApplicators = {apply,types,applyAll,map};

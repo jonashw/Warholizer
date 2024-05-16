@@ -3,9 +3,11 @@ import ImageUtil, { ImagePayload } from './Warholizer/ImageUtil';
 import { Modal } from './Modal';
 
 export const OffscreenCanvasImage = ({
+    onSize,
     oc, className, style,
     onClick
 }: {
+    onSize?: (w: number, h: number) => void,
     oc: OffscreenCanvas;
     className?: string;
     style?: React.CSSProperties;
@@ -24,6 +26,13 @@ export const OffscreenCanvasImage = ({
                     onClick();
                 } else {
                     setModalVisible(true);
+                }
+            }}
+            onLoad={e => {
+                if(onSize){
+                    onSize(
+                        e.currentTarget.clientWidth,
+                        e.currentTarget.clientHeight);
                 }
             }}
             src={payload?.dataUrl}

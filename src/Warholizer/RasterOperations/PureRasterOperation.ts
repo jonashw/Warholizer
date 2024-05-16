@@ -72,18 +72,6 @@ export type PureRasterOperation =
   | Multiply
   | Invert;
 
-
-const offscreenCanvasOperation = async (
-  width: number,
-  height: number,
-  action: (ctx: OffscreenCanvasRenderingContext2D) => void
-): Promise<OffscreenCanvas> => {
-  const c = new OffscreenCanvas(width,height);
-  const ctx = c.getContext('2d')!;
-  action(ctx);
-  return c;
-};
-
 const apply = async (op: PureRasterOperation, inputs: OffscreenCanvas[]): Promise<OffscreenCanvas[]> => {
   const opType = op.type;
   switch(opType){
@@ -329,7 +317,7 @@ const apply = async (op: PureRasterOperation, inputs: OffscreenCanvas[]): Promis
         : inputs;
         
       return [await offscreenCanvasOperation(width, height, (ctx) => {
-        for(let input of orderedInputs){
+        for(const input of orderedInputs){
           ctx.drawImage(input,0,0);
           ctx.translate(
             horizontal ? input.width : 0,
@@ -341,6 +329,17 @@ const apply = async (op: PureRasterOperation, inputs: OffscreenCanvas[]): Promis
     default:
       throw new Error(`Unexpected operation type: ${opType}`);
   }
+}
+
+async function offscreenCanvasOperation(
+  width: number,
+  height: number,
+  action: (ctx: OffscreenCanvasRenderingContext2D) => void
+): Promise<OffscreenCanvas> {
+  const c = new OffscreenCanvas(width,height);
+  const ctx = c.getContext('2d')!;
+  action(ctx);
+  return c;
 }
 
 function rgbaValue(r: number, g: number, b: number, a: number) {
@@ -368,8 +367,15 @@ const stringRepresentation = (op: PureRasterOperation): string => {
     case 'scale'     : return `scale(${op.x},${op.y})`;
     case 'line'      : return `line(${op.direction})`;
     case 'tile'      : return `tile(${op.primaryDimension},${op.lineLength})`;
-    default:
-      throw new Error(`Unexpected operation type: ${opType}`);
+    default: {
+      const propList = 
+        Object.keys(op)
+        .filter(k => k !== 'type')
+        .map(k => (op as unknown as Record<string,object>)[k].toString())
+        .join(',')
+      return `${op.type}(${propList})`;
+      //throw new Error(`Unexpected operation type: ${opType}`);
+    }
   }
 }
 
