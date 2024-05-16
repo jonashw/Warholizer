@@ -3,6 +3,7 @@ import App from "./App";
 import Gallery from "./Gallery";
 import PureGallery from "./PureGallery";
 import PureEditor from "./PureEditor";
+import { GraphViewerDemo } from "./GraphViewerDemo";
 
 export const routeConfig: RouteObject[] = [
   {
@@ -16,6 +17,7 @@ export const routeConfig: RouteObject[] = [
           {href:'/gallery',label:'Gallery'},
           {href:'/pure-gallery',label:'Pure Gallery'},
           {href:'/pure-editor',label:'Pure Editor'},
+          {href:'/graph-viewer-demo',label:'Graph Viewer'},
         ].map(route => (
           <li className="nav-item" key={route.label}>
             <a 
@@ -45,6 +47,10 @@ export const routeConfig: RouteObject[] = [
       {
         path: 'pure-editor',
         element: <PureEditor/>
+      },
+      {
+        path: 'graph-viewer-demo',
+        element: <GraphViewerDemo/>
       }
     ]
   }
