@@ -41,6 +41,26 @@ const transformers: PureRasterTransformerRecord[] = ([
         { type: 'grid', cols:2, rows:2 }
       ]
     }
+  ] as PureRasterApplicator[],
+  [
+    {
+      type: 'flatMap',
+      ops: [
+        { type: 'scaleToFit', h: positiveNumber(100), w: positiveNumber(100) }
+      ]
+    },
+    {
+      type: 'flatMap',
+      ops: [...Array(4).keys()].map((i,_,arr) => 
+        ({ type: 'slideWrap', dimension:'y',amount:i*100/arr.length}))
+    },
+    {
+      type:'pipe',
+      ops: [
+        { type: 'line', direction: 'right' },
+        { type: 'grid', cols:2, rows:2 }
+      ]
+    }
   ] as PureRasterApplicator[]
 ]).map(transformerAsRecord);
 
