@@ -64,6 +64,12 @@ type GraphRefType =
     NodeObject<ApplicatorDirectedGraphNode>,
     LinkObject<ApplicatorDirectedGraphNode, object>>;
 
+const linkStrength = (link: {source: ApplicatorDirectedGraphNode, target: ApplicatorDirectedGraphNode}) =>
+  (link.source.type === 'applicator' && link.target.type === 'applicator')
+  || (link.source.type === 'image' && link.target.type === 'applicator')
+  || (link.source.type === 'applicator' && link.target.type === 'image')
+  ? 1 : 0.5;
+
 export function ApplicatorGraph({
   inputs,
   applicators,
@@ -91,6 +97,7 @@ export function ApplicatorGraph({
     }
     const graph = graphRef.current;
     graph.d3Force('charge')?.strength(-100);
+    graph.d3Force('link')?.strength(linkStrength);
   },[graphRef]);
 
 
@@ -104,7 +111,7 @@ export function ApplicatorGraph({
         enablePanInteraction={false}
         enableZoomInteraction={false}
         onEngineStop={() => {
-          graphRef.current?.zoomToFit(300);
+          graphRef.current?.zoomToFit(100);
         }}
         ref={graphRef}
         height={height}
@@ -113,6 +120,7 @@ export function ApplicatorGraph({
         nodeCanvasObjectMode={() => "replace"}
         nodeColor={node => nodeTypeColor[node.type] ?? "black"}
         cooldownTime={1000}
+        dagLevelDistance={25}
         linkDirectionalParticleWidth={2}
         linkDirectionalParticles={3}
         dagMode={dagMode}
