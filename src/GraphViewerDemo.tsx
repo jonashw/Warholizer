@@ -45,7 +45,7 @@ const transformers: PureRasterTransformerRecord[] = ([
 ]).map(transformerAsRecord);
 
 export function GraphViewerDemo() {
-  const [dagMode,setDagMode] = React.useState<DagMode>('lr');
+  const [dagMode,setDagMode] = React.useState<DagMode>('td');
   const [inputs,setInputs] = React.useState<ImageRecord[]>([]);
 
   React.useEffect(() => {
@@ -65,17 +65,16 @@ export function GraphViewerDemo() {
         value={dagMode}
       />
     </div>
-    {transformers.map(t => 
-      <div className="card card-dark bg-transparent">
-        <div className="card-body">
-          <ImageGraphSideBySide 
-            inputs={inputs}
-            key={t.id}
-            dagMode={dagMode}
-            applicators={t.applicators}
-          />
-        </div>
-      </div>
+    {transformers.map((t,i) => 
+      <>
+        {i>0 && <hr/>}
+        <ImageGraphSideBySide 
+          inputs={inputs}
+          key={t.id}
+          dagMode={dagMode}
+          applicators={t.applicators}
+        />
+      </>
     )}
 
   </div>;
