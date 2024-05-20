@@ -5,6 +5,7 @@ import { useContainerWidth } from './useContainerWidth';
 import { ImageRecord } from './ImageRecord';
 import { PureRasterApplicatorRecord } from './Warholizer/RasterOperations/PureRasterApplicator';
 import React from 'react';
+import { operationIconSvgPath } from './Warholizer/RasterOperations/operationIconSvgPath';
 
 const nodeTypeColor: { [K in ApplicatorDirectedGraphNodeType]: string } = {
   'image': 'rgb(41,140,140)',
@@ -18,14 +19,24 @@ const nodePaint = (
   ctx: CanvasRenderingContext2D,
   globalScale: number
 ) => {
-  const drawRects = true;
   const label = node.label;
   const fontSize = 12 / globalScale;
   //console.log({globalScale,fontSize})
   ctx.font = `${fontSize}px Sans-Serif`;
   const textWidth = ctx.measureText(label).width;
   const [w, h] = [textWidth + 8, fontSize * 2];
-  if(drawRects){
+  if(node.type === "operation"){
+    const path = new Path2D(operationIconSvgPath(node.operation));
+    const scale = 0.33;
+    const w = 24 * scale;
+    const h = w;
+    ctx.save();
+    ctx.fillStyle='white';
+    ctx.translate(node.x!-w/2,node.y!-h/2);
+    ctx.scale(scale,scale);
+    ctx.fill(path)
+    ctx.restore();
+  } else {
     ctx.save();
     ctx.fillStyle = fillColor;
     ctx.lineWidth = 1;
@@ -52,11 +63,13 @@ const nodePaint = (
     ctx.restore();
 
     ctx.restore();
+    ctx.save();
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.fillStyle = 'white';
+    ctx.fillText(label, node.x!, node.y!);
+    ctx.restore();
   }
-  ctx.textAlign = 'center';
-  ctx.textBaseline = 'middle';
-  ctx.fillStyle = 'white';
-  ctx.fillText(label, node.x!, node.y!);
 };
 
 type GraphRefType = 
@@ -100,7 +113,6 @@ export function ApplicatorGraph({
     graph.d3Force('link')?.strength(linkStrength);
   },[graphRef]);
 
-
   React.useEffect(() => {
     graphRef.current?.d3ReheatSimulation();
   },[availableWidth]);
@@ -108,6 +120,7 @@ export function ApplicatorGraph({
   return (
     <div ref={containerRef}>
       <ForceGraph2D
+        onNodeClick={n => console.log(n)}
         enablePanInteraction={false}
         enableZoomInteraction={false}
         onEngineStop={() => {
@@ -117,7 +130,7 @@ export function ApplicatorGraph({
         height={height}
         width={availableWidth}
         graphData={graphData}
-        nodeCanvasObjectMode={() => "replace"}
+        nodeCanvasObjectMode={node => node.type === "operation" ? "after" : "replace"}
         nodeColor={node => nodeTypeColor[node.type] ?? "black"}
         cooldownTime={1000}
         dagLevelDistance={25}

@@ -7,12 +7,19 @@ export type ApplicatorDirectedGraphData =
   DirectedGraphData<
     ApplicatorDirectedGraphNode,
     ApplicatorDirectedGraphLink>;
+export type ApplicatorDirectedGraphNodeType = 'image' | 'applicator' | 'operation';
 export type ApplicatorDirectedGraphNode = {
-  label: string,
-  type: ApplicatorDirectedGraphNodeType
-};
-export type ApplicatorDirectedGraphNodeType =
-  'image' | 'applicator' | 'operation';
+  id: string,
+  label: string 
+} & ({
+    type: 'image'
+  } | {
+    type: 'applicator'
+  } | {
+    type:'operation',
+    operation: PureRasterOperationRecord
+  });
+
 export type ApplicatorDirectedGraphLink = object;
 
 export const applicatorDirectedGraph = (
@@ -23,33 +30,41 @@ export const applicatorDirectedGraph = (
     ApplicatorDirectedGraphNode,
     ApplicatorDirectedGraphLink> => {
   const outputId = crypto.randomUUID();
+  const images = (inputs.map((input, i) => 
+      ({
+        type: 'image',
+        id: input.id,
+        label: `Image #${i + 1}` 
+      })) as ApplicatorDirectedGraphNode[]);
+  const applicatorNodes: ApplicatorDirectedGraphNode[] = 
+    (relateOperationsBetweenApplicators 
+      ? [] 
+      : applicators.map(a => 
+      ({
+        type: 'applicator',
+        id: a.id,
+        label: a.type
+      })));
+  const operationNodes: ApplicatorDirectedGraphNode[]  = 
+    applicators.flatMap(a => a.ops.map(o =>
+    ({
+      type: 'operation',
+      id: o.id,
+      operation: o,
+      label:
+        relateOperationsBetweenApplicators
+          ? `${a.type}: ${PureRasterOperations.stringRepresentation(o)}`
+          : PureRasterOperations.stringRepresentation(o)
+    })))
   const nodes: ApplicatorDirectedGraphNode[] = [
     {
       type:'image',
       id: outputId,
       label: 'Output'
-    },
-    ...inputs.map((input, i) => 
-      ({
-        type: 'image' as ApplicatorDirectedGraphNodeType,
-        id: input.id,
-        label: `Image #${i + 1}` 
-      }))
-    ,...(relateOperationsBetweenApplicators ? [] : applicators.map(a => 
-      ({
-        type: 'applicator' as ApplicatorDirectedGraphNodeType,
-        id: a.id,
-        label: a.type
-      })))
-    ,...applicators.flatMap(a => a.ops.map(o => 
-      ({
-        type: 'operation' as ApplicatorDirectedGraphNodeType,
-        id: o.id,
-        label: 
-          relateOperationsBetweenApplicators
-          ? `${a.type}: ${PureRasterOperations.stringRepresentation(o)}`
-          : PureRasterOperations.stringRepresentation(o)
-      })))
+    }
+    ,...images
+    ,...applicatorNodes
+    ,...operationNodes
   ];
 
   const betweenAdjacentApplicatorOps =
