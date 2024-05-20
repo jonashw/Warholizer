@@ -79,8 +79,34 @@ const applyAll = (applicators: PureRasterApplicator[], inputs: OffscreenCanvas[]
   applicators.reduce(
       async (oscs,applicator) => 
           applicator.ops.length > 0 
-          ? PureRasterApplicators.apply(applicator, await oscs)
+          ? apply(applicator, await oscs)
           : oscs,
       Promise.resolve(inputs));
 
-export const PureRasterApplicators = {apply,types,applyAll,map};
+
+export type IterativeApplication = {
+  inputs: OffscreenCanvas[];
+  applied: PureRasterApplicatorRecord[];
+  outputs: OffscreenCanvas[];
+};
+
+const applyAllIteratively = (applicators: PureRasterApplicatorRecord[], inputs: OffscreenCanvas[]): Promise<IterativeApplication[]> => 
+  applicators.reduce(
+    async (iterations$, applicator) => {
+      const iterations = await iterations$;
+      const last = iterations[iterations.length - 1];
+      const nextInputs = last.outputs;
+      return PureRasterApplicators.apply(applicator, nextInputs).then(outputs => 
+        [
+          ...iterations,
+          {
+            inputs: nextInputs,
+            outputs,
+            applied: [...last.applied, applicator]
+          }
+        ]);
+    },
+    Promise.resolve([{ inputs, applied: [], outputs: inputs } as IterativeApplication]))
+  .then(apps => apps.slice(1)); //exclude seed
+
+export const PureRasterApplicators = {apply,types,applyAll,applyAllIteratively,map};

@@ -352,6 +352,7 @@ function rgbaValue(r: number, g: number, b: number, a: number) {
 const stringRepresentation = (op: PureRasterOperation): string => {
   const opType = op.type;
   switch(opType){
+    case 'stack'     : return `stack(${op.blendingMode})`;
     case 'noop'      : return "noop";
     case 'multiply'  : return `multiply(${op.n})`;
     case 'threshold' : return `threshold(${op.value})`;
@@ -368,13 +369,7 @@ const stringRepresentation = (op: PureRasterOperation): string => {
     case 'line'      : return `line(${op.direction})`;
     case 'tile'      : return `tile(${op.primaryDimension},${op.lineLength})`;
     default: {
-      const propList = 
-        Object.keys(op)
-        .filter(k => k !== 'type')
-        .map(k => (op as unknown as Record<string,object>)[k].toString())
-        .join(',')
-      return `${op.type}(${propList})`;
-      //throw new Error(`Unexpected operation type: ${opType}`);
+      throw new Error(`Unexpected operation type: ${opType}`);
     }
   }
 }

@@ -5,6 +5,7 @@ import { PureRasterApplicatorsEditor } from './PureRasterApplicatorsEditor';
 import { ImageRecord } from './ImageRecord';
 import { InputsEditor } from './InputsEditor';
 import { defaultApplicator } from './defaultApplicator';
+import { Thumbnail } from './Thumbnail';
 
 export default function PureEditor() {
     const [inputImages, setInputImages] = React.useState<ImageRecord[]>([]);
@@ -32,7 +33,11 @@ export default function PureEditor() {
                 </div>
 
                 <div className="col-md-6 mb-3">
-                    <PureRasterApplicatorsEditor defaultApplicators={applicators} onChange={setApplicators} />
+                    <PureRasterApplicatorsEditor
+                        defaultApplicators={applicators}
+                        onChange={setApplicators} 
+                        previewImages={inputImages}
+                    />
                 </div>
 
                 <div className="col-12">
@@ -51,25 +56,9 @@ export default function PureEditor() {
                         {outputImages.length !== 1 && (
                             <div className="card-body">
                                 <div className="d-flex justify-content-start gap-1 align-items-center">
-                                    {outputImages.map(img => {
-                                        const s = '90px';
-                                        return (
-                                            <div key={img.id} style={{
-                                                width:s,
-                                                height:s,
-                                                display:'flex',
-                                                alignItems:'center',
-                                                justifyContent:'center',
-                                                outline: '1px solid blue'
-                                            }}>
-                                                <OffscreenCanvasImage key={img.id} oc={img.osc} style={{
-                                                    maxWidth:s, 
-                                                    maxHeight:s,
-                                                    boxShadow: '0 1px 3px black'
-                                                }}/>
-                                            </div>
-                                        );
-                                    })}
+                                    {outputImages.map(img => 
+                                        <Thumbnail sideLength={90} img={img} key={img.id}/>
+                                    )}
                                 </div>
                             </div>
                         )}

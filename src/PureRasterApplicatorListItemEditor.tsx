@@ -4,17 +4,42 @@ import { PureRasterOperationInlineEditor } from './Warholizer/RasterOperations/P
 import { ButtonRadiosInput } from './Warholizer/RasterOperations/ButtonRadiosInput';
 import {  Draggable, Droppable } from 'react-beautiful-dnd';
 import { sampleOperations } from './sampleOperations';
+import { ImageRecord } from './ImageRecord';
+import { OperationPreviewModal } from './OperationPreviewModal';
 
 export const PureRasterApplicatorListItemEditor = ({
-    value, onChange, onRemove
+    value,
+    onChange,
+    onRemove,
+    previewImages,
 }: {
     value: PureRasterApplicatorRecord;
     onChange: (a: PureRasterApplicatorRecord) => void;
     onRemove?: () => void;
+    previewImages: ImageRecord[];
 }) => {
     const selectRef = React.createRef<HTMLSelectElement>();
+    const [operationPreviewModalVisible,setOperationPreviewModalVisible] = React.useState(false);
     return (
         <>
+            {operationPreviewModalVisible && 
+                <OperationPreviewModal
+                    onSelect={op => {
+                        onChange({
+                            ...value,
+                            ops: [...value.ops, operationAsRecord(op)]
+                        });
+                    }}
+                    onClose={() => setOperationPreviewModalVisible(false)}
+                    previewImages={previewImages} 
+                    previewApplicators={op => 
+                        [{
+                            ...value,
+                            ops: [...value.ops, operationAsRecord(op)]
+                        }]
+                    }
+                />
+            }
             <div className="list-group-item d-flex justify-content-between">
                 <ButtonRadiosInput<PureRasterApplicatorType>
                     value={value.type}
@@ -69,7 +94,7 @@ export const PureRasterApplicatorListItemEditor = ({
                 )}
             </Droppable>
             
-            <div className="list-group-item">
+            <div className="list-group-item d-flex justify-content-between gap-2">
                 <select
                     className="form-select form-select-sm"
                     ref={selectRef}
@@ -93,6 +118,9 @@ export const PureRasterApplicatorListItemEditor = ({
                     {sampleOperations.map(op => <option key={op.type} value={op.type}>{op.type}</option>
                     )}
                 </select>
+                <button className="btn btn-sm btn-primary"
+                onClick={() => setOperationPreviewModalVisible(true)}
+                >Explore</button>
             </div>
         </>
     );

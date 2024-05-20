@@ -12,13 +12,15 @@ export const WarholizerImage = React.forwardRef(function (
         src,
         applicators,
         className,
-        style
+        style,
+        onClick
     }: {
         onSize?: (w: number, h: number) => void,
         src: (string | ImageRecord | OffscreenCanvas | HTMLVideoElement)[],
         applicators: PureRasterApplicator[],
         className?: string;
         style?: React.CSSProperties;
+        onClick?: () => void
     },
     ref
 ){
@@ -50,5 +52,10 @@ export const WarholizerImage = React.forwardRef(function (
         },
         [finalImages]);
 
-    return <>{finalImages.map((img,i) => <OffscreenCanvasImage key={i} {...{onSize, className,style}} oc={img} />)}</>
+    return <>{finalImages.map((img,i) => 
+        <OffscreenCanvasImage
+            key={i}
+            {...{onSize, onClick, className, style}}
+            oc={img} 
+        />)}</>
 })

@@ -1,19 +1,28 @@
 import React from 'react';
-import { applicatorAsRecord, PureRasterApplicatorRecord } from './Warholizer/RasterOperations/PureRasterApplicator';
+import { applicatorAsRecord, IterativeApplication, PureRasterApplicatorRecord, PureRasterApplicators } from './Warholizer/RasterOperations/PureRasterApplicator';
 import { PureRasterApplicatorListItemEditor } from './PureRasterApplicatorListItemEditor';
 import { useUndo } from './undo/useUndo';
 import { UndoRedoToolbar } from './undo/UndoRedoToolbar';
 import { defaultApplicator } from './defaultApplicator';
 import { DragDropContext } from 'react-beautiful-dnd';
 import { DragDropHelper } from './DragDropHelper';
+import { imageAsRecord, ImageRecord } from './ImageRecord';
 
 export function PureRasterApplicatorsEditor({
-    defaultApplicators, onChange
+    defaultApplicators, onChange, previewImages
 }: {
     defaultApplicators: PureRasterApplicatorRecord[];
     onChange: (value: PureRasterApplicatorRecord[]) => void;
+    previewImages: ImageRecord[];
 }) {
     const [applicators, setApplicators, applicatorUndoController] = useUndo(defaultApplicators);
+    const [previewIterations,setPreviewIterations] = React.useState<IterativeApplication[]>([]);
+
+    React.useEffect(() => {
+        PureRasterApplicators
+        .applyAllIteratively(applicators, previewImages.map(i => i.osc))
+        .then(setPreviewIterations);
+    },[previewImages, applicators]);
 
     React.useEffect(() => {
         onChange(applicators);
@@ -58,18 +67,22 @@ export function PureRasterApplicatorsEditor({
             }
         }}>
             <div className="list-group list-group-flush">
-                {applicators.map((applicator) => (
-                    <PureRasterApplicatorListItemEditor
-                        key={applicator.id}
-                        value={applicator}
-                        onChange={updatedApplicator => {
-                            setApplicators(applicators.map(a => a === applicator ? updatedApplicator : a));
-                        }}
-                        onRemove={() => {
-                            setApplicators(applicators.filter(a => a !== applicator));
-                        }}
-                    />
-                ))}
+                {previewIterations.map((it) => {
+                    const applicator = it.applied[it.applied.length - 1];
+                    return (
+                        <PureRasterApplicatorListItemEditor
+                            previewImages={it.inputs.map(imageAsRecord)}
+                            key={applicator.id}
+                            value={applicator}
+                            onChange={updatedApplicator => {
+                                setApplicators(applicators.map(a => a === applicator ? updatedApplicator : a));
+                            }}
+                            onRemove={() => {
+                                setApplicators(applicators.filter(a => a !== applicator));
+                            }}
+                        />
+                    );
+                })}
             </div>
         </DragDropContext>
         <div className="card-footer">
