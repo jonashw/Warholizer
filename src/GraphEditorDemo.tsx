@@ -17,7 +17,7 @@ const defaultGraph =
   pureGraphs.simpleMerge(
     operationAsRecord({type:"noop"}),
     operationAsRecord({type:"slideWrap",dimension:'y',amount:50}),
-    operationAsRecord({type:"line", direction:"right"})
+    operationAsRecord({type:"tile", primaryDimension:"y", lineLength:2})
   );
 
 export function GraphEditorDemo() {
@@ -33,7 +33,7 @@ export function GraphEditorDemo() {
   return <div className="container-fluid">
     {inputs && <PureGraphEditor
       defaultInputs={inputs}
-      dagMode="td"
+      dagMode="lr"
       height={500}
       value={graph}
       onChange={setGraph}

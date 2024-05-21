@@ -82,7 +82,7 @@ export default {
                 //Forking is natural... merging is explicit.
                 (groups: InstructionGroupsAccumulator,{op,inputs}) => {
                     const group = groups[op.id] || {op, inputs: []};
-                    const updatedGroup = {...group, inputs: [...group.inputs, ...inputs]};
+                    const updatedGroup = {...group, inputs: [...group.inputs, inputs]};
                     return {...groups, [op.id]: updatedGroup} as InstructionGroupsAccumulator;
                 },
                 {} as InstructionGroupsAccumulator);

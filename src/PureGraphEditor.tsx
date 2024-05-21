@@ -15,6 +15,7 @@ import { NewOpDropdownMenu } from './NewOpDropdownMenu';
 import { operationAsRecord } from './Warholizer/RasterOperations/PureRasterApplicator';
 import { DirectedGraphLink } from './DirectedGraphData';
 import { useMetaKeys } from './useMetaKeys';
+import { iconTransform } from './Warholizer/RasterOperations/OperationIcon';
 
 const red = 'rgb(200,60,60)';
 const blue = '#0d6efd';
@@ -38,6 +39,16 @@ const nodePaint = (
   ctx.save();
   ctx.fillStyle='white';
   ctx.translate(node.x!-w/2,node.y!-h/2);
+  const transformIcon = iconTransform(node.op);
+  if(transformIcon.flip){
+    ctx.translate(transformIcon.flip.y ? 0 : w, transformIcon.flip.x ? 0 : h);
+    ctx.scale(transformIcon.flip.x ? -1 : 1, transformIcon.flip.y ? -1 : 1);
+  }
+  if(transformIcon.degreesRotation){
+    ctx.translate(w/2,h/2);
+    ctx.rotate(transformIcon.degreesRotation * Math.PI/180);
+    ctx.translate(-w/2,-h/2);
+  }
   ctx.scale(scale,scale);
   ctx.fill(path)
   ctx.restore();

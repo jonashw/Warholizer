@@ -46,5 +46,65 @@ export const OperationIcon = ({
     className: string | undefined;
 }) => {
     const Icon = operationIconElement(op);
-    return <Icon className={className}/>;
+    const transform = iconTransform(op);
+    const transforms = 
+    [
+        ... (!transform.flip ? [] : [`scale(${transform.flip.x ? -1 : 1},${transform.flip.y ? -1 : 1})`])
+        ,...(!transform.degreesRotation ? [] : [`rotate(${transform.degreesRotation}deg)`])
+    ];
+    const style = 
+        transforms.length === 0 
+        ? {}
+        : { transform: transforms.join(' ') };
+    return <Icon className={className} style={style}/>;
 };
+
+type IconTransform = {
+    degreesRotation?: number;
+    flip?: {x:boolean; y:boolean};
+};
+
+export const iconFlip = (op: PureRasterOperation) => {
+  if(op.type === "tile" && op.primaryDimension === "y"){
+    return {x:true,y:false};
+  }
+  return {x:false,y:false};
+}
+
+export const iconTransform = (op: PureRasterOperation): IconTransform => {
+    if (op.type === "slideWrap" && op.dimension === "y") {
+        return { degreesRotation: 90 };
+    }
+    if (op.type === "line" && (op.direction === "up" || op.direction === "down")) {
+        return { degreesRotation: 90 };
+    }
+    if (op.type === "split" && op.dimension === "x") {
+        return { degreesRotation: 90 };
+    }
+    if (op.type === "tile" && op.primaryDimension === "y") {
+        return {degreesRotation: 90, flip: {x:true,y:false}};
+    }
+    if (op.type === "rotate" && op.degrees % 360 > 0) {
+        return {degreesRotation: op.degrees - 45};
+    }
+    return {};
+}
+
+export const iconRotation = (op: PureRasterOperation) => {
+  if(op.type === "slideWrap" && op.dimension === "y"){
+    return 90;
+  }
+  if(op.type === "line" && (op.direction === "up" || op.direction === "down")){
+    return 90;
+  }
+  if(op.type === "split" && op.dimension === "x"){
+    return 90;
+  }
+  if(op.type === "tile" && op.primaryDimension === "y"){
+    return 90;
+  }
+  if(op.type === "rotate" && op.degrees % 360 > 0){
+    return op.degrees - 45;
+  }
+  return 0;
+}
