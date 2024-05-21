@@ -152,15 +152,14 @@ export default {
         console.log({graph,links});
         return {nodes, links};
     },
-    simpleMerge: (
-        leftSource: PureRasterOperationRecord,
-        rightSource: PureRasterOperationRecord,
+    mergePipe: (
+        sources: PureRasterOperationRecord[],
         sharedTarget: PureRasterOperationRecord,
         targetPipes?: PureRasterOperationRecord[]
     ): PureGraphData => {
         const links =  
             [
-                ...[leftSource,rightSource].map(source => ({
+                ...sources.map(source => ({
                     source: source.id,
                     target: sharedTarget.id 
                 }))
@@ -176,8 +175,7 @@ export default {
         return {
             links,
             nodes: [
-                leftSource,
-                rightSource,
+                ...sources,
                 sharedTarget,
                 ...(targetPipes ?? [])
             ].map(op => ({op,id: op.id}) as PureGraphNode)

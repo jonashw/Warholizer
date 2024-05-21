@@ -14,9 +14,11 @@ pureGraphs.pipe([
 
 
 const defaultGraph = 
-  pureGraphs.simpleMerge(
-    operationAsRecord({type:"noop"}),
-    operationAsRecord({type:"slideWrap",dimension:'y',amount:50}),
+  pureGraphs.mergePipe(
+    [
+      operationAsRecord({type:"noop"}),
+      operationAsRecord({type:"slideWrap",dimension:'y',amount:50})
+    ],
     operationAsRecord({type:"tile", primaryDimension:"x", lineLength:2}),
     [
       operationAsRecord({type:"grid", rows:2, cols:2})
