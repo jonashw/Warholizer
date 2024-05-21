@@ -190,6 +190,9 @@ export function PureGraphEditor({
                 const link: DirectedGraphLink<PureGraphLink> = {source: source.id, target: target.id};
                 setGraph(pureGraphs.removeLink(graph,link));
               }}
+              onLinkRightClick={() => alert('link right click')}
+              onBackgroundRightClick={() => alert('bg right click')}
+              onNodeRightClick={() => alert('node right click')}
               onNodeClick={node => {
                 if (node.id === activeNode?.id) {
                   setActiveNodeId(undefined);
