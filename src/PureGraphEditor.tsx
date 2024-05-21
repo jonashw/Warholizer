@@ -14,7 +14,6 @@ import { Outputs } from './Outputs';
 import { NewOpDropdownMenu } from './NewOpDropdownMenu';
 import { operationAsRecord } from './Warholizer/RasterOperations/PureRasterApplicator';
 import { DirectedGraphLink } from './DirectedGraphData';
-import { useMetaKeys } from './useMetaKeys';
 import { iconTransform } from './Warholizer/RasterOperations/OperationIcon';
 
 const red = 'rgb(200,60,60)';
@@ -77,7 +76,6 @@ export function PureGraphEditor({
   const [graph,setGraph,undoController] = useUndo<PureGraphData>(value);
   const [inputImages, setInputImages] = React.useState<ImageRecord[]>(defaultInputs);
   const [outputImages, setOutputImages] = React.useState<{id:string,osc:OffscreenCanvas}[]>([]);
-  const metaKeys = useMetaKeys();
 
   const graphRef = React.useRef<GraphRefType>();
 
@@ -126,6 +124,7 @@ export function PureGraphEditor({
             <UndoRedoToolbar controller={undoController} />
             <div>
               <NewOpDropdownMenu
+                placeholder={activeNode ? "Pipe into a new operation" : undefined}
                 onSelect={op => {
                   const opRecord = operationAsRecord(op);
                   const newNode: PureGraphNode = { op: opRecord, id: opRecord.id };
@@ -138,44 +137,48 @@ export function PureGraphEditor({
                       pureGraphs.addLink(
                         pureGraphs.addNode(value, newNode),
                         newLink));
-                    setActiveNodeId(newNode.id);
                   } else {
                     setGraph(pureGraphs.addNode(value, newNode));
                   }
+                  setActiveNodeId(newNode.id)
                 }}
               />
             </div>
           </div>
-          {graph.nodes.length > 0 && (
-            <div className="card-header d-flex justify-content-between flex-grow-1 align-items-center">
+
+          <div className="card-header">
               {activeNode ? (
-                <>
-                  <PureRasterOperationInlineEditor
-                    value={activeNode.op}
-                    onChange={newOp => {
-                      const updatedOp = { ...newOp, id: activeNode.op.id };
-                      const updatedNode: PureGraphNode = { op: updatedOp, id: updatedOp.id };
-                      setGraph(pureGraphs.replace(value, activeNode, updatedNode));
-                      setActiveNodeId(updatedNode.id);
-                    }}
-                    sampleOperators={sampleOperations}
-                  />
-                  <button
-                    className="btn btn-lg btn-danger btn-sm"
-                    onClick={() => {
-                      setGraph(pureGraphs.remove(value, activeNode));
-                      setActiveNodeId(undefined);
-                    }}
-                  >
-                    Remove
-                  </button>
-                </>
+                <div>Select another operation to create a forward link.</div>
               ) : (
                 <div>Select an operation to edit.</div>
               )}
+          </div>
+
+          {graph.nodes.length > 0 && activeNode && (
+            <div className="card-header d-flex justify-content-between flex-grow-1 align-items-center">
+              <PureRasterOperationInlineEditor
+                value={activeNode.op}
+                onChange={newOp => {
+                  const updatedOp = { ...newOp, id: activeNode.op.id };
+                  const updatedNode: PureGraphNode = { op: updatedOp, id: updatedOp.id };
+                  setGraph(pureGraphs.replace(value, activeNode, updatedNode));
+                  setActiveNodeId(updatedNode.id);
+                }}
+                sampleOperators={sampleOperations}
+              />
+              <button
+                className="btn btn-lg btn-danger btn-sm"
+                onClick={() => {
+                  setGraph(pureGraphs.remove(value, activeNode));
+                  setActiveNodeId(undefined);
+                }}
+              >
+                Remove
+              </button>
             </div>
           )}
-          <div className="card-img-bottom bg-dark" ref={containerRef} style={{ position: 'relative' }}>
+
+          <div className="card-img-bottom card-img-top bg-dark" ref={containerRef} style={{ position: 'relative' }}>
             <ForceGraph2D
               onBackgroundClick={() => setActiveNodeId(undefined)}
               onLinkClick={(l: LinkObject<PureGraphNode, object>) => {
@@ -197,7 +200,7 @@ export function PureGraphEditor({
                 if (node.id === activeNode?.id) {
                   setActiveNodeId(undefined);
                 } else {
-                  if(activeNode && metaKeys.ctrl){
+                  if(activeNode){
                     const link: DirectedGraphLink<PureGraphLink> = 
                       { source: activeNode.id, target: node.id };
                     setGraph(pureGraphs.addLink(graph,link));

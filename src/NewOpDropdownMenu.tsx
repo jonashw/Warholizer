@@ -4,8 +4,10 @@ import { PureRasterOperation } from './Warholizer/RasterOperations/PureRasterOpe
 
 
 export function NewOpDropdownMenu({
+    placeholder,
     onSelect
 }: {
+    placeholder?: string,
     onSelect: (op: PureRasterOperation) => void;
 }) {
     const selectRef = React.createRef<HTMLSelectElement>();
@@ -19,14 +21,14 @@ export function NewOpDropdownMenu({
                 if (!op) {
                     return;
                 }
-                console.log({ op });
+                //console.log({ op });
                 onSelect(op);
                 if (selectRef.current) {
                     selectRef.current.value = "";
                 }
             }}
         >
-            <option value={""}>Add an operation</option>
+            <option value={""}>{placeholder ?? 'Add an operation'}</option>
             {sampleOperations.map(op => <option key={op.type} value={op.type}>{op.type}</option>
             )}
         </select>
