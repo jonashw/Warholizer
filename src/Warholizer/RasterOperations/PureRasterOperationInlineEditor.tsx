@@ -95,6 +95,14 @@ export const PureRasterOperationInlineEditor = ({
                 switch (opType) {
                     case 'noop': return;
                     case 'void': return;
+                    case 'fill': return (
+                        <input type="color"
+                            value={op.color}
+                            className="ms-2"
+                            onChange={e => {
+                                onChange({...op, color: e.target.value ?? "#000000"});
+                            }}/>
+                        );
                     case 'multiply': return (
                         <input type="number"
                             value={op.n}

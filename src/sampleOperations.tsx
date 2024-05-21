@@ -4,6 +4,7 @@ import { angle, byte, positiveNumber } from './Warholizer/RasterOperations/Numbe
 
 export const sampleOperations: PureRasterOperation[] = ([
     { "type": "noop"},
+    { "type": "fill", color:"green"},
     { "type": "void"},
     { "type": "stack", blendingMode: "multiply" },
     { "type": "scale", x: 0.5, y: 0.5 },

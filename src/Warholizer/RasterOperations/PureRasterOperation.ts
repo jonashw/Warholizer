@@ -1,9 +1,11 @@
+import { CSSProperties } from "react";
 import { Angle, Byte, Percentage, PositiveNumber, RightAngle } from "./NumberTypes";
 
 export type Dimension = 'x'|'y';
 export type Direction = 'up' | 'down' | 'left' | 'right';
 export type Invert = { type: "invert" };
 export type Void = { type: "void" };
+export type Fill = { type: "fill", color: CSSProperties["color"] };
 export type Noop = { type: "noop" };
 export type Crop = { type: "crop", x: number, y: number, width: number, height: number, unit: 'px' | '%' }
 export type Threshold = { type: "threshold", value: Byte };
@@ -60,6 +62,7 @@ export type PureRasterOperation =
   | Void
   | Crop
   | Grid
+  | Fill
   | Tile
   | Line
   | SlideWrap 
@@ -96,6 +99,13 @@ const apply = async (op: PureRasterOperation, inputs: OffscreenCanvas[]): Promis
       return inputs;
     case 'multiply': 
       return Array(op.n).fill(inputs).flatMap(inputs => inputs);
+    case 'fill':
+      return Promise.all(inputs.map(input => {
+        return offscreenCanvasOperation(input.width,input.height,(ctx) => {
+          ctx.fillStyle=op.color ?? "#000000";
+          ctx.fillRect(0,0,input.width,input.height);
+        });
+      }));
     case 'crop': 
       return Promise.all(inputs.map(input => {
         const [x,y,w,h] =
@@ -373,6 +383,7 @@ const stringRepresentation = (op: PureRasterOperation): string => {
     case 'line'      : return `line(${op.direction})`;
     case 'tile'      : return `tile(${op.primaryDimension},${op.lineLength})`;
     case 'void'      : return `void`;
+    case 'fill'      : return `fill(${op.color})`;
     default: {
       throw new Error(`Unexpected operation type: ${opType}`);
     }
