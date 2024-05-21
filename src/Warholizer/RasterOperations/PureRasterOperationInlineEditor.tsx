@@ -246,6 +246,18 @@ export const PureRasterOperationInlineEditor = ({
                             />
                         </>
                     );
+                    case 'split': return (
+                        <>
+                            <DimensionInput
+                                value={op.dimension}
+                                onChange={dimension => onChange({...op, dimension})}
+                            />
+                            <PercentageInput
+                                value={op.amount}
+                                onChange={amount => onChange({...op, amount})}
+                            />
+                        </>
+                    );
                     case 'slideWrap': return (
                         <>
                             <DimensionInput

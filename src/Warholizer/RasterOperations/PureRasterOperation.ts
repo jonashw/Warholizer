@@ -10,6 +10,7 @@ export type Noop = { type: "noop" };
 export type Crop = { type: "crop", x: number, y: number, width: number, height: number, unit: 'px' | '%' }
 export type Threshold = { type: "threshold", value: Byte };
 export type Multiply = { type: "multiply", n: number };
+export type Split = { type: "split", dimension: Dimension, amount: Percentage };
 export type SlideWrap = { type: "slideWrap", dimension: Dimension, amount: Percentage };
 export type Blur = { type: "blur", pixels: number };
 export type Grayscale = { type: "grayscale", percent: Percentage };
@@ -59,6 +60,7 @@ export const BlendingModes: BlendingMode[] = [
 
 export type PureRasterOperation = 
   | Stack
+  | Split
   | Void
   | Crop
   | Grid
@@ -174,6 +176,24 @@ const apply = async (op: PureRasterOperation, inputs: OffscreenCanvas[]): Promis
           ctx.filter="invert()";
           ctx.drawImage(input,0,0);
         })));
+    case 'split': {
+      const proportions = [
+        (op.amount)/100,
+        (100-op.amount)/100
+      ];
+      return Promise.all(inputs.flatMap(input =>
+        proportions.map((proportion,i) => {
+          const [w,h,sx,sy] = 
+            op.dimension === 'x' 
+            ? [input.width * proportion, input.height,  i===0 ? 0 : input.width * (1-proportion),0]
+            : [input.width, input.height * proportion,0,i===0 ? 0 : input.height * (1-proportion)];
+          console.log({w,h,sx,sy,proportion,i});
+          return offscreenCanvasOperation(w, h, (ctx) => {
+            ctx.translate(-sx,-sy);
+            ctx.drawImage(input, 0, 0);
+          });
+        })));
+      }
     case 'slideWrap': 
       return Promise.all(inputs.map(input =>
         offscreenCanvasOperation(input.width, input.height,(ctx) => {
@@ -377,6 +397,7 @@ const stringRepresentation = (op: PureRasterOperation): string => {
     case 'invert'    : return "invert";
     case 'crop'      : return `crop(${op.x},${op.y},${op.width},${op.height},${op.unit})`;
     case 'grid'      : return `grid(${op.rows},${op.cols})`;
+    case 'split'     : return `split(${op.dimension},${op.amount}%)`;
     case 'slideWrap' : return `slideWrap(${op.dimension},${op.amount}%)`;
     case 'scaleToFit': return `scaleToFit(${op.w},${op.h})`;
     case 'scale'     : return `scale(${op.x},${op.y})`;

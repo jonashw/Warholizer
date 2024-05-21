@@ -10,7 +10,8 @@ import {
     Layers,
     Adjust,
     HighlightOff,
-    FormatColorFill
+    FormatColorFill,
+    Splitscreen
 } from "@mui/icons-material";
 
 const operationIconElement = (op: PureRasterOperation) => {
@@ -32,6 +33,7 @@ const operationIconElement = (op: PureRasterOperation) => {
         case "crop": return Crop;
         case "noop": return Adjust;
         case "void": return HighlightOff;
+        case "split": return Splitscreen;
         case "fill": return FormatColorFill;
         default: return Functions;
     }
