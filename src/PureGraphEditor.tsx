@@ -121,60 +121,56 @@ export function PureGraphEditor({
       <div className="col-sm-8">
         <div className="card mb-3">
           <div className="card-header d-flex justify-content-between align-items-center">
+            <span>Operation Graph</span>
             <UndoRedoToolbar controller={undoController} />
-            <div>
-              <NewOpDropdownMenu
-                placeholder={activeNode ? "Pipe into a new operation" : undefined}
-                onSelect={op => {
-                  const opRecord = operationAsRecord(op);
-                  const newNode: PureGraphNode = { op: opRecord, id: opRecord.id };
-                  if(activeNode){
-                    const newLink: DirectedGraphLink<PureGraphLink> = {
-                      source: activeNode.id,
-                      target: newNode.id
-                    };
-                    setGraph(
-                      pureGraphs.addLink(
-                        pureGraphs.addNode(value, newNode),
-                        newLink));
-                  } else {
-                    setGraph(pureGraphs.addNode(value, newNode));
-                  }
-                  setActiveNodeId(newNode.id)
-                }}
-              />
-            </div>
           </div>
 
           <div className="card-header">
-              {activeNode ? (
-                <div>Select another operation to create a forward link.</div>
-              ) : (
-                <div>Select an operation to edit.</div>
-              )}
+            <NewOpDropdownMenu
+              placeholder={activeNode ? "Pipe into a new operation" : undefined}
+              onSelect={op => {
+                const opRecord = operationAsRecord(op);
+                const newNode: PureGraphNode = { op: opRecord, id: opRecord.id };
+                if(activeNode){
+                  const newLink: DirectedGraphLink<PureGraphLink> = {
+                    source: activeNode.id,
+                    target: newNode.id
+                  };
+                  setGraph(
+                    pureGraphs.addLink(
+                      pureGraphs.addNode(value, newNode),
+                      newLink));
+                } else {
+                  setGraph(pureGraphs.addNode(value, newNode));
+                }
+                setActiveNodeId(newNode.id)
+              }}
+            />
           </div>
 
           {graph.nodes.length > 0 && activeNode && (
-            <div className="card-header d-flex justify-content-between flex-grow-1 align-items-center">
-              <PureRasterOperationInlineEditor
-                value={activeNode.op}
-                onChange={newOp => {
-                  const updatedOp = { ...newOp, id: activeNode.op.id };
-                  const updatedNode: PureGraphNode = { op: updatedOp, id: updatedOp.id };
-                  setGraph(pureGraphs.replace(value, activeNode, updatedNode));
-                  setActiveNodeId(updatedNode.id);
-                }}
-                sampleOperators={sampleOperations}
-              />
-              <button
-                className="btn btn-lg btn-danger btn-sm"
-                onClick={() => {
-                  setGraph(pureGraphs.remove(value, activeNode));
-                  setActiveNodeId(undefined);
-                }}
-              >
-                Remove
-              </button>
+            <div className="card-header">
+              <div className="d-flex justify-content-between flex-grow-1 align-items-center">
+                <PureRasterOperationInlineEditor
+                  value={activeNode.op}
+                  onChange={newOp => {
+                    const updatedOp = { ...newOp, id: activeNode.op.id };
+                    const updatedNode: PureGraphNode = { op: updatedOp, id: updatedOp.id };
+                    setGraph(pureGraphs.replace(value, activeNode, updatedNode));
+                    setActiveNodeId(updatedNode.id);
+                  }}
+                  sampleOperators={sampleOperations}
+                />
+                <button
+                  className="btn btn-lg btn-danger btn-sm"
+                  onClick={() => {
+                    setGraph(pureGraphs.remove(value, activeNode));
+                    setActiveNodeId(undefined);
+                  }}
+                >
+                  Remove
+                </button>
+              </div>
             </div>
           )}
 
@@ -231,6 +227,14 @@ export function PureGraphEditor({
                 nodePaint(node, red, ctx, globalScale);
               }}
             />
+          </div>
+
+          <div className="card-footer">
+            {activeNode ? (
+              "Select another operation to create a forward link."
+            ) : (
+              "Select an operation to edit."
+            )}
           </div>
         </div>
         
