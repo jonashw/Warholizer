@@ -45,7 +45,7 @@ export const OperationPreviewModal = ({
                                     />
                                     <Thumbnail
                                         img={img}
-                                        sideLength={90} 
+                                        side={"90px"} 
                                         onClick={() => toggleImgId(img.id, !selectedImgIds.has(img.id))}
                                     />
                                 </div>
@@ -62,6 +62,7 @@ export const OperationPreviewModal = ({
                                     <OperationIcon op={op} className="me-2"/>
                                     {op.type}
                                     <WarholizerImage
+                                        thumbnail={90}
                                         onClick={() => {
                                             onSelect(operationAsRecord(op));
                                             onClose();

@@ -2,12 +2,14 @@ import React from "react";
 import ImageUtil from "./Warholizer/ImageUtil";
 import { OffscreenCanvasImage } from "./OffscreenCanvasImage";
 import { PureRasterApplicator, PureRasterApplicators } from "./Warholizer/RasterOperations/PureRasterApplicator";
-import { ImageRecord } from "./ImageRecord";
+import { ImageRecord, imageAsRecord } from "./ImageRecord";
+import { CSSLength, Thumbnail } from "./Thumbnail";
 
 export type WarholizerImageRef = {getHeight: () => number};
 
 export const WarholizerImage = React.forwardRef(function (
     {
+        thumbnail,
         onSize,
         src,
         applicators,
@@ -15,6 +17,7 @@ export const WarholizerImage = React.forwardRef(function (
         style,
         onClick
     }: {
+        thumbnail?: CSSLength,
         onSize?: (w: number, h: number) => void,
         src: (string | ImageRecord | OffscreenCanvas | HTMLVideoElement)[],
         applicators: PureRasterApplicator[],
@@ -52,8 +55,25 @@ export const WarholizerImage = React.forwardRef(function (
         },
         [finalImages]);
 
+    if(finalImages.length === 0 && thumbnail){
+        return (
+            <Thumbnail 
+                img={undefined}
+                side={thumbnail}
+                onClick={onClick} 
+            />
+        );
+    }
+
     return <>{finalImages.map((img,i) => 
-        <OffscreenCanvasImage
+        thumbnail 
+        ? <Thumbnail
+            key={i}
+            img={imageAsRecord(img)}
+            side={thumbnail} 
+                {...{onSize, onClick, className, style}}
+             />
+        : <OffscreenCanvasImage
             key={i}
             {...{onSize, onClick, className, style}}
             oc={img} 

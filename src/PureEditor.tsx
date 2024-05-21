@@ -57,7 +57,10 @@ export default function PureEditor() {
                             <div className="card-body">
                                 <div className="d-flex justify-content-start gap-1 align-items-center">
                                     {outputImages.map(img => 
-                                        <Thumbnail sideLength={90} img={img} key={img.id}/>
+                                        <Thumbnail side={"90px"} img={img} key={img.id}/>
+                                    )}
+                                    {outputImages.length === 0 && (
+                                        <Thumbnail side={"90px"} img={undefined}/>
                                     )}
                                 </div>
                             </div>

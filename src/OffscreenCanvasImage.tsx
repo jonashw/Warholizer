@@ -15,6 +15,7 @@ export const OffscreenCanvasImage = ({
 }) => {
     const [payload, setPayload] = React.useState<ImagePayload>();
     const [modalVisible, setModalVisible] = React.useState(false);
+    const [loaded,setLoaded] = React.useState(false);
     React.useEffect(() => {
         ImageUtil.offscreenCanvasToPayload(oc).then(setPayload);
     }, [oc]);
@@ -29,6 +30,7 @@ export const OffscreenCanvasImage = ({
                 }
             }}
             onLoad={e => {
+                setLoaded(true);
                 if(onSize){
                     onSize(
                         e.currentTarget.clientWidth,
@@ -40,6 +42,7 @@ export const OffscreenCanvasImage = ({
             style={{
                 ...{cursor: 'pointer'},
                 ...(style ?? {})
+                ,display: loaded ? 'inherit' : 'none'
             }} />
         {modalVisible && (
             <Modal
@@ -47,12 +50,17 @@ export const OffscreenCanvasImage = ({
                 flush
                 onClose={() => setModalVisible(false)}
                 body={<>
-                    <div className="d-flex justify-content-center">
+                    {payload && <div className="d-flex justify-content-center">
                         <img
+                            onLoad={() => setLoaded(true)}
                             alt="img"
                             src={payload?.dataUrl}
-                            style={{maxWidth:'100%'}} />
-                    </div>
+                            style={{
+                                maxWidth:'100%',
+                                display: loaded ? 'inherit' : 'none'
+                            }} 
+                        />
+                    </div>}
                 </>}
             />
         )}
