@@ -7,7 +7,8 @@ import {
     Rotate90DegreesCw, Start, WrapText,
     FitScreen,
     Crop,
-    Layers
+    Layers,
+    Adjust
 } from "@mui/icons-material";
 
 const operationIconElement = (op: PureRasterOperation) => {
@@ -27,6 +28,7 @@ const operationIconElement = (op: PureRasterOperation) => {
         case "scaleToFit": return FitScreen;
         case "stack": return Layers;
         case "crop": return Crop;
+        case "noop": return Adjust;
         default: return Functions;
     }
 };

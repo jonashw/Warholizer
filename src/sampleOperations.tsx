@@ -3,6 +3,7 @@ import { angle, byte, positiveNumber } from './Warholizer/RasterOperations/Numbe
 
 
 export const sampleOperations: PureRasterOperation[] = [
+    { "type": "noop"},
     { "type": "stack", blendingMode: "multiply" },
     { "type": "scale", x: 0.5, y: 0.5 },
     { "type": "crop", width: 50, height: 50, x: 0, y: 0, unit: '%' },
