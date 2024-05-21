@@ -94,6 +94,7 @@ export const PureRasterOperationInlineEditor = ({
             {(() => {
                 switch (opType) {
                     case 'noop': return;
+                    case 'void': return;
                     case 'multiply': return (
                         <input type="number"
                             value={op.n}

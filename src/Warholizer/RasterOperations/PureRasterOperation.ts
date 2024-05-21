@@ -3,6 +3,7 @@ import { Angle, Byte, Percentage, PositiveNumber, RightAngle } from "./NumberTyp
 export type Dimension = 'x'|'y';
 export type Direction = 'up' | 'down' | 'left' | 'right';
 export type Invert = { type: "invert" };
+export type Void = { type: "void" };
 export type Noop = { type: "noop" };
 export type Crop = { type: "crop", x: number, y: number, width: number, height: number, unit: 'px' | '%' }
 export type Threshold = { type: "threshold", value: Byte };
@@ -56,6 +57,7 @@ export const BlendingModes: BlendingMode[] = [
 
 export type PureRasterOperation = 
   | Stack
+  | Void
   | Crop
   | Grid
   | Tile
@@ -88,6 +90,8 @@ const apply = async (op: PureRasterOperation, inputs: OffscreenCanvas[]): Promis
           }
         }).then(osc => [osc]);
       }
+    case 'void': 
+      return [];
     case 'noop': 
       return inputs;
     case 'multiply': 
@@ -368,6 +372,7 @@ const stringRepresentation = (op: PureRasterOperation): string => {
     case 'scale'     : return `scale(${op.x},${op.y})`;
     case 'line'      : return `line(${op.direction})`;
     case 'tile'      : return `tile(${op.primaryDimension},${op.lineLength})`;
+    case 'void'      : return `void`;
     default: {
       throw new Error(`Unexpected operation type: ${opType}`);
     }

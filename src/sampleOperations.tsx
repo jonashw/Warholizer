@@ -2,8 +2,9 @@ import { PureRasterOperation } from './Warholizer/RasterOperations/PureRasterOpe
 import { angle, byte, positiveNumber } from './Warholizer/RasterOperations/NumberTypes';
 
 
-export const sampleOperations: PureRasterOperation[] = [
+export const sampleOperations: PureRasterOperation[] = ([
     { "type": "noop"},
+    { "type": "void"},
     { "type": "stack", blendingMode: "multiply" },
     { "type": "scale", x: 0.5, y: 0.5 },
     { "type": "crop", width: 50, height: 50, x: 0, y: 0, unit: '%' },
@@ -19,4 +20,5 @@ export const sampleOperations: PureRasterOperation[] = [
     { "type": "slideWrap", amount: 50, dimension: 'x' },
     { "type": "grayscale", percent: 100 },
     { "type": "blur", pixels: 5 }
-];
+] as PureRasterOperation[])
+.sort((a,b) => a.type < b.type ? -1 : b.type < a.type ? 1 : 0);

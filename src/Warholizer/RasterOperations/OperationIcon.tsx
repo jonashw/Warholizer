@@ -8,7 +8,8 @@ import {
     FitScreen,
     Crop,
     Layers,
-    Adjust
+    Adjust,
+    HighlightOff
 } from "@mui/icons-material";
 
 const operationIconElement = (op: PureRasterOperation) => {
@@ -29,6 +30,7 @@ const operationIconElement = (op: PureRasterOperation) => {
         case "stack": return Layers;
         case "crop": return Crop;
         case "noop": return Adjust;
+        case "void": return HighlightOff;
         default: return Functions;
     }
 };
