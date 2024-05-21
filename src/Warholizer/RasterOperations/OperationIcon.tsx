@@ -49,7 +49,7 @@ export const OperationIcon = ({
     const transform = iconTransform(op);
     const transforms = 
     [
-        ... (!transform.flip ? [] : [`scale(${transform.flip.x ? -1 : 1},${transform.flip.y ? -1 : 1})`])
+        ...((!transform.flipX && !transform.flipY) ? [] : [`scale(${transform.flipX ? -1 : 1},${transform.flipY ? -1 : 1})`])
         ,...(!transform.degreesRotation ? [] : [`rotate(${transform.degreesRotation}deg)`])
     ];
     const style = 
@@ -61,15 +61,9 @@ export const OperationIcon = ({
 
 type IconTransform = {
     degreesRotation?: number;
-    flip?: {x:boolean; y:boolean};
+    flipY?: boolean;
+    flipX?: boolean;
 };
-
-export const iconFlip = (op: PureRasterOperation) => {
-  if(op.type === "tile" && op.primaryDimension === "y"){
-    return {x:true,y:false};
-  }
-  return {x:false,y:false};
-}
 
 export const iconTransform = (op: PureRasterOperation): IconTransform => {
     if (op.type === "slideWrap" && op.dimension === "y") {
@@ -82,29 +76,10 @@ export const iconTransform = (op: PureRasterOperation): IconTransform => {
         return { degreesRotation: 90 };
     }
     if (op.type === "tile" && op.primaryDimension === "y") {
-        return {degreesRotation: 90, flip: {x:true,y:false}};
+        return {degreesRotation: 90, flipX: true};
     }
     if (op.type === "rotate" && op.degrees % 360 > 0) {
         return {degreesRotation: op.degrees - 45};
     }
     return {};
-}
-
-export const iconRotation = (op: PureRasterOperation) => {
-  if(op.type === "slideWrap" && op.dimension === "y"){
-    return 90;
-  }
-  if(op.type === "line" && (op.direction === "up" || op.direction === "down")){
-    return 90;
-  }
-  if(op.type === "split" && op.dimension === "x"){
-    return 90;
-  }
-  if(op.type === "tile" && op.primaryDimension === "y"){
-    return 90;
-  }
-  if(op.type === "rotate" && op.degrees % 360 > 0){
-    return op.degrees - 45;
-  }
-  return 0;
 }

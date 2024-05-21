@@ -82,7 +82,7 @@ export default {
                 //Forking is natural... merging is explicit.
                 (groups: InstructionGroupsAccumulator,{op,inputs}) => {
                     const group = groups[op.id] || {op, inputs: []};
-                    const updatedGroup = {...group, inputs: [...group.inputs, inputs]};
+                    const updatedGroup = {...group, inputs: [...group.inputs, ...inputs]};
                     return {...groups, [op.id]: updatedGroup} as InstructionGroupsAccumulator;
                 },
                 {} as InstructionGroupsAccumulator);
@@ -155,14 +155,32 @@ export default {
     simpleMerge: (
         leftSource: PureRasterOperationRecord,
         rightSource: PureRasterOperationRecord,
-        sharedTarget: PureRasterOperationRecord
+        sharedTarget: PureRasterOperationRecord,
+        targetPipes?: PureRasterOperationRecord[]
     ): PureGraphData => {
         const links =  
-            [leftSource,rightSource]
-            .map(source => ({ source: source.id, target: sharedTarget.id }));
+            [
+                ...[leftSource,rightSource].map(source => ({
+                    source: source.id,
+                    target: sharedTarget.id 
+                }))
+                ,...(
+                    !targetPipes 
+                    ? []
+                    : pairs([sharedTarget,...targetPipes]).map(([source,target]) => ({
+                        source: source.id,
+                        target: target.id
+                    }))
+                )
+            ];
         return {
             links,
-            nodes: [leftSource,rightSource,sharedTarget].map(op => ({op,id: op.id}) as PureGraphNode)
+            nodes: [
+                leftSource,
+                rightSource,
+                sharedTarget,
+                ...(targetPipes ?? [])
+            ].map(op => ({op,id: op.id}) as PureGraphNode)
         };
     },
     pipe: (ops: PureRasterOperationRecord[]): PureGraphData => {

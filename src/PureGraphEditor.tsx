@@ -40,9 +40,9 @@ const nodePaint = (
   ctx.fillStyle='white';
   ctx.translate(node.x!-w/2,node.y!-h/2);
   const transformIcon = iconTransform(node.op);
-  if(transformIcon.flip){
-    ctx.translate(transformIcon.flip.y ? 0 : w, transformIcon.flip.x ? 0 : h);
-    ctx.scale(transformIcon.flip.x ? -1 : 1, transformIcon.flip.y ? -1 : 1);
+  if(transformIcon.flipX || transformIcon.flipY){
+    ctx.translate(transformIcon.flipY ? 0 : w, transformIcon.flipX ? 0 : h);
+    ctx.scale(transformIcon.flipX ? -1 : 1, transformIcon.flipY ? -1 : 1);
   }
   if(transformIcon.degreesRotation){
     ctx.translate(w/2,h/2);
