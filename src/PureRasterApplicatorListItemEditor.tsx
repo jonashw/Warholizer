@@ -6,6 +6,7 @@ import {  Draggable, Droppable } from 'react-beautiful-dnd';
 import { sampleOperations } from './sampleOperations';
 import { ImageRecord } from './ImageRecord';
 import { OperationPreviewModal } from './OperationPreviewModal';
+import { NewOpDropdownMenu } from './NewOpDropdownMenu';
 
 export const PureRasterApplicatorListItemEditor = ({
     value,
@@ -18,7 +19,6 @@ export const PureRasterApplicatorListItemEditor = ({
     onRemove?: () => void;
     previewImages: ImageRecord[];
 }) => {
-    const selectRef = React.createRef<HTMLSelectElement>();
     const [operationPreviewModalVisible,setOperationPreviewModalVisible] = React.useState(false);
     return (
         <>
@@ -95,29 +95,15 @@ export const PureRasterApplicatorListItemEditor = ({
             </Droppable>
             
             <div className="list-group-item d-flex justify-content-between gap-2">
-                <select
-                    className="form-select form-select-sm"
-                    ref={selectRef}
-                    value={undefined}
-                    onChange={e => {
-                        const op = sampleOperations.filter(op => op.type === e.target.value)[0];
-                        if (!op) {
-                            return;
-                        }
-                        console.log({ op });
+                <NewOpDropdownMenu 
+                    onSelect={op => {
                         onChange({
                             ...value,
                             ops: [...value.ops, operationAsRecord(op)]
                         });
-                        if (selectRef.current) {
-                            selectRef.current.value = "";
-                        }
                     }}
-                >
-                    <option value={""}>Add an operation</option>
-                    {sampleOperations.map(op => <option key={op.type} value={op.type}>{op.type}</option>
-                    )}
-                </select>
+                />
+                
                 <button className="btn btn-sm btn-primary"
                 onClick={() => setOperationPreviewModalVisible(true)}
                 >Explore</button>

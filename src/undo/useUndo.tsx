@@ -54,6 +54,10 @@ export function useUndo<T>(initialState: T) {
             });
         },
         onChange(newCurrentState: T): void {
+            if(state.curr === newCurrentState){
+                //noops shouldn't affect undo state
+                return;
+            }
             setState({
                 prev: !state.curr
                     ? state.prev

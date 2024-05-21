@@ -1,21 +1,34 @@
 import React from 'react';
-import { OffscreenCanvasImage } from './OffscreenCanvasImage';
 import { applicatorAsRecord, PureRasterApplicators } from './Warholizer/RasterOperations/PureRasterApplicator';
 import { PureRasterApplicatorsEditor } from './PureRasterApplicatorsEditor';
-import { ImageRecord } from './ImageRecord';
+import { imageAsRecord, ImageRecord } from './ImageRecord';
 import { InputsEditor } from './InputsEditor';
 import { defaultApplicator } from './defaultApplicator';
-import { Thumbnail } from './Thumbnail';
+import { Outputs } from './Outputs';
+import { loadSampleImages, sampleImageUrls } from './sampleImageUrls';
 
 export default function PureEditor() {
-    const [inputImages, setInputImages] = React.useState<ImageRecord[]>([]);
+    const [inputImages, setInputImages] = React.useState<ImageRecord[]>();
     const [applicators, setApplicators] = React.useState([applicatorAsRecord(defaultApplicator)]);
-    const [outputImages, setOutputImages] = React.useState<{id:string,osc:OffscreenCanvas}[]>([]);
+    const [outputImages, setOutputImages] = React.useState<ImageRecord[]>([]);
 
     const newId = () => crypto.randomUUID().toString();
 
     React.useEffect(() => {
+        loadSampleImages([
+            sampleImageUrls.warhol,
+            sampleImageUrls.banana,
+            sampleImageUrls.soupCan
+        ])
+        .then(imgs => imgs.map(imageAsRecord))
+        .then(setInputImages)
+    },[]);
+
+    React.useEffect(() => {
         setOutputImages([]);
+        if(!inputImages){
+            return;
+        }
         if(inputImages.length === 0){
             return;
         }
@@ -27,47 +40,26 @@ export default function PureEditor() {
 
     return (
         <div className="container-fluid">
-            <div className="row">
-                <div className="col-md-6 mb-3">
-                    <InputsEditor defaultInputs={inputImages} onChange={setInputImages}/>
-                </div>
+            {inputImages && (
+                <div className="row">
+                    <div className="col-md-6 mb-3">
+                        <InputsEditor defaultInputs={inputImages} onChange={setInputImages} />
+                    </div>
 
-                <div className="col-md-6 mb-3">
-                    <PureRasterApplicatorsEditor
-                        defaultApplicators={applicators}
-                        onChange={setApplicators} 
-                        previewImages={inputImages}
-                    />
-                </div>
+                    <div className="col-md-6 mb-3">
+                        <PureRasterApplicatorsEditor
+                            defaultApplicators={applicators}
+                            onChange={setApplicators}
+                            previewImages={inputImages}
+                        />
+                    </div>
 
-                <div className="col-12">
-                    <div className="card">
-                        <div className="card-header">
-                            Outputs ({outputImages.length})
-                        </div>
+                    <div className="col-12">
+                        <Outputs outputs={outputImages} />
 
-                        {outputImages.length === 1 && (
-                            <OffscreenCanvasImage key={outputImages[0].id} oc={outputImages[0].osc} style={{
-                                maxWidth:'100%', 
-                                maxHeight:'100%'
-                            }}/>
-                        )}
-
-                        {outputImages.length !== 1 && (
-                            <div className="card-body">
-                                <div className="d-flex justify-content-start gap-1 align-items-center">
-                                    {outputImages.map(img => 
-                                        <Thumbnail side={"90px"} img={img} key={img.id}/>
-                                    )}
-                                    {outputImages.length === 0 && (
-                                        <Thumbnail side={"90px"} img={undefined}/>
-                                    )}
-                                </div>
-                            </div>
-                        )}
                     </div>
                 </div>
-            </div>
+            )}
         </div>
     );
 }

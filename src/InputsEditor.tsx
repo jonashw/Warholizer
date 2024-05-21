@@ -13,13 +13,19 @@ import { DragDropHelper } from './DragDropHelper';
 import { WebcamModal } from "./WebcamModal";
 
 export function InputsEditor({
-    defaultInputs, onChange
+    defaultInputs, onChange,
 }: {
     defaultInputs: ImageRecord[];
     onChange: (inputs: ImageRecord[]) => void;
 }) {
     const [inputs, setInputs, controller] = useUndo<ImageRecord[]>(defaultInputs);
     const [webcamVisible, setWebcamVisible] = React.useState(false);
+
+    React.useEffect(() => {
+        onFilePaste(async (data: ArrayBuffer | string) => {
+            prepareInputUrls([data.toString()]);
+        });
+    }, []);
 
     React.useEffect(() => {
         onChange(inputs);
@@ -47,13 +53,6 @@ export function InputsEditor({
             }))
         ]);
     };
-
-    React.useEffect(() => {
-        prepareInputUrls(["/warhol.jpg", "/banana.jpg", "/soup-can.jpg"]);
-        onFilePaste(async (data: ArrayBuffer | string) => {
-            prepareInputUrls([data.toString()]);
-        });
-    }, []);
 
     const prepareFile = async (file: File) => {
         const url = await fileToDataUrl(file);
