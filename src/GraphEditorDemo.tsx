@@ -13,10 +13,23 @@ pureGraphs.pipe([
 ].map(operationAsRecord));
 
 
-const defaultGraph = pureGraphs.pipe([
+const defaultGraph = 
+
+  pureGraphs.mergePipe(
+    [
+      operationAsRecord({type:"noop"}),
+      operationAsRecord({type:"slideWrap",dimension:'y',amount:50})
+    ],
+    operationAsRecord({type:"line", direction:"right",squish:true}),
+    [
+    ]
+  );
+/*
+pureGraphs.pipe([
+  operationAsRecord({type:'rotate',degrees:135}),
   operationAsRecord({type:'rotate',degrees:135})
 ]);
-/*
+
   pureGraphs.mergePipe(
     [
       operationAsRecord({type:"noop"}),

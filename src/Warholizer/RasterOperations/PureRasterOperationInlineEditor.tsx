@@ -279,14 +279,23 @@ export const PureRasterOperationInlineEditor = ({
                             />
                         </>
                     );
-                    case 'line': return (
+                    case 'line': return (<>
                         <DirectionInput
                             value={op.direction}
                             onChange={direction => {
                                 onChange({...op, direction});
                             }}
                         />
-                    );
+                        <span className="form-check">
+                            <input
+                                type="checkbox"
+                                checked={op.squish}
+                                className="form-check-input" id="squish" 
+                                onChange={e => onChange({...op,squish:e.target.checked})}
+                            />
+                            <label htmlFor="squish" className="form-check-label">Squish</label>
+                        </span>
+                    </>);
                     default:
                         throw new Error(`Unexpected operation type: ${opType}`);
                 }

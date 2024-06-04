@@ -18,7 +18,7 @@ export type Rotate = { type: "rotate", degrees: Angle }
 export type RotateHue = { type: "rotateHue", degrees: Angle }
 export type Scale = { type: "scale", x: number, y: number };
 export type ScaleToFit = { type: "scaleToFit", w: PositiveNumber, h: PositiveNumber };
-export type Line = { type: "line", direction: Direction};
+export type Line = { type: "line", direction: Direction, squish?:boolean};
 export type Tile = { type: "tile", primaryDimension: Dimension, lineLength: number };
 export type Grid = { type: "grid", rows: number, cols: number };
 export type Stack = {type: "stack", blendingMode: BlendingMode};
@@ -354,11 +354,11 @@ const apply = async (op: PureRasterOperation, inputs: OffscreenCanvas[]): Promis
       const [width,height] = 
         horizontal
         ? [
-          inputs.map(i => i.width).reduce((a,b) => a + b, 0),
+          op.squish ? (inputs[0]?.width ?? 0) : inputs.map(i => i.width).reduce((a,b) => a + b, 0),
           Math.max(...inputs.map(i => i.height))
         ] : [
           Math.max(...inputs.map(i => i.width)),
-          inputs.map(i => i.height).reduce((a,b) => a + b, 0)
+          op.squish ? (inputs[0]?.height ?? 0) : inputs.map(i => i.height).reduce((a,b) => a + b, 0)
         ];
       const orderedInputs = 
         op.direction === "up" || op.direction === "left"
@@ -366,11 +366,20 @@ const apply = async (op: PureRasterOperation, inputs: OffscreenCanvas[]): Promis
         : inputs;
         
       return [await offscreenCanvasOperation(width, height, (ctx) => {
+        if(op.squish){
+          const scale = {
+            x: horizontal ? 1/inputs.length : 1,
+            y:!horizontal ? 1/inputs.length : 1
+          };
+          console.log({n:inputs.length,scale});
+          ctx.scale(scale.x,scale.y);
+        }
         for(const input of orderedInputs){
           ctx.drawImage(input,0,0);
+          const [w,h] = op.squish ? [width,height] : [input.width, input.height];
           ctx.translate(
-            horizontal ? input.width : 0,
-            !horizontal ? input.height : 0
+             horizontal ? w : 0,
+            !horizontal ? h : 0
           );
         }
       })];
@@ -416,7 +425,7 @@ const stringRepresentation = (op: PureRasterOperation): string => {
     case 'slideWrap' : return `slideWrap(${op.dimension},${op.amount}%)`;
     case 'scaleToFit': return `scaleToFit(${op.w},${op.h})`;
     case 'scale'     : return `scale(${op.x},${op.y})`;
-    case 'line'      : return `line(${op.direction})`;
+    case 'line'      : return `line(${op.direction,op.squish})`;
     case 'tile'      : return `tile(${op.primaryDimension},${op.lineLength})`;
     case 'void'      : return `void`;
     case 'fill'      : return `fill(${op.color})`;
