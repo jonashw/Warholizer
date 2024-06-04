@@ -91,6 +91,14 @@ export function PureGraphEditor({
       selectedNodeIds: [ id ]
     });
   }
+
+  const toolbarInstructions = 
+    nodeTouchMode.type === "ReceiveLinkFromSources" 
+    ?  "Select another operation to create a forward link."
+    : nodeTouchMode.selectedNodeIds.length === 0 
+    ? "Select an operation to edit."
+    : undefined;
+
   const onNodeClick = (node: NodeObject<NodeObject<PureGraphNode>>) => {
     if (node.id === activeNode?.id) {
       clearNodeSelection();
@@ -170,26 +178,49 @@ export function PureGraphEditor({
           </div>
 
           <div className="card-header">
-            <NewOpDropdownMenu
-              placeholder={activeNode ? "Pipe into a new operation" : undefined}
-              onSelect={op => {
-                const opRecord = operationAsRecord(op);
-                const newNode: PureGraphNode = { op: opRecord, id: opRecord.id };
-                if(activeNode){
-                  const newLink: DirectedGraphLink<PureGraphLink> = {
-                    source: activeNode.id,
-                    target: newNode.id
-                  };
-                  setGraph(
-                    pureGraphs.addLink(
-                      pureGraphs.addNode(value, newNode),
-                      newLink));
-                } else {
-                  setGraph(pureGraphs.addNode(value, newNode));
-                }
-                selectNode(newNode.id);
-              }}
-            />
+            <div className="d-flex gap-1">
+              <NewOpDropdownMenu
+                placeholder={activeNode ? "Pipe into a new operation" : undefined}
+                onSelect={op => {
+                  const opRecord = operationAsRecord(op);
+                  const newNode: PureGraphNode = { op: opRecord, id: opRecord.id };
+                  if(activeNode){
+                    const newLink: DirectedGraphLink<PureGraphLink> = {
+                      source: activeNode.id,
+                      target: newNode.id
+                    };
+                    setGraph(
+                      pureGraphs.addLink(
+                        pureGraphs.addNode(value, newNode),
+                        newLink));
+                  } else {
+                    setGraph(pureGraphs.addNode(value, newNode));
+                  }
+                  selectNode(newNode.id);
+                }}
+              />
+              {activeNode && <>
+                <button
+                  className="btn btn-lg btn-outline-secondary btn-sm flex-shrink-0"
+                  onClick={() => {
+                    const sourceNodeIds = nodeTouchMode.type === 'SelectNodes' ? nodeTouchMode.selectedNodeIds : [];
+                    setNodeTouchMode({ type: 'ReceiveLinkFromSources', sourceNodeIds })
+                  }}
+                >
+                  Link to...
+                </button>
+                <button
+                  className="btn btn-lg btn-danger btn-sm flex-shrink-0"
+                  onClick={() => {
+                    setGraph(pureGraphs.remove(value, activeNode));
+                    clearNodeSelection();
+                  }}
+                >
+                  Remove
+                </button>
+              </>
+              }
+            </div>
           </div>
 
           {graph.nodes.length > 0 && activeNode && (
@@ -205,37 +236,13 @@ export function PureGraphEditor({
                   }}
                   sampleOperators={sampleOperations}
                 />
-                <span className="d-flex gap-1">
-                  <button
-                    className="btn btn-lg btn-outline-secondary btn-sm"
-                    onClick={() => {
-                      const sourceNodeIds = nodeTouchMode.type === 'SelectNodes' ? nodeTouchMode.selectedNodeIds : [];
-                      setNodeTouchMode({ type: 'ReceiveLinkFromSources', sourceNodeIds })
-                    }}
-                  >
-                    Link to...
-                  </button>
-                  <button
-                    className="btn btn-lg btn-danger btn-sm"
-                    onClick={() => {
-                      setGraph(pureGraphs.remove(value, activeNode));
-                      clearNodeSelection();
-                    }}
-                  >
-                    Remove
-                  </button>
-                </span>
               </div>
             </div>
           )}
 
-          <div className="card-header">
-            {nodeTouchMode.type === "ReceiveLinkFromSources" ? (
-              "Select another operation to create a forward link."
-            ) : (
-              "Select an operation to edit."
-            )}
-          </div>
+          {toolbarInstructions && <div className="card-header">
+            {toolbarInstructions}
+          </div>}
 
           <div className="card-img-bottom card-img-top bg-dark" ref={containerRef} style={{ position: 'relative' }}>
             <ForceGraph2D
