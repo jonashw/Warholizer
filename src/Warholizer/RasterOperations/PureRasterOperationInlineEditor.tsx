@@ -1,4 +1,4 @@
-import { Angle, Byte, Percentage, PositiveNumber, angle, byte, percentage, positiveNumber, rightAngles } from "./NumberTypes";
+import { Angle, Byte, Percentage, PositiveNumber, angle, byte, percentage, positiveNumber } from "./NumberTypes";
 import { BlendingMode, BlendingModes, Dimension, Direction, PureRasterOperation } from "./PureRasterOperation";
 import { ButtonRadiosInput } from "./ButtonRadiosInput";
 import { Rotate90DegreesCw } from "@mui/icons-material";
@@ -114,7 +114,16 @@ export const PureRasterOperationInlineEditor = ({
                             }}/>
                         );
                     case 'rotate': {
-                        const effectiveRightAngles = rightAngles.filter(a => a !== 360);
+                        const anglesEvery = (degrees: Angle): Angle[] => {
+                            const angles: Angle[] = [];
+                            let lastAngle: Angle = angle(0);
+                            while(lastAngle < 360){
+                                angles.push(lastAngle);
+                                lastAngle += degrees;
+                            }
+                            return angles;
+                        };
+                        const effectiveRightAngles = anglesEvery(angle(22.5));
                         return (
                             <span>
                                 <button className="btn btn-sm btn-outline-secondary" onClick={() => {

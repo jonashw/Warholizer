@@ -13,7 +13,10 @@ pureGraphs.pipe([
 ].map(operationAsRecord));
 
 
-const defaultGraph = 
+const defaultGraph = pureGraphs.pipe([
+  operationAsRecord({type:'rotate',degrees:135})
+]);
+/*
   pureGraphs.mergePipe(
     [
       operationAsRecord({type:"noop"}),
@@ -24,6 +27,7 @@ const defaultGraph =
       operationAsRecord({type:"grid", rows:2, cols:2})
     ]
   );
+*/
 
 export function GraphEditorDemo() {
   const [inputs,setInputs] = React.useState<ImageRecord[]>();

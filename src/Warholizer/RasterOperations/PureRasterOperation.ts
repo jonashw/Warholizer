@@ -1,5 +1,5 @@
 import { CSSProperties } from "react";
-import { Angle, Byte, Percentage, PositiveNumber, RightAngle } from "./NumberTypes";
+import { Angle, Byte, Percentage, PositiveNumber} from "./NumberTypes";
 
 export type Dimension = 'x'|'y';
 export type Direction = 'up' | 'down' | 'left' | 'right';
@@ -14,7 +14,7 @@ export type Split = { type: "split", dimension: Dimension, amount: Percentage };
 export type SlideWrap = { type: "slideWrap", dimension: Dimension, amount: Percentage };
 export type Blur = { type: "blur", pixels: number };
 export type Grayscale = { type: "grayscale", percent: Percentage };
-export type Rotate = { type: "rotate", degrees: RightAngle }
+export type Rotate = { type: "rotate", degrees: Angle }
 export type RotateHue = { type: "rotateHue", degrees: Angle }
 export type Scale = { type: "scale", x: number, y: number };
 export type ScaleToFit = { type: "scaleToFit", w: PositiveNumber, h: PositiveNumber };
@@ -235,9 +235,24 @@ const apply = async (op: PureRasterOperation, inputs: OffscreenCanvas[]): Promis
           dimensionSwitch
           ? [input.height,input.width]
           : [input.width,input.height];
+        const scaleToRetainFullImage = true;
         return offscreenCanvasOperation(width, height, (ctx) => {
+          const radians = op.degrees * Math.PI / 180;
           ctx.translate(width/2,height/2);//we want to rotate about the center of the image
-          ctx.rotate(op.degrees * Math.PI / 180);
+          if(scaleToRetainFullImage){
+            //reference: https://stackoverflow.com/questions/6657479/aabb-of-rotated-sprite
+            const aabb = {
+              h: width * Math.abs(Math.sin(radians)) + height * Math.abs(Math.cos(radians)),
+              w: height * Math.abs(Math.sin(radians)) + width * Math.abs(Math.cos(radians))
+            };
+            const scale = {
+              x: width/aabb.w,
+              y: height/aabb.h
+            };
+            console.log({radians,aabb,scale});
+            ctx.scale(scale.x,scale.y);
+          }
+          ctx.rotate(radians);
           if(dimensionSwitch){
             ctx.translate(-height/2,-width/2);//we want to rotate about the center of the image
           } else {
