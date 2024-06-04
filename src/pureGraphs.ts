@@ -40,8 +40,8 @@ const pairs = <T>(items: T[]) =>
             items[i],
             items[i + 1]
         ] as [T, T]);
-
-export default {
+        
+const pureGraphs = {
     apply: async (graph: PureGraphData, inputs: ImageRecord[]): Promise<ImageRecord[]> => {
         const opById = Object.fromEntries(graph.nodes.map(n => [n.op.id, n.op]));
         //const sourceIds = ImmutableSet<string>(graph.links.map(l => l.source));
@@ -100,6 +100,9 @@ export default {
     addNode: (graph: PureGraphData, node: PureGraphNode): PureGraphData => ({
         links: graph.links, nodes:[...graph.nodes, node]
     }),
+    addLinks: (graph: PureGraphData, links: DirectedGraphLink<PureGraphLink>[]): PureGraphData => {
+        return links.reduce((acc,link) => pureGraphs.addLink(acc,link), graph);
+    },
     addLink: (graph: PureGraphData, link: DirectedGraphLink<PureGraphLink>): PureGraphData => {
         const source = graph.nodes.find(n => n.id === link.source);
         const target = graph.nodes.find(n => n.id === link.target);
@@ -199,3 +202,5 @@ export default {
     singular: (op: PureRasterOperationRecord): PureGraphData => ({links: [], nodes:[{op,id:op.id}]}),
 
 };
+
+export default pureGraphs;
