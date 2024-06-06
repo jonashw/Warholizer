@@ -14,8 +14,10 @@ export type Split = { type: "split", dimension: Dimension, amount: Percentage };
 export type SlideWrap = { type: "slideWrap", dimension: Dimension, amount: Percentage };
 export type Blur = { type: "blur", pixels: number };
 export type Grayscale = { type: "grayscale", percent: Percentage };
-export type Rotate = { type: "rotate", degrees: Angle }
-export type RotateHue = { type: "rotateHue", degrees: Angle }
+export type RotationOrigin = "center"|"top-right"|"top-left"|"bottom-left"|"bottom-right";
+export const RotationOrigins: RotationOrigin[] = ["center","top-right","top-left","bottom-left","bottom-right"];
+export type Rotate = { type: "rotate", degrees: Angle, about: RotationOrigin };
+export type RotateHue = { type: "rotateHue", degrees: Angle };
 export type Scale = { type: "scale", x: number, y: number };
 export type ScaleToFit = { type: "scaleToFit", w: PositiveNumber, h: PositiveNumber };
 export type Line = { type: "line", direction: Direction, squish?:boolean};
@@ -238,7 +240,17 @@ const apply = async (op: PureRasterOperation, inputs: OffscreenCanvas[]): Promis
         const scaleToRetainFullImage = true;
         return offscreenCanvasOperation(width, height, (ctx) => {
           const radians = op.degrees * Math.PI / 180;
-          ctx.translate(width/2,height/2);//we want to rotate about the center of the image
+          const rotationCenter = 
+              op.about === "top-left"
+            ? {x:0,y:0}
+            : op.about === "top-right"
+            ? {x: width, y: 0}
+            : op.about === "bottom-left"
+            ? {x: 0, y: height}
+            : op.about === "bottom-right"
+            ? {x: width, y: height}
+            : {x: width/2, y: width/2};
+          ctx.translate(rotationCenter.x, rotationCenter.y);
           if(scaleToRetainFullImage){
             //reference: https://stackoverflow.com/questions/6657479/aabb-of-rotated-sprite
             const aabb = {
@@ -254,9 +266,9 @@ const apply = async (op: PureRasterOperation, inputs: OffscreenCanvas[]): Promis
           }
           ctx.rotate(radians);
           if(dimensionSwitch){
-            ctx.translate(-height/2,-width/2);//we want to rotate about the center of the image
+            ctx.translate(-rotationCenter.y, -rotationCenter.x);
           } else {
-            ctx.translate(-width/2,-height/2);//we want to rotate about the center of the image
+            ctx.translate(-rotationCenter.x, -rotationCenter.y);
           }
           ctx.drawImage(input,0,0);
         });
@@ -416,7 +428,7 @@ const stringRepresentation = (op: PureRasterOperation): string => {
     case 'threshold' : return `threshold(${op.value})`;
     case 'grayscale' : return `grayscale(${op.percent}%)`;
     case 'rotateHue' : return `rotateHue(${op.degrees}deg)`;
-    case 'rotate'    : return `rotate(${op.degrees}deg)`;
+    case 'rotate'    : return `rotate(${op.degrees}deg, about ${op.about})`;
     case 'blur'      : return `blur(${op.pixels}px)`;
     case 'invert'    : return "invert";
     case 'crop'      : return `crop(${op.x},${op.y},${op.width},${op.height},${op.unit})`;

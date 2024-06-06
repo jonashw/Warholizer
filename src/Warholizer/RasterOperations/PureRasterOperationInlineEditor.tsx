@@ -1,9 +1,10 @@
 import { Angle, Byte, Percentage, PositiveNumber, angle, byte, percentage, positiveNumber } from "./NumberTypes";
-import { BlendingMode, BlendingModes, Dimension, Direction, PureRasterOperation } from "./PureRasterOperation";
+import { BlendingMode, BlendingModes, Dimension, Direction, PureRasterOperation, RotationOrigin, RotationOrigins } from "./PureRasterOperation";
 import { ButtonRadiosInput } from "./ButtonRadiosInput";
 import { Rotate90DegreesCw } from "@mui/icons-material";
 import { OperationIcon } from "./OperationIcon";
 import { PureRasterOperationRecord, operationAsRecord } from "./PureRasterApplicator";
+import { DropdownSelector } from "./DropdownSelector";
 
 const AbstractNumberInput = <T extends number>(
     min:T,
@@ -125,6 +126,7 @@ export const PureRasterOperationInlineEditor = ({
                         };
                         const effectiveRightAngles = anglesEvery(angle(22.5));
                         return (
+                            <>
                             <span>
                                 <button className="btn btn-sm btn-outline-secondary" onClick={() => {
                                     const nextIndex = effectiveRightAngles.indexOf(op.degrees) + 1;
@@ -139,6 +141,16 @@ export const PureRasterOperationInlineEditor = ({
                                 {' '}
                                 {op.degrees.toString().padStart(3,"0")}&deg;
                             </span>
+                            <span>
+                                about: 
+                                {' '}
+                                <DropdownSelector<RotationOrigin> 
+                                    value={op.about}
+                                    options={RotationOrigins.map(value => ({value, label: value}))}
+                                    onChange={about => onChange({...op, about})}
+                                />
+                            </span>
+                            </>
                         );
                     }
                     case 'threshold': return (

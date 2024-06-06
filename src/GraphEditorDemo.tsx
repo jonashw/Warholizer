@@ -14,16 +14,10 @@ pureGraphs.pipe([
 
 
 const defaultGraph = 
+pureGraphs.pipe([
+  operationAsRecord({type:'rotate',degrees:45,about:'top-right'})
+]);
 
-  pureGraphs.mergePipe(
-    [
-      operationAsRecord({type:"noop"}),
-      operationAsRecord({type:"slideWrap",dimension:'y',amount:50})
-    ],
-    operationAsRecord({type:"line", direction:"right",squish:true}),
-    [
-    ]
-  );
 /*
 pureGraphs.pipe([
   operationAsRecord({type:'rotate',degrees:135}),
@@ -38,6 +32,16 @@ pureGraphs.pipe([
     operationAsRecord({type:"tile", primaryDimension:"x", lineLength:2}),
     [
       operationAsRecord({type:"grid", rows:2, cols:2})
+    ]
+  );
+
+  pureGraphs.mergePipe(
+    [
+      operationAsRecord({type:"noop"}),
+      operationAsRecord({type:"slideWrap",dimension:'y',amount:50})
+    ],
+    operationAsRecord({type:"line", direction:"right",squish:true}),
+    [
     ]
   );
 */
