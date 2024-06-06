@@ -12,7 +12,7 @@ export const sampleOperations: PureRasterOperation[] = ([
     { "type": "crop", width: 50, height: 50, x: 0, y: 0, unit: '%' },
     { "type": "scaleToFit", w: positiveNumber(500), h: positiveNumber(500) },
     { "type": "tile", primaryDimension: 'x', lineLength: 2 },
-    { "type": "line", direction: 'right' },
+    { "type": "line", direction: 'right', squish: false},
     { "type": "grid", rows: 2, cols: 2 },
     { "type": "threshold", value: byte(128) },
     { "type": "invert" },

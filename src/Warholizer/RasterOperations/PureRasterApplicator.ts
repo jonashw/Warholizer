@@ -6,6 +6,10 @@ export type PureRasterApplicator = {
     type: PureRasterApplicatorType,
     ops: PureRasterOperation[]
 }
+
+//TODO: use Record<T> instead of specific Record types
+//export type Record<T> = T & {id:'string'};
+//export function asRecord<T>(value: T) { return {...value, id: crypto.randomUUID()}; }
 export type PureRasterOperationRecord = PureRasterOperation & {id:string};
 export type PureRasterApplicatorRecord = {
   id: string,

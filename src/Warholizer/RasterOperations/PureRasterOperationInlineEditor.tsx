@@ -8,6 +8,9 @@ import React from "react";
 import { AngleDialInput } from "./AngleDialInput";
 import { Add, Remove } from "@mui/icons-material";
 
+const toPrecision = (n: number, fractionalDigits: number) => 
+    parseFloat(n.toFixed(fractionalDigits));
+
 export const anglesEvery = (degrees: Angle): Angle[] => {
     const angles: Angle[] = [];
     let lastAngle: Angle = angle(0);
@@ -24,7 +27,8 @@ function NumberSpinnerInput<T extends number>({
     step,
     sanitize,
     value,
-    onChange
+    onChange,
+    circular
 } : {
     min:T,
     max:T,
@@ -32,6 +36,7 @@ function NumberSpinnerInput<T extends number>({
     sanitize:(n:number) => T,
     value: T,
     onChange: (v:T) => void,
+    circular?: boolean
 }) {
     React.useEffect(
         /* When changing the step from smaller to larger,
@@ -49,9 +54,17 @@ function NumberSpinnerInput<T extends number>({
     const move = (stepCount: number) => {
         const nextValue = value + (stepCount * step);
         if(nextValue < min){
-            onChange(max);
+            if(circular){
+                onChange(max);
+            } else {
+                onChange(min);
+            }
         } else if (max < nextValue){
-            onChange(min);
+            if(circular){
+                onChange(min);
+            } else {
+                onChange(max);
+            }
         } else {
             onChange(sanitize(nextValue));
         }
@@ -96,7 +109,7 @@ const AbstractNumberInput = <T extends number>(
 }) => {
     const width = type === "number" ? '3.5em' : '';
     const className = type === "number" ? "ms-2" : "";
-    return <div>
+    return (
         <input type={type}
             value={value}
             min={min} max={max} step={stepOverride ?? step}
@@ -106,8 +119,7 @@ const AbstractNumberInput = <T extends number>(
                 onChange(sanitize(parseFloat(e.target.value)));
             }}
         />
-        {type=== "range" && <div>{value}</div>}
-    </div>;
+    );
 };
 
 export const NumberInput = AbstractNumberInput<number>(-Infinity,Infinity,1,n => n,"number");
@@ -184,14 +196,16 @@ export const PureRasterOperationInlineEditor = ({
                             }}/>
                         );
                     case 'multiply': return (
-                        <input type="number"
+                        <NumberSpinnerInput
                             value={op.n}
-                            min="1" max="5" step="1" 
-                            className="ms-2"
-                            style={{width:'2.5em'}}
-                            onChange={e => {
-                                onChange({...op, n: parseInt(e.target.value)});
-                            }}/>
+                            min={1}
+                            max={5}
+                            step={1}
+                            sanitize={n => n}
+                            onChange={n => {
+                                onChange({...op, n });
+                            }}
+                        />
                         );
                     case 'rotate': {
                         return (
@@ -208,6 +222,7 @@ export const PureRasterOperationInlineEditor = ({
                                 max={angle(360-angleStep)}
                                 sanitize={n => angle(n % 360)}
                                 step={angleStep}
+                                circular
                             />
                             
                             <span>
@@ -241,38 +256,57 @@ export const PureRasterOperationInlineEditor = ({
                         />
                     );
                     case 'blur': return (
-                        <input type="number"
+                        <NumberSpinnerInput
                             value={op.pixels}
-                            min="0" max="100" step="1" 
-                            className="ms-2"
-                            style={{width:'3.5em'}}
-                            onChange={e => {
-                                onChange({...op, pixels: parseInt(e.target.value)});
-                            }}/>);
+                            min={0}
+                            max={100}
+                            step={1}
+                            sanitize={n => n}
+                            onChange={pixels => {
+                                onChange({...op, pixels });
+                            }}
+                        />
+                    );
                     case 'invert': return;
                     case 'scale': return (
                         <>
-                            <FractionalNumberInput
+                            <NumberSpinnerInput
                                 value={op.x}
-                                onChange={x => onChange({...op, x})}
+                                onChange={x => onChange({ ...op, x })}
+                                min={0}
+                                max={1}
+                                step={0.1}
+                                sanitize={n=> toPrecision(n,1)}                           
                             />
                             &times;
-                            <FractionalNumberInput
+                            <NumberSpinnerInput
                                 value={op.y}
-                                onChange={y => onChange({...op, y})}
+                                onChange={y => onChange({ ...op, y })}
+                                min={0.1}
+                                max={1}
+                                step={0.1}
+                                sanitize={n => toPrecision(n,1)}
                             />
                         </>
                     );
                     case 'scaleToFit': return (
                         <>
-                            <PositiveNumberInput
+                            <NumberSpinnerInput<PositiveNumber>
                                 value={op.w}
-                                onChange={w => onChange({...op, w})}
+                                min={positiveNumber(0)}
+                                max={positiveNumber(1000)}
+                                step={1}
+                                onChange={w => onChange({ ...op, w })}
+                                sanitize={positiveNumber}
                             />
                             &times;
-                            <PositiveNumberInput
+                            <NumberSpinnerInput<PositiveNumber>
                                 value={op.h}
-                                onChange={h => onChange({...op, h})}
+                                min={positiveNumber(0)}
+                                max={positiveNumber(1000)}
+                                step={1}
+                                onChange={h => onChange({ ...op, h })}
+                                sanitize={positiveNumber}
                             />
                         </>
                     );
@@ -314,13 +348,26 @@ export const PureRasterOperationInlineEditor = ({
                         );
                     case 'grid': return (
                         <>
-                            <NumberInput
+                            <NumberSpinnerInput
                                 value={op.cols}
-                                onChange={cols => onChange({...op, cols})}
+                                min={1}
+                                max={10}
+                                step={1}
+                                sanitize={n => n}
+                                onChange={cols => {
+                                    onChange({...op, cols});
+                                }}
                             />
-                            <NumberInput
+                            &times;
+                            <NumberSpinnerInput
                                 value={op.rows}
-                                onChange={rows => onChange({...op, rows})}
+                                min={1}
+                                max={10}
+                                step={1}
+                                sanitize={n => n}
+                                onChange={rows => {
+                                    onChange({...op, rows});
+                                }}
                             />
                         </>
                     );
