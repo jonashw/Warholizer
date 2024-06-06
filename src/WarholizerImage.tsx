@@ -4,6 +4,7 @@ import { OffscreenCanvasImage } from "./OffscreenCanvasImage";
 import { PureRasterApplicator, PureRasterApplicators } from "./Warholizer/RasterOperations/PureRasterApplicator";
 import { ImageRecord, imageAsRecord } from "./ImageRecord";
 import { CSSLength, Thumbnail } from "./Thumbnail";
+import { PureRasterOperation, PureRasterOperations } from "./Warholizer/RasterOperations/PureRasterOperation";
 
 export type WarholizerImageRef = {getHeight: () => number};
 
@@ -12,7 +13,7 @@ export const WarholizerImage = React.forwardRef(function (
         thumbnail,
         onSize,
         src,
-        applicators,
+        transform,
         className,
         style,
         onClick
@@ -20,7 +21,7 @@ export const WarholizerImage = React.forwardRef(function (
         thumbnail?: CSSLength,
         onSize?: (w: number, h: number) => void,
         src: (string | ImageRecord | OffscreenCanvas | HTMLVideoElement)[],
-        applicators: PureRasterApplicator[],
+        transform: PureRasterApplicator[] | PureRasterOperation,
         className?: string;
         style?: React.CSSProperties;
         onClick?: () => void
@@ -36,10 +37,13 @@ export const WarholizerImage = React.forwardRef(function (
                 : typeof s === "string" || !('osc' in s)
                 ? ImageUtil.loadOffscreen(s)
                 : s.osc));
-            setFinalImages(await PureRasterApplicators.applyAll(applicators, oscs));
+            setFinalImages(
+                await ('type' in transform
+                ? PureRasterOperations.apply(transform, oscs)
+                : PureRasterApplicators.applyAll(transform, oscs)));
         };
         effect();
-    },[src, applicators])
+    },[src, transform])
 
     React.useImperativeHandle(
         ref,
