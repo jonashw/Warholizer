@@ -1,12 +1,12 @@
 import React from "react";
 import { PureRasterOperationRecord, operationAsRecord } from "./Warholizer/RasterOperations/PureRasterApplicator";
 import { ImageRecord, imageAsRecord } from "./ImageRecord";
-import { loadSampleImages, sampleImageUrls } from "./sampleImageUrls";
 import { PureRasterOperationInlineEditor } from "./Warholizer/RasterOperations/PureRasterOperationInlineEditor";
 import { Outputs } from "./Outputs";
 import { PureRasterOperation, PureRasterOperations } from "./Warholizer/RasterOperations/PureRasterOperation";
 import { sampleOperations } from "./sampleOperations";
 import { InputsEditor } from "./InputsEditor";
+import { useSampleImages } from "./useSampleImages";
 
 export function OperatorEditorDemo() {
   const [inputs, setInputs] = React.useState<ImageRecord[]>();
@@ -29,13 +29,9 @@ export function OperatorEditorDemo() {
   // eslint-disable-next-line react-hooks/exhaustive-deps
   },[inputs/*,ops (USE MORE GRANULAR RE-APPLY ON CHANGE FOR BETTER PERFORMANCE) */]);
 
-  React.useEffect(() => {
-    loadSampleImages([
-      sampleImageUrls.warhol
-    ])
-      .then(imgs => imgs.map(imageAsRecord))
-      .then(setInputs);
-  }, []);
+  useSampleImages(
+    React.useCallback(library => [library.warhol],[]),
+    setInputs);
 
   const onOpChange = (changedOp: PureRasterOperationRecord) =>{
     const index = ops.findIndex(o => o.id === changedOp.id);

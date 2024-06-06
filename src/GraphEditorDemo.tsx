@@ -2,10 +2,10 @@ import React from "react";
 import { operationAsRecord } from "./Warholizer/RasterOperations/PureRasterApplicator";
 import { PureGraphEditor } from "./PureGraphEditor";
 import pureGraphs from "./pureGraphs";
-import { ImageRecord, imageAsRecord } from "./ImageRecord";
-import { loadSampleImages, sampleImageUrls } from "./sampleImageUrls";
+import { ImageRecord } from "./ImageRecord";
 import { PureRasterOperation } from "./Warholizer/RasterOperations/PureRasterOperation";
 import { angle } from "./Warholizer/RasterOperations/NumberTypes";
+import { useSampleImages } from "./useSampleImages";
 
 pureGraphs.pipe([
   {type:"slideWrap",dimension:'x',amount:50} as PureRasterOperation
@@ -21,13 +21,11 @@ pureGraphs.pipe([
 export function GraphEditorDemo() {
   const [inputs,setInputs] = React.useState<ImageRecord[]>();
   const [graph,setGraph] = React.useState(defaultGraph);
-  React.useEffect(() => {
-    loadSampleImages([
-      sampleImageUrls.warhol
-    ])
-    .then(imgs => imgs.map(imageAsRecord))
-    .then(setInputs)
-  },[]);
+
+  useSampleImages(
+    React.useCallback(library => [library.warhol],[]),
+    setInputs);
+
   return <div className="container-fluid">
     {inputs && <PureGraphEditor
       defaultInputs={inputs}

@@ -1,7 +1,14 @@
 import ImageUtil from "./Warholizer/ImageUtil";
 
 export type SampleImageUrl = "/warhol.jpg" | "/banana.jpg" | "/soup-can.jpg";
-export const sampleImageUrls = {
+
+export type SampleImageLibrary = {
+    warhol: SampleImageUrl,
+    banana: SampleImageUrl,
+    soupCan: SampleImageUrl
+};
+
+export const sampleImageUrls: SampleImageLibrary = {
     warhol : "/warhol.jpg"   as SampleImageUrl,
     banana : "/banana.jpg"   as SampleImageUrl,
     soupCan: "/soup-can.jpg" as SampleImageUrl
