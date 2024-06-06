@@ -5,9 +5,7 @@ import pureGraphs from "./pureGraphs";
 import { ImageRecord, imageAsRecord } from "./ImageRecord";
 import { loadSampleImages, sampleImageUrls } from "./sampleImageUrls";
 import { PureRasterOperation } from "./Warholizer/RasterOperations/PureRasterOperation";
-import { PureRasterOperationInlineEditor } from "./Warholizer/RasterOperations/PureRasterOperationInlineEditor";
 import { angle } from "./Warholizer/RasterOperations/NumberTypes";
-import { sampleOperations } from "./sampleOperations";
 
 pureGraphs.pipe([
   {type:"slideWrap",dimension:'x',amount:50} as PureRasterOperation
@@ -15,39 +13,10 @@ pureGraphs.pipe([
   ,{type:'grid',rows:3, cols:3} as PureRasterOperation
 ].map(operationAsRecord));
 
-
 const defaultGraph = 
 pureGraphs.pipe([
   operationAsRecord({type:'rotate',degrees:angle(360-45),about:'top-right'})
 ]);
-
-/*
-pureGraphs.pipe([
-  operationAsRecord({type:'rotate',degrees:135}),
-  operationAsRecord({type:'rotate',degrees:135})
-]);
-
-  pureGraphs.mergePipe(
-    [
-      operationAsRecord({type:"noop"}),
-      operationAsRecord({type:"slideWrap",dimension:'y',amount:50})
-    ],
-    operationAsRecord({type:"tile", primaryDimension:"x", lineLength:2}),
-    [
-      operationAsRecord({type:"grid", rows:2, cols:2})
-    ]
-  );
-
-  pureGraphs.mergePipe(
-    [
-      operationAsRecord({type:"noop"}),
-      operationAsRecord({type:"slideWrap",dimension:'y',amount:50})
-    ],
-    operationAsRecord({type:"line", direction:"right",squish:true}),
-    [
-    ]
-  );
-*/
 
 export function GraphEditorDemo() {
   const [inputs,setInputs] = React.useState<ImageRecord[]>();
@@ -61,17 +30,6 @@ export function GraphEditorDemo() {
     .then(setInputs)
   },[]);
   return <div className="container-fluid">
-    <div className="card mb-3">
-      <div className="card-body">
-        <div className="d-flex justify-content-between align-items-center">
-          <PureRasterOperationInlineEditor
-            onChange={setSampleOp}
-            sampleOperators={sampleOperations}
-            value={sampleOp}
-          />
-        </div>
-      </div>
-    </div>
     {inputs && <PureGraphEditor
       defaultInputs={inputs}
       dagMode="lr"
