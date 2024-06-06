@@ -377,9 +377,15 @@ export const PureRasterOperationInlineEditor = ({
                                 value={op.primaryDimension}
                                 onChange={primaryDimension => onChange({...op, primaryDimension})}
                             />
-                            <NumberInput
+                            <NumberSpinnerInput
                                 value={op.lineLength}
-                                onChange={lineLength => onChange({...op, lineLength})}
+                                min={1}
+                                max={10}
+                                step={1}
+                                sanitize={n => n}
+                                onChange={lineLength => {
+                                    onChange({...op, lineLength });
+                                }}
                             />
                         </>
                     );
