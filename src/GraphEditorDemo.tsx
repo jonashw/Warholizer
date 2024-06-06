@@ -1,5 +1,5 @@
 import React from "react";
-import { PureRasterOperationRecord, operationAsRecord } from "./Warholizer/RasterOperations/PureRasterApplicator";
+import { operationAsRecord } from "./Warholizer/RasterOperations/PureRasterApplicator";
 import { PureGraphEditor } from "./PureGraphEditor";
 import pureGraphs from "./pureGraphs";
 import { ImageRecord, imageAsRecord } from "./ImageRecord";
@@ -21,7 +21,6 @@ pureGraphs.pipe([
 export function GraphEditorDemo() {
   const [inputs,setInputs] = React.useState<ImageRecord[]>();
   const [graph,setGraph] = React.useState(defaultGraph);
-  const [sampleOp,setSampleOp] = React.useState<PureRasterOperationRecord>({type:'rotate',about:'center',degrees:135,id:'1'});
   React.useEffect(() => {
     loadSampleImages([
       sampleImageUrls.warhol
