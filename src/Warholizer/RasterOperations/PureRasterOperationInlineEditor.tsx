@@ -1,12 +1,12 @@
 import { Angle, Byte, Percentage, PositiveNumber, angle, byte, percentage, positiveNumber } from "./NumberTypes";
 import { BlendingMode, BlendingModes, Dimension, Direction, PureRasterOperation, RotationOrigin, RotationOrigins } from "./PureRasterOperation";
 import { ButtonRadiosInput } from "./ButtonRadiosInput";
-import { Rotate90DegreesCw } from "@mui/icons-material";
 import { OperationIcon } from "./OperationIcon";
 import { PureRasterOperationRecord, operationAsRecord } from "./PureRasterApplicator";
 import { DropdownSelector } from "./DropdownSelector";
 import React from "react";
 import { AngleDialInput } from "./AngleDialInput";
+import { Add, Remove } from "@mui/icons-material";
 
 export const anglesEvery = (degrees: Angle): Angle[] => {
     const angles: Angle[] = [];
@@ -16,6 +16,67 @@ export const anglesEvery = (degrees: Angle): Angle[] => {
         lastAngle += degrees;
     }
     return angles;
+};
+
+function NumberSpinnerInput<T extends number>({
+    min,
+    max,
+    step,
+    sanitize,
+    value,
+    onChange
+} : {
+    min:T,
+    max:T,
+    step:number,
+    sanitize:(n:number) => T,
+    value: T,
+    onChange: (v:T) => void,
+}) {
+    React.useEffect(
+        /* When changing the step from smaller to larger,
+        ** it is possible that the current value would become unreachable.
+        **
+        ** Example: switching from 45 to 90 degrees with a current value of 135
+        ** Pressing + would yield 225 degrees, which is not a valid step of 90.
+        ** 
+        ** To prevent invalid/unintended states, we have to snap to the closest
+        ** 'valid' value when the step changes.  */
+        () => { onChange(sanitize(value - value % step)); },
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+        [step/*, sanitize, onChange, value (AVOID INFINITE LOOP)*/]);
+
+    const move = (stepCount: number) => {
+        const nextValue = value + (stepCount * step);
+        if(nextValue < min){
+            onChange(max);
+        } else if (max < nextValue){
+            onChange(min);
+        } else {
+            onChange(sanitize(nextValue));
+        }
+    };
+    return <div className="input-group" style={{width:'unset',flexWrap:'nowrap'}}>
+        <button className="btn btn-sm btn-outline-primary" onClick={() => move(-1)}>
+            <Remove/>
+        </button>
+        <input
+            className="form-control form-control-sm"
+            type="text"
+            style={{
+                textAlign:'center',
+                width:'5em'
+            }}
+            readOnly
+            value={value}
+            onChange={e => {
+                onChange(sanitize(parseFloat(e.target.value)));
+            }}
+        />
+        <button className="btn btn-sm btn-outline-primary" onClick={() => move(1)}>
+            <Add/>
+        </button>
+    </div>;
 };
 
 const AbstractNumberInput = <T extends number>(
@@ -35,15 +96,18 @@ const AbstractNumberInput = <T extends number>(
 }) => {
     const width = type === "number" ? '3.5em' : '';
     const className = type === "number" ? "ms-2" : "";
-    return <input type={type}
-        value={value}
-        min={min} max={max} step={stepOverride ?? step}
-        className={className}
-        style={{width}}
-        onChange={e => {
-            onChange(sanitize(parseFloat(e.target.value)));
-        }}
-    />;
+    return <div>
+        <input type={type}
+            value={value}
+            min={min} max={max} step={stepOverride ?? step}
+            className={className}
+            style={{width}}
+            onChange={e => {
+                onChange(sanitize(parseFloat(e.target.value)));
+            }}
+        />
+        {type=== "range" && <div>{value}</div>}
+    </div>;
 };
 
 export const NumberInput = AbstractNumberInput<number>(-Infinity,Infinity,1,n => n,"number");
@@ -130,13 +194,20 @@ export const PureRasterOperationInlineEditor = ({
                             }}/>
                         );
                     case 'rotate': {
-                        const effectiveRightAngles = anglesEvery(angle(22.5));
                         return (
                             <>
                             <AngleDialInput 
                                 value={op.degrees}
                                 step={angleStep}
                                 onChange={degrees => onChange({...op, degrees})}
+                            />
+                            <NumberSpinnerInput<Angle>
+                                value={op.degrees}
+                                onChange={degrees => onChange({...op, degrees})}
+                                min={0}
+                                max={270}
+                                step={angleStep}
+                                sanitize={angle}
                             />
                             <span>
                                 <DropdownSelector<string> 
@@ -145,28 +216,9 @@ export const PureRasterOperationInlineEditor = ({
                                         .map(value => ({value, label: `${value}°`}))}
                                     onChange={step => setAngleStep(angle(parseFloat(step)))}
                                 />
-                                {' '}
-                                step
-                                <AngleInput
-                                    value={op.degrees}
-                                    stepOverride={angleStep}
-                                    onChange={degrees => onChange({...op, degrees})}
-                                />
+                                {' '}step
                             </span>
-                            <span>
-                                <button className="btn btn-sm btn-outline-secondary" onClick={() => {
-                                    const nextIndex = effectiveRightAngles.indexOf(op.degrees) + 1;
-                                    const degrees = 
-                                        nextIndex > effectiveRightAngles.length - 1
-                                        ? effectiveRightAngles[0]
-                                        : effectiveRightAngles[nextIndex];
-                                    onChange({...op, degrees});
-                                }}>
-                                    <Rotate90DegreesCw fontSize="small" />
-                                </button>
-                                {' '}
-                                {op.degrees.toString().padStart(3,"0")}&deg;
-                            </span>
+                            
                             <span>
                                 about: 
                                 {' '}
