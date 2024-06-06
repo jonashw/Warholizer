@@ -40,22 +40,30 @@ const pairs = <T>(items: T[]) =>
             items[i],
             items[i + 1]
         ] as [T, T]);
+
+type LinkProp = 'source' | 'target';
+const oppositeLinkProp = (p: LinkProp): LinkProp =>
+    p === "source" ? "target": "source";
         
 const pureGraphs = {
     apply: async (graph: PureGraphData, inputs: ImageRecord[]): Promise<ImageRecord[]> => {
         const opById = Object.fromEntries(graph.nodes.map(n => [n.op.id, n.op]));
         //const sourceIds = ImmutableSet<string>(graph.links.map(l => l.source));
         const targetIds = ImmutableSet<string>(graph.links.map(l => l.target));
-        const targetOpsBySourceId = graph.links.reduce((groups,link) => {
-            const group = [
-                ...(groups[link.source] ?? [])
-                ,opById[link.target]
-            ];
-            return {
-                ...groups,
-                [link.source]: group
-            };
-        }, {} as Record<string,PureRasterOperationRecord[]>);
+        const groupLinksBy = (keyProp: LinkProp) => {
+            const valueProp = oppositeLinkProp(keyProp);
+            return graph.links.reduce((groups, link) => {
+                const group = [
+                    ...(groups[link[keyProp]] ?? [])
+                    , opById[link[valueProp]]
+                ];
+                return {
+                    ...groups,
+                    [link[keyProp]]: group
+                };
+            }, {} as Record<string, PureRasterOperationRecord[]>);
+        };
+        const targetOpsBySourceId = groupLinksBy('source');
 
         const entryOps = 
             graph.nodes
