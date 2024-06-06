@@ -57,23 +57,23 @@ function NumberSpinnerInput<T extends number>({
         }
     };
     return <div className="input-group" style={{width:'unset',flexWrap:'nowrap'}}>
-        <button className="btn btn-sm btn-outline-primary" onClick={() => move(-1)}>
+        <button className="btn btn-sm btn-outline-secondary" onClick={() => move(-1)}>
             <Remove/>
         </button>
         <input
-            className="form-control form-control-sm"
+            className="form-control form-control-sm border-secondary"
             type="text"
+            inputMode="numeric"
             style={{
                 textAlign:'center',
                 width:'5em'
             }}
-            readOnly
             value={value}
             onChange={e => {
                 onChange(sanitize(parseFloat(e.target.value)));
             }}
         />
-        <button className="btn btn-sm btn-outline-primary" onClick={() => move(1)}>
+        <button className="btn btn-sm btn-outline-secondary" onClick={() => move(1)}>
             <Add/>
         </button>
     </div>;
@@ -151,7 +151,7 @@ export const PureRasterOperationInlineEditor = ({
     onChange:(newOp: PureRasterOperationRecord) => void,
     sampleOperators: PureRasterOperation[];
 }) => {
-    const [angleStep,setAngleStep] = React.useState<Angle>(90);
+    const angleStep: Angle = angle(22.5);
     const op = value;
     const opType = op.type;
     return (
@@ -205,19 +205,10 @@ export const PureRasterOperationInlineEditor = ({
                                 value={op.degrees}
                                 onChange={degrees => onChange({...op, degrees})}
                                 min={0}
-                                max={270}
+                                max={angle(360-angleStep)}
+                                sanitize={n => angle(n % 360)}
                                 step={angleStep}
-                                sanitize={angle}
                             />
-                            <span>
-                                <DropdownSelector<string> 
-                                    value={angleStep.toString()}
-                                    options={([5,10,15,22.5,45,90].map(n => n.toString()))
-                                        .map(value => ({value, label: `${value}°`}))}
-                                    onChange={step => setAngleStep(angle(parseFloat(step)))}
-                                />
-                                {' '}step
-                            </span>
                             
                             <span>
                                 about: 
