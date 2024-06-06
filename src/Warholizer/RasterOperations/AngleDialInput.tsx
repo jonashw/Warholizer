@@ -16,6 +16,7 @@ export function AngleDialInput({
     const stepMarkerLength = s / 10;
     const canvasRef = React.createRef<HTMLCanvasElement>();
     const availableAngles = anglesEvery(step);
+    const [clickOrTouchInProgress, setClickOrTouchInProgress] = React.useState(false);
 
     React.useEffect(() => {
         if (!canvasRef.current) {
@@ -72,10 +73,10 @@ export function AngleDialInput({
         ctx.restore();
     }, [canvasRef, stepMarkerLength, value, r, availableAngles]);
 
-    const handleMouseEvent = (e: React.MouseEvent<HTMLCanvasElement, MouseEvent>) => {
+    const bestFitToPoint = (clientX: number, clientY: number) => {
         const rect = canvasRef.current!.getBoundingClientRect();
-        const x = e.clientX - rect.left - r;
-        const y = e.clientY - rect.top - r;
+        const x = clientX - rect.left - r;
+        const y = clientY - rect.top - r;
         let deg = Math.atan2(y,x) * 180/Math.PI;
         if(deg < 0){
             deg += 360;
@@ -91,16 +92,32 @@ export function AngleDialInput({
             }
         }
     };
-    const [mouseIsDown, setMouseIsDown] = React.useState(false);
+
+    const handleMouseEvent = (e: React.MouseEvent<HTMLCanvasElement, MouseEvent>) => {
+        bestFitToPoint(e.clientX, e.clientY);
+    }
+
+    const handleTouchEvent = (e: React.TouchEvent<HTMLCanvasElement>) => {
+        bestFitToPoint(e.touches[0].clientX, e.touches[0].clientY);
+    }
+
     return <>
         <canvas 
             ref={canvasRef}
             width={s}
             height={s}
-            onMouseDown={() => setMouseIsDown(true)}
-            onMouseUp={() => setMouseIsDown(false)}
+            onTouchStart={() => setClickOrTouchInProgress(true)}
+            onTouchEnd={() => setClickOrTouchInProgress(false)}
+            onTouchMove={e => {
+                if(!clickOrTouchInProgress){
+                    return;
+                }
+                handleTouchEvent(e);
+            }}
+            onMouseDown={() => setClickOrTouchInProgress(true)}
+            onMouseUp={() => setClickOrTouchInProgress(false)}
             onMouseMove={e => {
-                if(!mouseIsDown){
+                if(!clickOrTouchInProgress){
                     return;
                 }
                 handleMouseEvent(e);
