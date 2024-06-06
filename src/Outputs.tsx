@@ -3,12 +3,18 @@ import { ImageRecord } from './ImageRecord';
 import { Thumbnail } from './Thumbnail';
 
 
-export function Outputs({ outputs }: { outputs: ImageRecord[]; }) {
+export function Outputs({
+    outputs,
+    noHeader 
+}: {
+    outputs: ImageRecord[],
+    noHeader?: boolean 
+}) {
     return (
         <div className="card">
-            <div className="card-header">
+            {!noHeader && <div className="card-header">
                 Outputs ({outputs.length})
-            </div>
+            </div>}
 
             {outputs.length === 1 && (
                 <OffscreenCanvasImage key={outputs[0].id} oc={outputs[0].osc} style={{
