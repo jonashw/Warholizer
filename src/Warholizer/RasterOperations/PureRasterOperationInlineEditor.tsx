@@ -149,14 +149,14 @@ export const PureRasterOperationInlineEditor = ({
 }:{
     value: PureRasterOperationRecord,
     onChange:(newOp: PureRasterOperationRecord) => void,
-    sampleOperators: PureRasterOperation[];
+    sampleOperators?: PureRasterOperation[];
 }) => {
     const angleStep: Angle = angle(22.5);
     const op = value;
     const opType = op.type;
     return (
         <>
-            <span>
+            {sampleOperators && <span>
                 <OperationIcon op={op} className="me-2"/>
                 <select value={opType}
                     onChange={e => {
@@ -170,7 +170,7 @@ export const PureRasterOperationInlineEditor = ({
                         </option>
                     )}
                 </select>
-            </span>
+            </span>}
             {(() => {
                 switch (opType) {
                     case 'noop': return;
