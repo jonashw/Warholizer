@@ -5,6 +5,7 @@ import pureGraphs from "./pureGraphs";
 import { ImageRecord, imageAsRecord } from "./ImageRecord";
 import { loadSampleImages, sampleImageUrls } from "./sampleImageUrls";
 import { PureRasterOperation } from "./Warholizer/RasterOperations/PureRasterOperation";
+import { angle } from "./Warholizer/RasterOperations/NumberTypes";
 
 pureGraphs.pipe([
   {type:"slideWrap",dimension:'x',amount:50} as PureRasterOperation
@@ -15,7 +16,7 @@ pureGraphs.pipe([
 
 const defaultGraph = 
 pureGraphs.pipe([
-  operationAsRecord({type:'rotate',degrees:45,about:'top-right'})
+  operationAsRecord({type:'rotate',degrees:angle(360-45),about:'top-left'})
 ]);
 
 /*
