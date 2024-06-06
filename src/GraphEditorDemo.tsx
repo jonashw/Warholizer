@@ -1,11 +1,13 @@
 import React from "react";
-import { operationAsRecord } from "./Warholizer/RasterOperations/PureRasterApplicator";
+import { PureRasterOperationRecord, operationAsRecord } from "./Warholizer/RasterOperations/PureRasterApplicator";
 import { PureGraphEditor } from "./PureGraphEditor";
 import pureGraphs from "./pureGraphs";
 import { ImageRecord, imageAsRecord } from "./ImageRecord";
 import { loadSampleImages, sampleImageUrls } from "./sampleImageUrls";
 import { PureRasterOperation } from "./Warholizer/RasterOperations/PureRasterOperation";
+import { PureRasterOperationInlineEditor } from "./Warholizer/RasterOperations/PureRasterOperationInlineEditor";
 import { angle } from "./Warholizer/RasterOperations/NumberTypes";
+import { sampleOperations } from "./sampleOperations";
 
 pureGraphs.pipe([
   {type:"slideWrap",dimension:'x',amount:50} as PureRasterOperation
@@ -16,7 +18,7 @@ pureGraphs.pipe([
 
 const defaultGraph = 
 pureGraphs.pipe([
-  operationAsRecord({type:'rotate',degrees:angle(360-45),about:'top-left'})
+  operationAsRecord({type:'rotate',degrees:angle(360-45),about:'top-right'})
 ]);
 
 /*
@@ -50,6 +52,7 @@ pureGraphs.pipe([
 export function GraphEditorDemo() {
   const [inputs,setInputs] = React.useState<ImageRecord[]>();
   const [graph,setGraph] = React.useState(defaultGraph);
+  const [sampleOp,setSampleOp] = React.useState<PureRasterOperationRecord>({type:'rotate',about:'center',degrees:135,id:'1'});
   React.useEffect(() => {
     loadSampleImages([
       sampleImageUrls.warhol
@@ -58,6 +61,17 @@ export function GraphEditorDemo() {
     .then(setInputs)
   },[]);
   return <div className="container-fluid">
+    <div className="card mb-3">
+      <div className="card-body">
+        <div className="d-flex justify-content-between align-items-center">
+          <PureRasterOperationInlineEditor
+            onChange={setSampleOp}
+            sampleOperators={sampleOperations}
+            value={sampleOp}
+          />
+        </div>
+      </div>
+    </div>
     {inputs && <PureGraphEditor
       defaultInputs={inputs}
       dagMode="lr"

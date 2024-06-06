@@ -5,6 +5,18 @@ import { Rotate90DegreesCw } from "@mui/icons-material";
 import { OperationIcon } from "./OperationIcon";
 import { PureRasterOperationRecord, operationAsRecord } from "./PureRasterApplicator";
 import { DropdownSelector } from "./DropdownSelector";
+import React from "react";
+import { AngleDialInput } from "./AngleDialInput";
+
+export const anglesEvery = (degrees: Angle): Angle[] => {
+    const angles: Angle[] = [];
+    let lastAngle: Angle = angle(0);
+    while(lastAngle < 360){
+        angles.push(lastAngle);
+        lastAngle += degrees;
+    }
+    return angles;
+};
 
 const AbstractNumberInput = <T extends number>(
     min:T,
@@ -15,15 +27,17 @@ const AbstractNumberInput = <T extends number>(
 ) => ({
     value,
     onChange,
+    stepOverride
 }:{
     value: T,
     onChange: (v:T) => void,
+    stepOverride?: T
 }) => {
     const width = type === "number" ? '3.5em' : '';
     const className = type === "number" ? "ms-2" : "";
     return <input type={type}
         value={value}
-        min={min} max={max} step={step}
+        min={min} max={max} step={stepOverride ?? step}
         className={className}
         style={{width}}
         onChange={e => {
@@ -73,6 +87,7 @@ export const PureRasterOperationInlineEditor = ({
     onChange:(newOp: PureRasterOperationRecord) => void,
     sampleOperators: PureRasterOperation[];
 }) => {
+    const [angleStep,setAngleStep] = React.useState<Angle>(90);
     const op = value;
     const opType = op.type;
     return (
@@ -115,18 +130,29 @@ export const PureRasterOperationInlineEditor = ({
                             }}/>
                         );
                     case 'rotate': {
-                        const anglesEvery = (degrees: Angle): Angle[] => {
-                            const angles: Angle[] = [];
-                            let lastAngle: Angle = angle(0);
-                            while(lastAngle < 360){
-                                angles.push(lastAngle);
-                                lastAngle += degrees;
-                            }
-                            return angles;
-                        };
                         const effectiveRightAngles = anglesEvery(angle(22.5));
                         return (
                             <>
+                            <AngleDialInput 
+                                value={op.degrees}
+                                step={angleStep}
+                                onChange={degrees => onChange({...op, degrees})}
+                            />
+                            <span>
+                                <DropdownSelector<string> 
+                                    value={angleStep.toString()}
+                                    options={([5,10,15,22.5,45,90].map(n => n.toString()))
+                                        .map(value => ({value, label: `${value}°`}))}
+                                    onChange={step => setAngleStep(angle(parseFloat(step)))}
+                                />
+                                {' '}
+                                step
+                                <AngleInput
+                                    value={op.degrees}
+                                    stepOverride={angleStep}
+                                    onChange={degrees => onChange({...op, degrees})}
+                                />
+                            </span>
                             <span>
                                 <button className="btn btn-sm btn-outline-secondary" onClick={() => {
                                     const nextIndex = effectiveRightAngles.indexOf(op.degrees) + 1;

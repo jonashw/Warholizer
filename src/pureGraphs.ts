@@ -101,7 +101,10 @@ const pureGraphs = {
         links: graph.links, nodes:[...graph.nodes, node]
     }),
     addLinks: (graph: PureGraphData, links: DirectedGraphLink<PureGraphLink>[]): PureGraphData => {
-        return links.reduce((acc,link) => pureGraphs.addLink(acc,link), graph);
+        //TODO: ensure graph remains acyclic.
+        return links
+        .filter(l => l.source !== l.target)//self-links are not allowed.
+        .reduce((acc,link) => pureGraphs.addLink(acc,link), graph);
     },
     addLink: (graph: PureGraphData, link: DirectedGraphLink<PureGraphLink>): PureGraphData => {
         const source = graph.nodes.find(n => n.id === link.source);
