@@ -6,6 +6,7 @@ import PureEditor from "./PureEditor";
 import { GraphViewerDemo } from "./GraphViewerDemo";
 import { GraphEditorDemo } from "./GraphEditorDemo";
 import { OperatorEditorDemo } from "./OperatorEditorDemo";
+import { ProgressiveApplicationDemo } from "./ProgressiveApplicationDemo";
 
 export const routeConfig: RouteObject[] = [
   {
@@ -22,6 +23,7 @@ export const routeConfig: RouteObject[] = [
           {href:'/graph-viewer-demo',label:'Graph Viewer'},
           {href:'/graph-editor',label:'Graph Editor'},
           {href:'/operator-editor-demo',label:'Op Editor Demo'},
+          {href:'/progressive-application-demo',label:'Progressive App Demo'}
         ].map(route => (
           <li className="nav-item" key={route.label}>
             <a 
@@ -63,6 +65,10 @@ export const routeConfig: RouteObject[] = [
       {
         path: 'operator-editor-demo',
         element: <OperatorEditorDemo/>
+      },
+      {
+        path: 'progressive-application-demo',
+        element: <ProgressiveApplicationDemo/>
       }
     ]
   }

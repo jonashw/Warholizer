@@ -1,0 +1,29 @@
+:target{
+    -webkit-animation: target-fade 1s;
+    -moz-animation: target-fade 1s;
+    -o-animation: target-fade 1s;
+    animation: target-fade 1s;
+}
+
+$bg_flash: hsl(60deg 100% 80%);
+$bg_neutral: white;
+
+@-webkit-keyframes target-fade {
+    from { background-color: $bg_flash; }
+    to { background-color: $bg_neutral; }
+}
+
+@-moz-keyframes target-fade {
+    from { background-color: $bg_flash; }
+    to { background-color: $bg_neutral; }
+}
+
+@-o-keyframes target-fade {
+    from { background-color: $bg_flash; }
+    to { background-color: $bg_neutral; }
+}
+
+@keyframes target-fade {
+    from { background-color: $bg_flash; }
+    to { background-color: $bg_neutral; }
+}

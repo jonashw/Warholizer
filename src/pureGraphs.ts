@@ -1,7 +1,6 @@
 import { DirectedGraphData, DirectedGraphLink } from "./DirectedGraphData";
 import { ImageRecord, imageAsRecord } from "./ImageRecord";
 import { PureRasterOperationRecord } from "./Warholizer/RasterOperations/PureRasterApplicator";
-import {Set as ImmutableSet} from "immutable";
 import { PureRasterOperations } from "./Warholizer/RasterOperations/PureRasterOperation";
 
 export type PureGraphData = 
@@ -44,31 +43,94 @@ const pairs = <T>(items: T[]) =>
 type LinkProp = 'source' | 'target';
 const oppositeLinkProp = (p: LinkProp): LinkProp =>
     p === "source" ? "target": "source";
-        
-const pureGraphs = {
-    apply: async (graph: PureGraphData, inputs: ImageRecord[]): Promise<ImageRecord[]> => {
-        const opById = Object.fromEntries(graph.nodes.map(n => [n.op.id, n.op]));
-        //const sourceIds = ImmutableSet<string>(graph.links.map(l => l.source));
-        const targetIds = ImmutableSet<string>(graph.links.map(l => l.target));
-        const groupLinksBy = (keyProp: LinkProp) => {
-            const valueProp = oppositeLinkProp(keyProp);
-            return graph.links.reduce((groups, link) => {
-                const group = [
-                    ...(groups[link[keyProp]] ?? [])
-                    , opById[link[valueProp]]
-                ];
-                return {
-                    ...groups,
-                    [link[keyProp]]: group
-                };
-            }, {} as Record<string, PureRasterOperationRecord[]>);
-        };
-        const targetOpsBySourceId = groupLinksBy('source');
 
-        const entryOps = 
-            graph.nodes
-            .filter(n => !targetIds.has(n.op.id))
-            .map(n => n.op);
+const digest = (graph: PureGraphData) => {
+    const opById = Object.fromEntries(graph.nodes.map(n => [n.op.id, n.op]));
+    const groupLinksBy = (keyProp: LinkProp) => {
+        const valueProp = oppositeLinkProp(keyProp);
+        return graph.links.reduce((groups, link) => {
+            const group = [
+                ...(groups[link[keyProp]] ?? [])
+                , opById[link[valueProp]]
+            ];
+            return {
+                ...groups,
+                [link[keyProp]]: group
+            };
+        }, {} as Record<string, PureRasterOperationRecord[]>);
+    };
+    const targetOpsBySourceId = groupLinksBy('source');
+
+    const terminalOps = 
+        graph.nodes.filter(n => !(n.id in targetOpsBySourceId))
+        .map(n => n.op);
+
+    const sourceOpsByTargetId = groupLinksBy('target');
+
+    const entryOps = 
+        graph.nodes.filter(n => !(n.id in sourceOpsByTargetId))
+        .map(n => n.op);
+
+    return {
+        targetOpsBySourceId,
+        sourceOpsByTargetId,
+        terminalOps,
+        entryOps,
+        opById
+    };
+}
+
+export type PureGraphOutput = {
+  inputsFor: Record<string,ImageRecord[]>,
+  inputOperationsFor: Record<string,PureRasterOperationRecord[]>,
+  outputsFor: Record<string,ImageRecord[]>,
+  outputs: ImageRecord[],
+};
+
+const applyBottomUp = async (graph: PureGraphData, inputs: ImageRecord[]): Promise<PureGraphOutput> => {
+    const digest = pureGraphs.digest(graph);
+    console.log(digest);
+
+    const inputsFor: Record<string,ImageRecord[]> = {};
+    const getInputsFor = async (op: PureRasterOperationRecord): Promise<ImageRecord[]> => {
+      const sourceOps = (digest.sourceOpsByTargetId[op.id] ?? []);
+      if(sourceOps.length === 0){
+        inputsFor[op.id] = inputs;
+        return inputs;
+      }
+      const prevOutputs = 
+        await Promise.all(sourceOps.map(getOutputsFor))
+        .then(groups => groups.flatMap(g => g));
+      inputsFor[op.id] = prevOutputs;
+      return prevOutputs;
+    };
+
+    const outputsFor: Record<string,ImageRecord[]> = {};
+    const getOutputsFor = async (op: PureRasterOperationRecord): Promise<ImageRecord[]> => {
+      const inputs = await getInputsFor(op);
+      const outputs = 
+        await PureRasterOperations
+        .apply(op, inputs.map(i => i.osc))
+        .then(oscs => oscs.map(imageAsRecord));
+      outputsFor[op.id] = outputs;
+      return outputs;
+    };
+
+    const outputs = 
+      await Promise.all(digest.terminalOps.map(getOutputsFor))
+      .then(outputGroups => outputGroups.flatMap(g => g));
+
+    const inputOperationsFor = digest.sourceOpsByTargetId;
+
+    return {outputs,outputsFor,inputsFor, inputOperationsFor};
+};
+
+const pureGraphs = {
+    digest,
+    applyBottomUp,
+    apply: async (graph: PureGraphData, inputs: ImageRecord[]): Promise<ImageRecord[]> => {
+        const {targetOpsBySourceId,entryOps} = digest(graph);
+        //console.log({targetOpsBySourceId, sourceOpsByTargetId, terminalOps, entryOps});
         const frstInstructions = entryOps.map(op => ({op,inputs}));
 
         return await (async function loop(n,instructions): Promise<ImageRecord[]> {
@@ -95,7 +157,7 @@ const pureGraphs = {
                 },
                 {} as InstructionGroupsAccumulator);
             const nextInstructions = Object.values(nextInstructionsMerged);
-            console.log({n,instructions,unconsumedOutput,nextInstructionsUnmerged,nextInstructionsMerged,nextInstructions})
+            //console.log({n,instructions,unconsumedOutput,nextInstructionsUnmerged,nextInstructionsMerged,nextInstructions})
             if(nextInstructions.length === 0){
                 return unconsumedOutput;
             }
@@ -163,7 +225,7 @@ const pureGraphs = {
             ...danglingSourceNodeIds.flatMap(source => 
                 danglingTargetNodeIds.map(target => ({source, target})))
         ];
-        console.log({graph,links});
+        //console.log({graph,links});
         return {nodes, links};
     },
     mergePipe: (
@@ -199,7 +261,7 @@ const pureGraphs = {
         const links =  
             pairs(ops)
             .map(([a,b]) => ({ source: a.id, target: b.id }));
-        console.log({links,nodes:ops});
+        //console.log({links,nodes:ops});
         return {
             links,
             nodes: ops.map(op => ({op,id: op.id}) as PureGraphNode)

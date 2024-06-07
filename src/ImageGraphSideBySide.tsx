@@ -23,7 +23,7 @@ export function ImageGraphSideBySide({
           ref={ref}
           src={inputs}
           className="img-fluid"
-          applicators={applicators} />
+          transform={applicators} />
       </div>
 
       <div className="col-md-6">

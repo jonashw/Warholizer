@@ -67,7 +67,7 @@ export const OperationPreviewModal = ({
                                             onSelect(operationAsRecord(op));
                                             onClose();
                                         }}
-                                        applicators={applicators}
+                                        transform={applicators}
                                         src={previewImages.filter(i => selectedImgIds.has(i.id))}
                                         style={{ maxWidth: '100%' }}
                                     />
