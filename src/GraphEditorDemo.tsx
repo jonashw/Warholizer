@@ -18,7 +18,7 @@ const defaultGraph = (() => {
       operationAsRecord({type:'grid',rows:3, cols:3})
     ]
   );
-  return pureGraphs.precede(graph, slideWrap.id, operationAsRecord({type:'invert'}));
+  return pureGraphs.insert(graph, operationAsRecord({type:'invert'}), 'after', slideWrap.id, );
 })();
 
 export function GraphEditorDemo() {
