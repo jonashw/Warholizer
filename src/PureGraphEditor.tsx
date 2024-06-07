@@ -3,7 +3,7 @@ import { DagMode } from './GraphViewerDemo';
 import { useContainerWidth } from './useContainerWidth';
 import React from 'react';
 import { operationIconSvgPath } from './Warholizer/RasterOperations/operationIconSvgPath';
-import pureGraphs, { PureGraphData, PureGraphLink, PureGraphNode } from './pureGraphs';
+import pureGraphs, { PureGraphData, PureGraphLink, PureGraphNode, PureGraphOutput } from './pureGraphs';
 import { useUndo } from './undo/useUndo';
 import { UndoRedoToolbar } from './undo/UndoRedoToolbar';
 import { PureRasterOperationInlineEditor } from './Warholizer/RasterOperations/PureRasterOperationInlineEditor';
@@ -79,6 +79,8 @@ export function PureGraphEditor({
   dagMode: DagMode;
   height: number;
 }) {
+  const [inputImages, setInputImages] = React.useState<ImageRecord[]>(defaultInputs);
+  const [output, setOutput] = React.useState<PureGraphOutput>();
   const [graph,setGraph,undoController] = useUndo<PureGraphData>(value);
   const { containerRef, availableWidth } = useContainerWidth();
   const [nodeTouchMode,setNodeTouchMode] = React.useState<NodeTouchMode>({type:'SelectNodes',selectedNodeIds: []})
@@ -130,17 +132,12 @@ export function PureGraphEditor({
     () => graph.nodes.find(n => n.id === activeNodeId),
     [activeNodeId, graph]);
 
-  const [inputImages, setInputImages] = React.useState<ImageRecord[]>(defaultInputs);
-  const [outputImages, setOutputImages] = React.useState<{id:string,osc:OffscreenCanvas}[]>([]);
-
   const graphRef = React.useRef<GraphRefType>();
 
   React.useEffect(() => {
-      setOutputImages([]);
-      console.log('apply');
-      pureGraphs
-        .apply(graph, inputImages)
-        .then(setOutputImages);
+    pureGraphs
+      .applyBottomUp(graph,inputImages)
+      .then(setOutput);
   },[graph, inputImages]);
 
   React.useEffect(() => {
@@ -292,7 +289,7 @@ export function PureGraphEditor({
       <div className="col-sm-4">
         <InputsEditor defaultInputs={inputImages} onChange={setInputImages} />
         <div className="mt-3">
-          <Outputs outputs={outputImages} />
+          <Outputs outputs={output?.outputs ?? []} />
         </div>
       </div>
     </div>

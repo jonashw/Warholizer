@@ -127,6 +127,23 @@ const applyBottomUp = async (graph: PureGraphData, inputs: ImageRecord[]): Promi
 
 const pureGraphs = {
     digest,
+    precede:(graph: PureGraphData, nodeId:string, withOp: PureRasterOperationRecord): PureGraphData => {
+        const node = graph.nodes.find(n => n.id === nodeId);
+        if(!node){
+            return graph;
+        }
+        const replacementLinks = 
+            graph.links.filter(l => l.target === nodeId)
+            .map(l => ({...l, target: withOp.id}));
+        return {
+            nodes: [...graph.nodes, {id: withOp.id, op: withOp}], 
+            links: [
+                ...graph.links.filter(l => l.target !== nodeId),
+                ...replacementLinks,
+                {source:withOp.id, target: nodeId}
+            ]
+        };
+    },
     applyBottomUp,
     apply: async (graph: PureGraphData, inputs: ImageRecord[]): Promise<ImageRecord[]> => {
         const {targetOpsBySourceId,entryOps} = digest(graph);
