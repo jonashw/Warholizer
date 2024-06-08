@@ -47,7 +47,14 @@ function NumberSpinnerInput<T extends number>({
         ** 
         ** To prevent invalid/unintended states, we have to snap to the closest
         ** 'valid' value when the step changes.  */
-        () => { onChange(sanitize(value - value % step)); },
+        () => { 
+            const sanitized = sanitize(value - value % step);
+            if(value === sanitized){
+                //avoid unnecessary updates!
+                return; 
+            }
+            onChange(sanitized); 
+        },
         // eslint-disable-next-line react-hooks/exhaustive-deps
         [step/*, sanitize, onChange, value (AVOID INFINITE LOOP)*/]);
 
