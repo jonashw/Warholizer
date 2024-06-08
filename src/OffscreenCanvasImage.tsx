@@ -1,6 +1,9 @@
 import React from 'react';
 import ImageUtil, { ImagePayload } from './Warholizer/ImageUtil';
 import { Modal } from './Modal';
+import { ImageRecord } from './ImageRecord';
+
+const cache: Record<string,ImagePayload> = {};
 
 export const OffscreenCanvasImage = ({
     onSize,
@@ -8,7 +11,7 @@ export const OffscreenCanvasImage = ({
     onClick
 }: {
     onSize?: (w: number, h: number) => void,
-    oc: OffscreenCanvas;
+    oc: OffscreenCanvas | ImageRecord;
     className?: string;
     style?: React.CSSProperties;
     onClick?: () => void
@@ -17,7 +20,18 @@ export const OffscreenCanvasImage = ({
     const [modalVisible, setModalVisible] = React.useState(false);
     const [loaded,setLoaded] = React.useState(false);
     React.useEffect(() => {
-        ImageUtil.offscreenCanvasToPayload(oc).then(setPayload);
+        if('id' in oc){
+            if(oc.id in cache){
+                setPayload(cache[oc.id]);
+            } else {
+                ImageUtil.offscreenCanvasToPayload(oc.osc).then(payload => {
+                    setPayload(payload);
+                    cache[oc.id] = payload;
+                });
+            }
+        } else {
+            ImageUtil.offscreenCanvasToPayload(oc).then(setPayload);
+        }
     }, [oc]);
     return <>
         <img

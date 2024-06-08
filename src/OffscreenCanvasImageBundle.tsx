@@ -11,7 +11,7 @@ export function OffscreenCanvasImageBundle({
   return <>
     {images.map(img => <OffscreenCanvasImage
       key={img.id}
-      oc={img.osc}
+      oc={img}
       style={{
         maxWidth: `${maxWidth ?? 200}px`,
         border: '1px solid blue',
