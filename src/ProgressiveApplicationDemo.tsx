@@ -5,27 +5,8 @@ import {  operationAsRecord } from "./Warholizer/RasterOperations/PureRasterAppl
 import pureGraphs, { PureGraphOutput }  from "./pureGraphs";
 import { useSampleImages } from "./useSampleImages";
 import { PureRasterOperations } from "./Warholizer/RasterOperations/PureRasterOperation";
-import { OffscreenCanvasImage } from "./OffscreenCanvasImage";
 import "./ProgressiveApplicationDemo.scss";
-
-
-function ImageBundle({images}:{images: ImageRecord[]}){
-  return <>
-    {images.map(img =>
-      <OffscreenCanvasImage 
-        key={img.id}
-        oc={img.osc}
-        style={{
-          maxWidth:'200px',
-          border:'1px solid blue',
-          marginRight:'5px',
-          marginBottom:'5px'
-        }}
-      />
-    )}
-  </>;
-}
-
+import { OffscreenCanvasImageBundle } from "./OffscreenCanvasImageBundle";
 
 export function ProgressiveApplicationDemo() {
   const [inputs,setInputs] = React.useState<ImageRecord[]>();
@@ -66,7 +47,7 @@ export function ProgressiveApplicationDemo() {
               <div className="row align-items-center">
                 <div className="col">
                   <div className="d-flex flex-column">
-                    <ImageBundle images={result.inputsFor[op.id]} />
+                    <OffscreenCanvasImageBundle images={result.inputsFor[op.id]} />
                     <div>
                       {(result.inputOperationsFor[op.id] ?? []).map(inputOp => (
                         <div key={inputOp.id}>
@@ -83,7 +64,7 @@ export function ProgressiveApplicationDemo() {
                 </div>
                 <div className="col text-center">
                   <div className="d-flex flex-column">
-                    <ImageBundle images={result.outputsFor[op.id]} />
+                    <OffscreenCanvasImageBundle images={result.outputsFor[op.id]} />
                   </div>
                 </div>
               </div>

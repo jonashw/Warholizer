@@ -15,6 +15,7 @@ import { NewOpDropdownMenu } from './NewOpDropdownMenu';
 import { operationAsRecord } from './Warholizer/RasterOperations/PureRasterApplicator';
 import { DirectedGraphLink } from './DirectedGraphData';
 import { iconTransform } from './Warholizer/RasterOperations/OperationIcon';
+import { OffscreenCanvasImageBundle } from './OffscreenCanvasImageBundle';
 
 type NodeTouchMode = {
   type: 'SelectNodes',
@@ -290,6 +291,36 @@ export function PureGraphEditor({
         <InputsEditor defaultInputs={inputImages} onChange={setInputImages} />
         <div className="mt-3">
           <Outputs outputs={output?.outputs ?? []} />
+          {output && nodeTouchMode.type === 'SelectNodes' && nodeTouchMode.selectedNodeIds.length === 1 && (
+            nodeTouchMode.selectedNodeIds.map(id => (
+            <div className="card mt-3" key={id}>
+              <div className="card-header">
+                Selected Node
+              </div>
+              {/*
+                <div className="card-body">
+                  {graph.nodes.filter(n => n.id === id).map(n => n.op).map(PureRasterOperations.stringRepresentation)}
+                </div>
+              */}
+              <div className="card-body">
+                <div className="row">
+                  <div className="col">
+                    <div className="text-center">Inputs ({output.inputsFor[id].length})</div>
+                    <div className="d-flex justify-content-center">
+                      <OffscreenCanvasImageBundle maxWidth={50} images={output.inputsFor[id]} />
+                    </div>
+                  </div>
+                  <div className="col">
+                    <div className="text-center">Outputs ({output.outputsFor[id].length})</div>
+                    <div className="d-flex justify-content-center">
+                      <OffscreenCanvasImageBundle maxWidth={50} images={output.outputsFor[id]} />
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+            ))
+          )}
         </div>
       </div>
     </div>
