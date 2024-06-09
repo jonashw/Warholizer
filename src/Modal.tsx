@@ -4,11 +4,13 @@ import './Modal.css';
 export function Modal<T>({
   title, onClose, 
   flush,
+  fullScreen,
   body, footer, isStatic, noHeader
 }: {
   title: string;
   onClose?: (value?: T) => void;
   flush?: boolean;
+  fullScreen?: boolean;
   body: React.ReactElement;
   footer?: React.ReactElement;
   isStatic?: boolean;
@@ -42,7 +44,7 @@ export function Modal<T>({
 
   return <>
     <div
-      className={"modal fade show" + (flush ? " modal-flush" : "")}
+      className={"modal fade show" + (flush ? " modal-flush" : "") + (fullScreen ? " modal-fullscreen" : "")}
       tabIndex={-1}
       onClick={cancelImplicitly}
     >

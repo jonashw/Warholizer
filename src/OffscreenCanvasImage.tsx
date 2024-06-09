@@ -61,7 +61,7 @@ export const OffscreenCanvasImage = ({
         {modalVisible && (
             <Modal
                 title="Image Preview" 
-                flush
+                fullScreen
                 onClose={() => setModalVisible(false)}
                 body={<>
                     {payload && <div className="d-flex justify-content-center">

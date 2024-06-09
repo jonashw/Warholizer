@@ -1,6 +1,18 @@
 .modal.show {
     display:block;
 }
+
+
+.modal.modal-fullscreen{
+    display:flex;
+}
+
+.modal.modal-fullscreen > .modal-dialog {
+    max-width:unset;
+    margin:0;
+    flex-grow:100;
+}
+
 .modal.modal-flush.show {
     display:flex;
 }
