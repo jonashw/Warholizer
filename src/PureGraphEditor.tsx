@@ -14,6 +14,7 @@ import { operationAsRecord } from './Warholizer/RasterOperations/PureRasterAppli
 import { DirectedGraphLink } from './DirectedGraphData';
 import { OffscreenCanvasImageBundle } from './OffscreenCanvasImageBundle';
 import { PureGraphViewer } from './PureGraphViewer';
+import { PureRasterOperations } from './Warholizer/RasterOperations/PureRasterOperation';
 type NodeTouchMode = {
   type: 'SelectNodes',
   selectedNodeIds: string[]
@@ -236,11 +237,35 @@ export function PureGraphEditor({
                     <div className="d-flex justify-content-center">
                       <OffscreenCanvasImageBundle maxWidth={50} images={output.inputsFor[id]} />
                     </div>
+                    <div className="text-center">
+                      {(output.sourceOpsByTargetId[id] ?? []).map(op => (
+                        <div className="mt-2">
+                          <button
+                            className="btn btn-sm btn-outline-primary"
+                            onClick={() => {
+                              selectNode(op.id);
+                            }}
+                          >{op.type}</button>
+                        </div>
+                      ))}
+                    </div>
                   </div>
                   <div className="col">
                     <div className="text-center">Outputs ({output.outputsFor[id].length})</div>
                     <div className="d-flex justify-content-center">
                       <OffscreenCanvasImageBundle maxWidth={50} images={output.outputsFor[id]} />
+                    </div>
+                    <div className="text-center">
+                      {(output.targetOpsBySourceId[id] ?? []).map(op => (
+                        <div className="mt-2">
+                          <button
+                            className="btn btn-sm btn-outline-primary"
+                            onClick={() => {
+                              selectNode(op.id);
+                            }}
+                          >{op.type}</button>
+                        </div>
+                      ))}
                     </div>
                   </div>
                 </div>

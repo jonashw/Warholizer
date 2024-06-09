@@ -81,6 +81,8 @@ const digest = (graph: PureGraphData) => {
 }
 
 export type PureGraphOutput = {
+  sourceOpsByTargetId: Record<string,PureRasterOperationRecord[]>,
+  targetOpsBySourceId: Record<string,PureRasterOperationRecord[]>,
   inputsFor: Record<string,ImageRecord[]>,
   inputOperationsFor: Record<string,PureRasterOperationRecord[]>,
   outputsFor: Record<string,ImageRecord[]>,
@@ -89,7 +91,7 @@ export type PureGraphOutput = {
 
 const applyBottomUp = async (graph: PureGraphData, inputs: ImageRecord[]): Promise<PureGraphOutput> => {
     const digest = pureGraphs.digest(graph);
-    console.log(digest);
+    //console.log(digest);
 
     const inputsFor: Record<string,ImageRecord[]> = {};
     const getInputsFor = async (op: PureRasterOperationRecord): Promise<ImageRecord[]> => {
@@ -122,7 +124,14 @@ const applyBottomUp = async (graph: PureGraphData, inputs: ImageRecord[]): Promi
 
     const inputOperationsFor = digest.sourceOpsByTargetId;
 
-    return {outputs,outputsFor,inputsFor, inputOperationsFor};
+    return {
+        outputs,
+        outputsFor,
+        inputsFor,
+        inputOperationsFor,
+        sourceOpsByTargetId: digest.sourceOpsByTargetId,
+        targetOpsBySourceId: digest.targetOpsBySourceId
+    };
 };
 
 const pureGraphs = {
