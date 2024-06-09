@@ -1,8 +1,6 @@
-import ForceGraph2D, { ForceGraphMethods, LinkObject, NodeObject } from 'react-force-graph-2d';
+import { ForceGraphMethods, LinkObject, NodeObject } from 'react-force-graph-2d';
 import { DagMode } from './GraphViewerDemo';
-import { useContainerWidth } from './useContainerWidth';
 import React from 'react';
-import { operationIconSvgPath } from './Warholizer/RasterOperations/operationIconSvgPath';
 import pureGraphs, { PureGraphData, PureGraphLink, PureGraphNode, PureGraphOutput } from './pureGraphs';
 import { useUndo } from './undo/useUndo';
 import { UndoRedoToolbar } from './undo/UndoRedoToolbar';
@@ -14,9 +12,8 @@ import { Outputs } from './Outputs';
 import { NewOpDropdownMenu } from './NewOpDropdownMenu';
 import { operationAsRecord } from './Warholizer/RasterOperations/PureRasterApplicator';
 import { DirectedGraphLink } from './DirectedGraphData';
-import { iconTransform } from './Warholizer/RasterOperations/OperationIcon';
 import { OffscreenCanvasImageBundle } from './OffscreenCanvasImageBundle';
-
+import { PureGraphViewer } from './PureGraphViewer';
 type NodeTouchMode = {
   type: 'SelectNodes',
   selectedNodeIds: string[]
@@ -25,44 +22,14 @@ type NodeTouchMode = {
   sourceNodeIds: string[]
 };
 
-const red = 'rgb(200,60,60)';
-const blue = '#0d6efd';
+export const red = 'rgb(200,60,60)';
+export const blue = '#0d6efd';
   //'image': 'rgb(41,140,140)',
   //'applicator':'black',
 
-const nodePaint = (
-  node: NodeObject<NodeObject<PureGraphNode>>,
-  fillColor: string,
-  ctx: CanvasRenderingContext2D,
-  globalScale: number
-) => {
-  const fontSize = 12 / globalScale;
-  //console.log({globalScale,fontSize})
-  ctx.fillStyle = fillColor;
-  ctx.font = `${fontSize}px Sans-Serif`;
-  const path = new Path2D(operationIconSvgPath(node.op));
-  const scale = 0.33;
-  const w = 24 * scale;
-  const h = w;
-  ctx.save();
-  ctx.fillStyle='white';
-  ctx.translate(node.x!-w/2,node.y!-h/2);
-  const transformIcon = iconTransform(node.op);
-  if(transformIcon.flipX || transformIcon.flipY){
-    ctx.translate(transformIcon.flipY ? 0 : w, transformIcon.flipX ? 0 : h);
-    ctx.scale(transformIcon.flipX ? -1 : 1, transformIcon.flipY ? -1 : 1);
-  }
-  if(transformIcon.degreesRotation){
-    ctx.translate(w/2,h/2);
-    ctx.rotate(transformIcon.degreesRotation * Math.PI/180);
-    ctx.translate(-w/2,-h/2);
-  }
-  ctx.scale(scale,scale);
-  ctx.fill(path)
-  ctx.restore();
-};
+//const nodePaint = ;
 
-type GraphRefType = 
+export type GraphRefType = 
     ForceGraphMethods<
     NodeObject<PureGraphNode>,
     LinkObject<PureGraphNode, object>>;
@@ -71,8 +38,6 @@ export function PureGraphEditor({
   value,
   onChange,
   defaultInputs,
-  dagMode,
-  height,
 }: {
   value: PureGraphData;
   onChange: (value: PureGraphData) => void;
@@ -83,7 +48,6 @@ export function PureGraphEditor({
   const [inputImages, setInputImages] = React.useState<ImageRecord[]>(defaultInputs);
   const [output, setOutput] = React.useState<PureGraphOutput>();
   const [graph,setGraph,undoController] = useUndo<PureGraphData>(value);
-  const { containerRef, availableWidth } = useContainerWidth();
   const [nodeTouchMode,setNodeTouchMode] = React.useState<NodeTouchMode>({type:'SelectNodes',selectedNodeIds: []})
   const clearNodeSelection =  () => {
     setNodeTouchMode({type:'SelectNodes',selectedNodeIds:[]})
@@ -101,6 +65,19 @@ export function PureGraphEditor({
     : nodeTouchMode.selectedNodeIds.length === 0 
     ? "Select an operation to edit."
     : undefined;
+
+  const onLinkClick = (l: LinkObject<PureGraphNode, object>) => {
+    const source = l.source!;
+    const target = l.target!;
+    if (
+      typeof source === "string" || typeof source === "number" ||
+      typeof target === "string" || typeof target === "number"
+    ) {
+      return;
+    }
+    const link: DirectedGraphLink<PureGraphLink> = { source: source.id, target: target.id };
+    setGraph(pureGraphs.removeLink(graph, link));
+  };
 
   const onNodeClick = (node: NodeObject<NodeObject<PureGraphNode>>) => {
     if (node.id === activeNode?.id) {
@@ -133,7 +110,6 @@ export function PureGraphEditor({
     () => graph.nodes.find(n => n.id === activeNodeId),
     [activeNodeId, graph]);
 
-  const graphRef = React.useRef<GraphRefType>();
 
   React.useEffect(() => {
     pureGraphs
@@ -141,30 +117,15 @@ export function PureGraphEditor({
       .then(setOutput);
   },[graph, inputImages]);
 
-  React.useEffect(() => {
-    if(!graphRef.current){
-      return;
-    }
-    const d3graph = graphRef.current;
-    if(graph.links.length > 0){
-      //d3graph.d3Force('charge')?.strength(-100);
-    } else {
-      d3graph.d3Force('charge')?.strength(-10);
-    }
-  },[graph.links.length, graphRef]);
-
-  React.useEffect(() => {
-    graphRef.current?.d3ReheatSimulation();
-  },[availableWidth,value]);
 
   React.useEffect(() => {
     onChange(graph);
     console.log('change');
   },[graph, onChange]);
 
-  const clonedGraphData = React.useMemo(
-    () => pureGraphs.clone(value),
-    [value]);
+
+  const nodeActive = (node: NodeObject<NodeObject<PureGraphNode>>) =>
+    activeNodeIds.indexOf(node.id) > -1;
 
   return (<div>
     <div className="row">
@@ -242,50 +203,16 @@ export function PureGraphEditor({
             {toolbarInstructions}
           </div>}
 
-          <div className="card-img-bottom card-img-top bg-dark" ref={containerRef} style={{ position: 'relative' }}>
-            <ForceGraph2D
-              onBackgroundClick={() => clearNodeSelection()}
-              onLinkClick={(l: LinkObject<PureGraphNode, object>) => {
-                const source = l.source!;
-                const target = l.target!;
-                if(
-                  typeof source === "string" || typeof source === "number" ||
-                  typeof target === "string" || typeof target === "number"
-                ){
-                  return;
-                } 
-                const link: DirectedGraphLink<PureGraphLink> = {source: source.id, target: target.id};
-                setGraph(pureGraphs.removeLink(graph,link));
-              }}
-              onLinkRightClick={() => alert('link right click')}
-              onBackgroundRightClick={() => alert('bg right click')}
-              onNodeRightClick={() => alert('node right click')}
-              onNodeClick={node => { onNodeClick(node); }}
-              enablePanInteraction={false}
-              enableZoomInteraction={false}
-              onEngineTick={() => {
-                graphRef.current?.zoomToFit();
-              }}
-              ref={graphRef}
-              height={height}
-              width={availableWidth}
-              graphData={clonedGraphData}
-              nodeCanvasObjectMode={() => "after"}
-              nodeColor={node => activeNodeIds.indexOf(node.id) > -1 ? blue : red}
-              cooldownTime={1000}
-              dagLevelDistance={25}
-              linkDirectionalParticleWidth={2}
-              linkDirectionalParticles={3}
-              dagMode={dagMode}
-              nodeRelSize={7}
-              linkColor={() => "white"}
-              nodeCanvasObject={(node, ctx, globalScale) => {
-                nodePaint(node, red, ctx, globalScale);
-              }}
-            />
-          </div>
+          <PureGraphViewer 
+            graph={graph}
+            onLinkClick={onLinkClick}
+            onBackgroundClick={() => clearNodeSelection()}
+            onNodeClick={onNodeClick}
+            nodeActive={nodeActive}
+            height={500}
+          />
+          
         </div>
-        
       </div>
       <div className="col-sm-4">
         <InputsEditor defaultInputs={inputImages} onChange={setInputImages} />
