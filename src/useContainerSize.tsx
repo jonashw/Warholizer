@@ -10,7 +10,12 @@ export const useContainerSize = (): { containerRef: Ref<HTMLDivElement>; clientR
     }
     const container = containerRef.current!;
     const update = () => {
-      setClientRect(container.getBoundingClientRect());
+      const nextClientRect = container.getBoundingClientRect();
+      if(nextClientRect.width === clientRect.width && nextClientRect.height === clientRect.height) {
+        return
+      }
+      //console.log('userContainerSize.update',nextClientRect);
+      setClientRect(nextClientRect);
     };
 
     window.addEventListener('resize', update);
