@@ -8,6 +8,7 @@ export const useContainerWidth = (): { containerRef: Ref<HTMLDivElement>; availa
       return;
     }
     const container = containerRef.current!;
+    container.getBoundingClientRect()
     const update = () => {
       setAvailableWidth(container.clientWidth);
     };

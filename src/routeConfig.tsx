@@ -7,12 +7,13 @@ import { GraphViewerDemo } from "./GraphViewerDemo";
 import { GraphEditorDemo } from "./GraphEditorDemo";
 import { OperatorEditorDemo } from "./OperatorEditorDemo";
 import { ProgressiveApplicationDemo } from "./ProgressiveApplicationDemo";
+import { ImmersiveEditorDemo } from "./ImmersiveEditorDemo";
 
 export const routeConfig: RouteObject[] = [
   {
     path:'/',
     element: (
-      <div>
+      <div className="height-100 d-flex flex-column">
         <div className="nav nav-pills nav-fill mb-3" style={{
           zIndex:'1000'
         }}>{[
@@ -23,7 +24,8 @@ export const routeConfig: RouteObject[] = [
           {href:'/graph-viewer-demo',label:'Graph Viewer'},
           {href:'/graph-editor',label:'Graph Editor'},
           {href:'/operator-editor-demo',label:'Op Editor Demo'},
-          {href:'/progressive-application-demo',label:'Progressive App Demo'}
+          {href:'/progressive-application-demo',label:'Progressive App Demo'},
+          {href:'/immersive-editor-demo',label:'Immersive Editor Demo'}
         ].map(route => (
           <li className="nav-item" key={route.label}>
             <a 
@@ -32,7 +34,7 @@ export const routeConfig: RouteObject[] = [
             >{route.label}</a>
           </li>
         ))}</div>
-        <div>
+        <div className="flex-grow-1">
           <Outlet/>
         </div>
       </div>
@@ -69,6 +71,10 @@ export const routeConfig: RouteObject[] = [
       {
         path: 'progressive-application-demo',
         element: <ProgressiveApplicationDemo/>
+      },
+      {
+        path: 'immersive-editor-demo',
+        element: <ImmersiveEditorDemo/>
       }
     ]
   }

@@ -67,7 +67,7 @@ export function PureGraphViewer({
         dagLevelDistance={25}
         linkDirectionalParticleWidth={2}
         linkDirectionalParticles={3}
-        dagMode={"td"}
+        dagMode={availableWidth > height ? "lr" : "td"}
         nodeRelSize={7}
         linkColor={() => "white"}
         nodeColor={node => nodeActive && nodeActive(node) ? blue : red}
