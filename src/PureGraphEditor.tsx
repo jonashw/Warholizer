@@ -14,7 +14,6 @@ import { operationAsRecord } from './Warholizer/RasterOperations/PureRasterAppli
 import { DirectedGraphLink } from './DirectedGraphData';
 import { OffscreenCanvasImageBundle } from './OffscreenCanvasImageBundle';
 import { PureGraphViewer } from './PureGraphViewer';
-import { PureRasterOperations } from './Warholizer/RasterOperations/PureRasterOperation';
 type NodeTouchMode = {
   type: 'SelectNodes',
   selectedNodeIds: string[]
