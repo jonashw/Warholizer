@@ -22,7 +22,9 @@ const defaultGraph = (() => {
 
 export function ImmersiveEditorDemo() {
   const {containerRef,clientRect} = useContainerSize();
-  return <div className="container-fluid height-100">
+  return <div className="height-100 bg-light container-fixed" style={{
+    zIndex:1000,
+    }}>
     <div className="card height-100">
       <div className="card-body">
         <div className="d-flex gap-2">
