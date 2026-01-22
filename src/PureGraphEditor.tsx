@@ -14,6 +14,7 @@ import { operationAsRecord } from './Warholizer/RasterOperations/PureRasterAppli
 import { DirectedGraphLink } from './DirectedGraphData';
 import { OffscreenCanvasImageBundle } from './OffscreenCanvasImageBundle';
 import { PureGraphViewer } from './PureGraphViewer';
+
 type NodeTouchMode = {
   type: 'SelectNodes',
   selectedNodeIds: string[]
@@ -232,9 +233,9 @@ export function PureGraphEditor({
               <div className="card-body">
                 <div className="row">
                   <div className="col">
-                    <div className="text-center">Inputs ({output.inputsFor[id].length})</div>
+                    <div className="text-center">Inputs ({(output.inputsFor[id] ?? []).length})</div>
                     <div className="d-flex justify-content-center">
-                      <OffscreenCanvasImageBundle maxWidth={50} images={output.inputsFor[id]} />
+                      <OffscreenCanvasImageBundle maxWidth={50} images={output.inputsFor[id] ?? []} />
                     </div>
                     <div className="text-center">
                       {(output.sourceOpsByTargetId[id] ?? []).map(op => (
@@ -250,9 +251,9 @@ export function PureGraphEditor({
                     </div>
                   </div>
                   <div className="col">
-                    <div className="text-center">Outputs ({output.outputsFor[id].length})</div>
+                    <div className="text-center">Outputs ({(output.outputsFor[id] ?? []).length})</div>
                     <div className="d-flex justify-content-center">
-                      <OffscreenCanvasImageBundle maxWidth={50} images={output.outputsFor[id]} />
+                      <OffscreenCanvasImageBundle maxWidth={50} images={output.outputsFor[id] ?? []} />
                     </div>
                     <div className="text-center">
                       {(output.targetOpsBySourceId[id] ?? []).map(op => (
