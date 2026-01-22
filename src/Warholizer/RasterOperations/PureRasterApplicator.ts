@@ -4,7 +4,8 @@ export type PureRasterApplicatorType = "flatMap" | "zip" | "pipe";
 const types: PureRasterApplicatorType[] = ["zip", "flatMap", "pipe"];
 export type PureRasterApplicator = {
     type: PureRasterApplicatorType,
-    ops: PureRasterOperation[]
+    ops: PureRasterOperation[],
+    enabled: boolean
 }
 
 //TODO: use Record<T> instead of specific Record types
@@ -14,7 +15,8 @@ export type PureRasterOperationRecord = PureRasterOperation & {id:string};
 export type PureRasterApplicatorRecord = {
   id: string,
   type: PureRasterApplicatorType,
-  ops: PureRasterOperationRecord[]
+  ops: PureRasterOperationRecord[],
+  enabled: boolean
 };
 
 export type PureRasterTransformer = {
@@ -36,7 +38,8 @@ export const applicatorAsRecord = (app: PureRasterApplicator): PureRasterApplica
   ({
       id: crypto.randomUUID(),
       type: app.type,
-      ops: app.ops.map(operationAsRecord)
+      ops: app.ops.map(operationAsRecord),
+      enabled: true
   });
 
 export const operationAsRecord = (op: PureRasterOperation): PureRasterOperationRecord => 
@@ -74,13 +77,17 @@ const map = function<T>(
 }
 
 const apply = (app: PureRasterApplicator, inputs: OffscreenCanvas[]): Promise<OffscreenCanvas[]> => 
-  map(
+  !app.enabled
+  ? Promise.resolve(inputs)
+  : map(
     PureRasterOperations.apply,
     app,
     inputs);
 
 const applyAll = (applicators: PureRasterApplicator[], inputs: OffscreenCanvas[]) =>
-  applicators.reduce(
+  applicators
+  .filter(a => a.enabled)
+  .reduce(
       async (oscs,applicator) => 
           applicator.ops.length > 0 
           ? apply(applicator, await oscs)

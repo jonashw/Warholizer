@@ -46,6 +46,18 @@ export const PureRasterApplicatorListItemEditor = ({
                     options={PureRasterApplicators.types.map(value => ({ value, label: value }))}
                     onChange={type => onChange({ ...value, type })}
                 />
+                <div className="form-check">
+                    <input
+                        type="checkbox"
+                        className="form-check-input"
+                        checked={value.enabled}
+                        id={`enabled-${value.id}`}
+                        onChange={e => {
+                            onChange({ ...value, enabled: e.target.checked });
+                        }}
+                    />
+                    <label className="form-check-label" htmlFor={`enabled-${value.id}`}>Enabled</label>
+                </div>
                 {onRemove && (
                     <button
                         className="btn btn-sm btn-danger"
