@@ -54,9 +54,9 @@ export function InputsEditor({
         ]);
     };
 
-    const prepareFile = async (file: File) => {
-        const url = await fileToDataUrl(file);
-        prepareInputUrls([url.toString()]);
+    const prepareFiles = async (files: File[]) => {
+        const urls = await Promise.all(files.map(fileToDataUrl));
+        prepareInputUrls(urls.map(url => url.toString()));
     };
 
     const showWebcam = () => {
@@ -158,13 +158,14 @@ export function InputsEditor({
                             type="file"
                             className="form-control"
                             capture={o.capture}
+                            multiple={true}
                             accept="image/jpeg, image/png, image/gif"
                             onChange={e => {
                                 const files = Array.from(e.target.files || []);
-                                if (files.length !== 1) {
+                                if (files.length === 0) {
                                     return;
                                 }
-                                prepareFile(files[0]);
+                                prepareFiles(files);
                             }} />
                     </label>
                     )}
