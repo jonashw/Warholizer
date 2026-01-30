@@ -192,6 +192,30 @@ export const PureRasterOperationInlineEditor = ({
             </span>}
             {(() => {
                 switch (opType) {
+                    case 'halftone': return (
+                        <>
+                            <NumberSpinnerInput
+                                value={op.dotDiameter}
+                                min={1}
+                                max={100}
+                                step={1}
+                                sanitize={n => n}
+                                onChange={dotDiameter => {
+                                    onChange({...op, dotDiameter });
+                                }}
+                            />
+                            <NumberSpinnerInput
+                                value={op.blurPixels}
+                                min={0}
+                                max={10}
+                                step={1}
+                                sanitize={n => n}
+                                onChange={blurPixels => {
+                                    onChange({...op, blurPixels });
+                                }}
+                            />
+                        </>
+                    );
                     case 'noop': return;
                     case 'void': return;
                     case 'fill': return (

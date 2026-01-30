@@ -18,6 +18,9 @@ const pureExample = (ops: PureRasterOperation[]): Effect =>
 
 export default () => {
     const effects: Effect[] = [
+        ...([2] as number[]).map(blurPixels =>
+            pureExample([{type:'halftone', blurPixels, dotDiameter: 10}]),
+        ),
         ...([90,180,270] as Angle[]).map(degrees =>
             pureExample([{type:'rotateHue', degrees}]),
         ),

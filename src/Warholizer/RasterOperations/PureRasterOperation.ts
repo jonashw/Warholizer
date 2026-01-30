@@ -12,6 +12,7 @@ export type Threshold = { type: "threshold", value: Byte };
 export type Multiply = { type: "multiply", n: number };
 export type Split = { type: "split", dimension: Dimension, amount: Percentage };
 export type SlideWrap = { type: "slideWrap", dimension: Dimension, amount: Percentage };
+export type Halftone = { type: "halftone", dotDiameter: number, blurPixels: number };
 export type Blur = { type: "blur", pixels: number };
 export type Grayscale = { type: "grayscale", percent: Percentage };
 export type RotationOrigin = "center"|"top-right"|"top-left"|"bottom-left"|"bottom-right";
@@ -67,6 +68,7 @@ export type PureRasterOperation =
   | Crop
   | Grid
   | Fill
+  | Halftone 
   | Tile
   | Line
   | SlideWrap 
@@ -83,7 +85,55 @@ export type PureRasterOperation =
 
 const apply = async (op: PureRasterOperation, inputs: OffscreenCanvas[]): Promise<OffscreenCanvas[]> => {
   const opType = op.type;
+  const threshold = (ctx: OffscreenCanvasRenderingContext2D, value: Byte) => 
+    {
+      const imgData = ctx.getImageData(0,0,ctx.canvas.width,ctx.canvas.height);
+      for (let i=0; i<imgData.data.length; i+=4) { // 4 is for RGBA channels
+        const currentPixelValue = rgbaValue(
+          imgData.data[i+0],
+          imgData.data[i+1],
+          imgData.data[i+2],
+          imgData.data[i+3]);
+        const thresholdValue = currentPixelValue < value ? 0 : 255;
+        imgData.data[i+0] = thresholdValue;//R
+        imgData.data[i+1] = thresholdValue;//G
+        imgData.data[i+2] = thresholdValue;//B
+        imgData.data[i+3] = 255;//A
+      }
+      ctx.putImageData(imgData, 0, 0);
+    };
   switch(opType){
+    case 'halftone': 
+      return Promise.all(inputs.map(async input => {
+        const patternSpacingRatio = 3/2;
+        const patternSideLength = op.dotDiameter * patternSpacingRatio;
+        const pattern = await offscreenCanvasOperation(patternSideLength, patternSideLength, (ctx) => {
+          ctx.fillStyle = "white";
+          ctx.fillRect(0,0,patternSideLength,patternSideLength);
+
+          ctx.fillStyle = "black";
+          const s = patternSideLength;
+          const h = s/2;
+          for(let [x,y] of [ [h,h], [0,0], [0,s], [s,0], [s,s] ]){
+            ctx.beginPath();
+            ctx.arc(x,y,op.dotDiameter/2,0,Math.PI*2);
+            ctx.fill();
+          }
+        });
+        return offscreenCanvasOperation(input.width,input.height,(ctx) => {
+          ctx.save();
+          ctx.fillRect(0,0,input.width,input.height);
+          ctx.filter=`grayscale(100%)`
+          ctx.drawImage(input,0,0); 
+          ctx.filter=`blur(${op.blurPixels}px)`;
+          ctx.fillStyle='black';
+          ctx.globalCompositeOperation = 'color-burn';
+          ctx.fillStyle=ctx.createPattern(pattern,'repeat')!;
+          ctx.fillRect(0,0,input.width,input.height);
+          ctx.restore();
+          threshold(ctx,1);
+        });
+      }));
     case 'stack':
       {
         if(inputs.length === 0){
@@ -139,20 +189,7 @@ const apply = async (op: PureRasterOperation, inputs: OffscreenCanvas[]): Promis
       return Promise.all(inputs.map(input =>
         offscreenCanvasOperation(input.width, input.height,(ctx) => {
           ctx.drawImage(input,0,0);
-          const imgData = ctx.getImageData(0,0,input.width,input.height);
-          for (let i=0; i<imgData.data.length; i+=4) { // 4 is for RGBA channels
-            const currentPixelValue = rgbaValue(
-              imgData.data[i+0],
-              imgData.data[i+1],
-              imgData.data[i+2],
-              imgData.data[i+3]);
-            const thresholdValue = currentPixelValue < op.value ? 0 : 255;
-            imgData.data[i+0] = thresholdValue;//R
-            imgData.data[i+1] = thresholdValue;//G
-            imgData.data[i+2] = thresholdValue;//B
-            imgData.data[i+3] = 255;//A
-          }
-          ctx.putImageData(imgData, 0, 0);
+          threshold(ctx,op.value);
         })));
     case 'grayscale': 
       return Promise.all(inputs.map(input =>
@@ -422,6 +459,7 @@ function rgbaValue(r: number, g: number, b: number, a: number) {
 const stringRepresentation = (op: PureRasterOperation): string => {
   const opType = op.type;
   switch(opType){
+    case 'halftone'  : return `halftone(${op.dotDiameter}px, ${op.blurPixels}px)`;
     case 'stack'     : return `stack(${op.blendingMode})`;
     case 'noop'      : return "noop";
     case 'multiply'  : return `multiply(${op.n})`;
