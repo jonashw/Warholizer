@@ -14,7 +14,7 @@ export const routeConfig: RouteObject[] = [
     path:'/',
     element: (
       <div className="height-100 d-flex flex-column">
-        <div className="nav nav-pills nav-fill mb-3" style={{
+        <div id="top-nav" className="nav nav-pills nav-fill mb-3" style={{
           zIndex:'1000'
         }}>{[
           {href:'/',label:'Warholizer'},

@@ -16,6 +16,9 @@
     .navbar {
         display:none;
     }
+    #top-nav {
+        display:none;
+    }
 }
 .canvas {
     overflow:hidden;
