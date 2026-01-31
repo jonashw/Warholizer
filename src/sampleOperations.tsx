@@ -1,9 +1,9 @@
-import { PureRasterOperation } from './Warholizer/RasterOperations/PureRasterOperation';
+import { Noop, PureRasterOperation, Rotate } from './Warholizer/RasterOperations/PureRasterOperation';
 import { angle, byte, positiveNumber } from './Warholizer/RasterOperations/NumberTypes';
 
 
 export const sampleOperations: PureRasterOperation[] = ([
-    { "type": "noop"},
+    { "type": "noop"} as Noop,
     { "type": "fill", color:"#3333ff"},
     { "type": "split", dimension:"x",amount:50},
     { "type": "void"},
@@ -18,10 +18,11 @@ export const sampleOperations: PureRasterOperation[] = ([
     { "type": "threshold", value: byte(128) },
     { "type": "invert" },
     { "type": "rotateHue", degrees: angle(180) },
-    { "type": "rotate", degrees: 90, about:'center' },
+    { "type": "rotate", degrees: 90, about:'center' } as Rotate,
     { "type": "multiply", n: 2 },
     { "type": "slideWrap", amount: 50, dimension: 'x' },
     { "type": "grayscale", percent: 100 },
-    { "type": "blur", pixels: 5 }
+    { "type": "blur", pixels: 5 },
+    { "type": "printSet", paperSize: 'letter', orientation:'portrait', tilingPattern: 'half-drop'},
 ] as PureRasterOperation[])
 .sort((a,b) => a.type < b.type ? -1 : b.type < a.type ? 1 : 0);

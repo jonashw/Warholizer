@@ -2,7 +2,7 @@ import React from 'react';
 import ImageUtil from './Warholizer/ImageUtil';
 import { applyPureOperationPipeline } from './Warholizer/RasterOperations/apply';
 import { OffscreenCanvasImage } from './OffscreenCanvasImage';
-import { Dimension, PureRasterOperation, PureRasterOperations } from './Warholizer/RasterOperations/PureRasterOperation';
+import { Dimension, PaperSizes, PureRasterOperation, PureRasterOperations, TilingPatterns } from './Warholizer/RasterOperations/PureRasterOperation';
 import { Angle, Byte, Percentage, PositiveNumber, positiveNumber } from './Warholizer/RasterOperations/NumberTypes';
 import onFilePaste from './Warholizer/onFilePaste';
 import fileToDataUrl from './fileToDataUrl';
@@ -18,6 +18,15 @@ const pureExample = (ops: PureRasterOperation[]): Effect =>
 
 export default () => {
     const effects: Effect[] = [
+        ...PaperSizes.flatMap(paperSize =>
+            ['portrait','landscape'].flatMap(orientation =>
+                TilingPatterns.map(tilingPattern =>
+                    pureExample([{
+                        type:'printSet',
+                        paperSize: paperSize.id,
+                        tilingPattern,
+                        orientation: orientation as unknown as 'portrait' | 'landscape'  }]),
+                ))),
         ...([2] as number[]).map(blurPixels =>
             pureExample([{type:'halftone', blurPixels, dotDiameter: 10}]),
         ),

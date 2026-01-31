@@ -1,5 +1,5 @@
 import { Angle, Byte, Percentage, PositiveNumber, angle, byte, percentage, positiveNumber } from "./NumberTypes";
-import { BlendingMode, BlendingModes, Dimension, Direction, PureRasterOperation, RotationOrigin, RotationOrigins } from "./PureRasterOperation";
+import { BlendingMode, BlendingModes, Dimension, Direction, PaperSizeId, PaperSizes, PureRasterOperation, RotationOrigin, RotationOrigins, TilingPatterns, TilingPattern} from "./PureRasterOperation";
 import { ButtonRadiosInput } from "./ButtonRadiosInput";
 import { OperationIcon } from "./OperationIcon";
 import { PureRasterOperationRecord, operationAsRecord } from "./PureRasterApplicator";
@@ -192,6 +192,27 @@ export const PureRasterOperationInlineEditor = ({
             </span>}
             {(() => {
                 switch (opType) {
+                    case 'printSet': return (
+                        //op.tilingPattern
+                        //op.orientation
+                        <>
+                            <DropdownSelector<PaperSizeId> 
+                                value={op.paperSize}
+                                options={PaperSizes.map(value => ({value: value.id, label: value.label}))}
+                                onChange={paperSize => onChange({...op, paperSize})}
+                            />
+                            <DropdownSelector<TilingPattern> 
+                                value={op.tilingPattern}
+                                options={TilingPatterns.map(value => ({value, label: value}))}
+                                onChange={tilingPattern => onChange({...op, tilingPattern})}
+                            />
+                            <ButtonRadiosInput<'portrait' | 'landscape'> 
+                                value={op.orientation}
+                                options={(["portrait","landscape"] as ("portrait"|"landscape")[]).map(value => ({value, label: value}))}
+                                onChange={orientation => onChange({...op, orientation})}
+                            />
+                        </>
+                    );
                     case 'halftone': return (
                         <>
                             <NumberSpinnerInput

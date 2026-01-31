@@ -37,7 +37,8 @@ export function InputsEditor({
     };
 
     const prepareInputImages = async (oscs: OffscreenCanvas[]) => {
-        const op: PureRasterOperation = {
+        const autoScale = false;
+        const op: PureRasterOperation = !autoScale ? {type:'noop'} : {
             type: 'scaleToFit',
             w: positiveNumber(500),
             h: positiveNumber(500)

@@ -25,6 +25,13 @@ export type Line = { type: "line", direction: Direction, squish:boolean};
 export type Tile = { type: "tile", primaryDimension: Dimension, lineLength: number };
 export type Grid = { type: "grid", rows: number, cols: number };
 export type Stack = {type: "stack", blendingMode: BlendingMode};
+export type PrintSet = {
+  type: "printSet",
+  paperSize: PaperSizeId,
+  tilingPattern: TilingPattern,
+  orientation: 'portrait' | 'landscape'
+};
+
 export type BlendingMode = 
   | "source-over" | "source-in" | "source-out" | "source-atop"
   | "destination-over" | "destination-in" | "destination-out" | "destination-atop"
@@ -61,6 +68,41 @@ export const BlendingModes: BlendingMode[] = [
   "luminosity"
 ];
 
+export type TilingPattern = "normal" | "half-drop" | "half-brick" | "mirror" | "wacky";
+export const TilingPatterns: TilingPattern[] = [  
+  "normal",
+  "half-drop",
+  "half-brick",
+  "mirror",
+  "wacky"
+];
+export type PaperSizeId = "letter" | "letter" | "legal" | "legal";
+
+type PaperSize = {
+    id: PaperSizeId,
+    AR: number,
+    label: string
+}
+
+export const PaperSizes: PaperSize[] = [
+  {
+    id: "letter",
+    AR: 8.5/11,
+    label: 'Letter (8.5x11")'
+  },
+  {
+    id: "legal",
+    AR: 8.5/14,
+    label: 'Legal (8.5x14")'
+  }
+];
+
+export const PaperSizeById: {[id in PaperSizeId]: PaperSize} =
+  PaperSizes.reduce((acc,paperSize) => {
+    acc[paperSize.id] = paperSize;
+    return acc;
+  }, {} as {[id in PaperSizeId]: PaperSize});
+
 export type PureRasterOperation = 
   | Stack
   | Split
@@ -71,6 +113,7 @@ export type PureRasterOperation =
   | Halftone 
   | Tile
   | Line
+  | PrintSet
   | SlideWrap 
   | Scale
   | ScaleToFit
@@ -83,26 +126,150 @@ export type PureRasterOperation =
   | Multiply
   | Invert;
 
+const threshold = (ctx: OffscreenCanvasRenderingContext2D, value: Byte) => {
+  const imgData = ctx.getImageData(0,0,ctx.canvas.width,ctx.canvas.height);
+  for (let i=0; i<imgData.data.length; i+=4) { // 4 is for RGBA channels
+    const currentPixelValue = rgbaValue(
+      imgData.data[i+0],
+      imgData.data[i+1],
+      imgData.data[i+2],
+      imgData.data[i+3]);
+    const thresholdValue = currentPixelValue < value ? 0 : 255;
+    imgData.data[i+0] = thresholdValue;//R
+    imgData.data[i+1] = thresholdValue;//G
+    imgData.data[i+2] = thresholdValue;//B
+    imgData.data[i+3] = 255;//A
+  }
+  ctx.putImageData(imgData, 0, 0);
+};
+
+
+const slideWrap = async (input: OffscreenCanvas, op: SlideWrap): Promise<OffscreenCanvas> => {
+  return offscreenCanvasOperation(input.width, input.height,(ctx) => {
+    const wrapCoefficient = op.amount/100;
+    if(op.dimension === 'x'){
+      const x = input.width * wrapCoefficient;
+      const xx = input.width - x;
+      ctx.drawImage(input,x,0);
+      ctx.drawImage(input,-xx,0);
+    }
+    if(op.dimension === 'y'){
+      const y = input.height * wrapCoefficient;
+      const yy = input.height - y;
+      ctx.drawImage(input,0,-y);
+      ctx.drawImage(input,0,yy);
+    }
+  });
+};
+
+const line = async (inputs: OffscreenCanvas[], op: Line): Promise<OffscreenCanvas> => {
+  const horizontal = op.direction === "left" || op.direction === "right";
+  const [width,height] = 
+    horizontal
+    ? [
+      op.squish ? (inputs[0]?.width ?? 0) : inputs.map(i => i.width).reduce((a,b) => a + b, 0),
+      Math.max(...inputs.map(i => i.height))
+    ] : [
+      Math.max(...inputs.map(i => i.width)),
+      op.squish ? (inputs[0]?.height ?? 0) : inputs.map(i => i.height).reduce((a,b) => a + b, 0)
+    ];
+  const orderedInputs = 
+    op.direction === "up" || op.direction === "left"
+    ? [...inputs].reverse()
+    : inputs;
+    
+  return await offscreenCanvasOperation(width, height, (ctx) => {
+    if(op.squish){
+      const scale = {
+        x: horizontal ? 1/inputs.length : 1,
+        y:!horizontal ? 1/inputs.length : 1
+      };
+      console.log({n:inputs.length,scale});
+      ctx.scale(scale.x,scale.y);
+    }
+    for(const input of orderedInputs){
+      ctx.drawImage(input,0,0);
+      const [w,h] = op.squish ? [width,height] : [input.width, input.height];
+      ctx.translate(
+          horizontal ? w : 0,
+        !horizontal ? h : 0
+      );
+    }
+  });
+}
+
 const apply = async (op: PureRasterOperation, inputs: OffscreenCanvas[]): Promise<OffscreenCanvas[]> => {
   const opType = op.type;
-  const threshold = (ctx: OffscreenCanvasRenderingContext2D, value: Byte) => 
-    {
-      const imgData = ctx.getImageData(0,0,ctx.canvas.width,ctx.canvas.height);
-      for (let i=0; i<imgData.data.length; i+=4) { // 4 is for RGBA channels
-        const currentPixelValue = rgbaValue(
-          imgData.data[i+0],
-          imgData.data[i+1],
-          imgData.data[i+2],
-          imgData.data[i+3]);
-        const thresholdValue = currentPixelValue < value ? 0 : 255;
-        imgData.data[i+0] = thresholdValue;//R
-        imgData.data[i+1] = thresholdValue;//G
-        imgData.data[i+2] = thresholdValue;//B
-        imgData.data[i+3] = 255;//A
-      }
-      ctx.putImageData(imgData, 0, 0);
-    };
   switch(opType){
+    case 'printSet': 
+      return Promise.all(inputs.map(async input => {
+        const wholeRowsOnly = false;
+        const tilesPerRow = 4;
+        const paper = PaperSizeById[op.paperSize]; 
+        const w = input.width * tilesPerRow;
+        const ar = op.orientation === 'portrait' ? paper.AR : 1 / paper.AR;
+        const h = w / ar; 
+        const tileWidth = Math.floor(w / tilesPerRow);
+        const tileAR = (input.width / input.height);
+        const tileHeight = tileWidth / tileAR;
+        const rowsThatWillFitAtLeastPartially = Math.ceil(h / tileHeight);
+        return offscreenCanvasOperation(w, h, async (ctx) => {
+          const patternImage = await (async () => { switch(op.tilingPattern){
+            case 'normal': {
+              return Promise.resolve(input);
+            }
+            case 'half-drop': {
+              return line([
+                input,
+                await slideWrap(input, {type:'slideWrap',dimension:'y',amount:50})
+              ], {type:'line',direction:'right',squish:false})
+            }
+            case 'half-brick': {
+              return line([
+                input,
+                await slideWrap(input, {type:'slideWrap',dimension:'x',amount:50})
+              ], {type:'line',direction:'down',squish:false})
+            }
+            case 'wacky': {
+              const wrapped = await slideWrap(input, {type:'slideWrap',dimension:'x',amount:50});
+              return line([
+                await line([
+                  input,
+                  await flipped(input,true,false)
+                ], {type:'line',direction:'right',squish:false}),
+                await line([
+                  wrapped,
+                  await flipped(wrapped,true,false)
+                ], {type:'line',direction:'right',squish:false}),
+              ], {type:'line',direction:'down',squish:false})
+            }
+            case 'mirror': {
+              return tile([
+                input,
+                await flipped(input,true,false),
+                await flipped(input,false,true),
+                await flipped(input,true,true),
+              ], {type:'tile',primaryDimension:'x',lineLength:2});
+            }
+            default: {
+              console.error(new Error(`Tiling pattern not yet implemented: ${op.tilingPattern}`));
+              return Promise.resolve(input);
+            }
+          }})();
+
+          ctx.fillStyle = ctx.createPattern(patternImage,'repeat')!;
+
+          if(wholeRowsOnly){
+            ctx.fillRect(
+              0,0,
+              w, (rowsThatWillFitAtLeastPartially-1) * tileHeight);
+          } else {
+            ctx.fillRect(
+              0,0, 
+              w, h);
+          }
+        });
+      }));
     case 'halftone': 
       return Promise.all(inputs.map(async input => {
         const patternSpacingRatio = 3/2;
@@ -234,22 +401,7 @@ const apply = async (op: PureRasterOperation, inputs: OffscreenCanvas[]): Promis
         })));
       }
     case 'slideWrap': 
-      return Promise.all(inputs.map(input =>
-        offscreenCanvasOperation(input.width, input.height,(ctx) => {
-          const wrapCoefficient = op.amount/100;
-          if(op.dimension === 'x'){
-            const x = input.width * wrapCoefficient;
-            const xx = input.width - x;
-            ctx.drawImage(input,x,0);
-            ctx.drawImage(input,-xx,0);
-          }
-          if(op.dimension === 'y'){
-            const y = input.height * wrapCoefficient;
-            const yy = input.height - y;
-            ctx.drawImage(input,0,-y);
-            ctx.drawImage(input,0,yy);
-          }
-        })));
+      return Promise.all(inputs.map(input => slideWrap(input, op)));
     case 'scaleToFit':
       return Promise.all(inputs.map(input => {
         const ar = input.width / input.height;
@@ -341,102 +493,83 @@ const apply = async (op: PureRasterOperation, inputs: OffscreenCanvas[]): Promis
         }
       });
     }));
-    case 'tile': {
-      if(op.lineLength <= 0){
-        return inputs;
-      }
-      const lineCount = Math.ceil(inputs.length / op.lineLength);
-      const lines = 
-        Array(lineCount)
-        .fill(undefined)
-        .map((_,i) => {
-          const lineInputs = inputs.slice(i*op.lineLength,(i+1)*op.lineLength);
-          const [width,height] = 
-          op.primaryDimension === "x"
-          ?  [
-            lineInputs.map(i => i.width).reduce((a,b) => a + b, 0),
-            Math.max(...lineInputs.map(i => i.height))
-          ] : [
-            Math.max(...lineInputs.map(i => i.width)),
-            lineInputs.map(i => i.height).reduce((a,b) => a + b, 0)
-          ];
-          return {
-            inputs: lineInputs,
-            width,
-            height
-          };
-        });
-
-      const [width,height] = 
-        op.primaryDimension === "x"
-        ? [
-          Math.max(...lines.map(l => l.width)),
-          lines.map(l => l.height).reduce((a,b) => a + b, 0)
-        ] : [
-          lines.map(l => l.width).reduce((a,b) => a + b, 0),
-          Math.max(...lines.map(l => l.height))
-        ];
-        
-      return [await offscreenCanvasOperation(width, height, (ctx) => {
-        for(let line of lines){
-          ctx.save();
-          for(let input of line.inputs){
-            ctx.drawImage(input,0,0);
-
-            if(op.primaryDimension === "x"){
-              ctx.translate(input.width,0);
-            } else {
-              ctx.translate(0,input.height);
-            }
-          }
-          ctx.restore();
-          if(op.primaryDimension === "x"){
-            ctx.translate(0,line.height);
-          } else {
-            ctx.translate(line.width,0);
-          }
-        }
-      })];
-    }
-    case 'line': {
-      const horizontal = op.direction === "left" || op.direction === "right";
-      const [width,height] = 
-        horizontal
-        ? [
-          op.squish ? (inputs[0]?.width ?? 0) : inputs.map(i => i.width).reduce((a,b) => a + b, 0),
-          Math.max(...inputs.map(i => i.height))
-        ] : [
-          Math.max(...inputs.map(i => i.width)),
-          op.squish ? (inputs[0]?.height ?? 0) : inputs.map(i => i.height).reduce((a,b) => a + b, 0)
-        ];
-      const orderedInputs = 
-        op.direction === "up" || op.direction === "left"
-        ? [...inputs].reverse()
-        : inputs;
-        
-      return [await offscreenCanvasOperation(width, height, (ctx) => {
-        if(op.squish){
-          const scale = {
-            x: horizontal ? 1/inputs.length : 1,
-            y:!horizontal ? 1/inputs.length : 1
-          };
-          console.log({n:inputs.length,scale});
-          ctx.scale(scale.x,scale.y);
-        }
-        for(const input of orderedInputs){
-          ctx.drawImage(input,0,0);
-          const [w,h] = op.squish ? [width,height] : [input.width, input.height];
-          ctx.translate(
-             horizontal ? w : 0,
-            !horizontal ? h : 0
-          );
-        }
-      })];
-    }
+    case 'tile': return [await tile(inputs, op)];
+    case 'line': return [await line(inputs, op)];
     default:
       throw new Error(`Unexpected operation type: ${opType}`);
   }
 }
+
+const flipped = (input: OffscreenCanvas, flipX: boolean, flipY: boolean): Promise<OffscreenCanvas> => {
+  return offscreenCanvasOperation(input.width, input.height, (ctx) => {
+    const scaleX = flipX ? -1 : 1;
+    const scaleY = flipY ? -1 : 1;
+    ctx.scale(scaleX,scaleY);
+    ctx.drawImage(
+      input,
+      flipX?-input.width:0,
+      flipY?-input.height:0);
+    ctx.scale(scaleX,scaleY);
+  });
+};
+
+const tile = async (inputs: OffscreenCanvas[], op: Tile): Promise<OffscreenCanvas> => {
+  if(op.lineLength <= 0){
+    return new OffscreenCanvas(0,0);
+  }
+  const lineCount = Math.ceil(inputs.length / op.lineLength);
+  const lines = 
+    Array(lineCount)
+    .fill(undefined)
+    .map((_,i) => {
+      const lineInputs = inputs.slice(i*op.lineLength,(i+1)*op.lineLength);
+      const [width,height] = 
+      op.primaryDimension === "x"
+      ?  [
+        lineInputs.map(i => i.width).reduce((a,b) => a + b, 0),
+        Math.max(...lineInputs.map(i => i.height))
+      ] : [
+        Math.max(...lineInputs.map(i => i.width)),
+        lineInputs.map(i => i.height).reduce((a,b) => a + b, 0)
+      ];
+      return {
+        inputs: lineInputs,
+        width,
+        height
+      };
+    });
+
+  const [width,height] = 
+    op.primaryDimension === "x"
+    ? [
+      Math.max(...lines.map(l => l.width)),
+      lines.map(l => l.height).reduce((a,b) => a + b, 0)
+    ] : [
+      lines.map(l => l.width).reduce((a,b) => a + b, 0),
+      Math.max(...lines.map(l => l.height))
+    ];
+    
+  return await offscreenCanvasOperation(width, height, (ctx) => {
+    for(let line of lines){
+      ctx.save();
+      for(let input of line.inputs){
+        ctx.drawImage(input,0,0);
+
+        if(op.primaryDimension === "x"){
+          ctx.translate(input.width,0);
+        } else {
+          ctx.translate(0,input.height);
+        }
+      }
+      ctx.restore();
+      if(op.primaryDimension === "x"){
+        ctx.translate(0,line.height);
+      } else {
+        ctx.translate(line.width,0);
+      }
+    }
+  });
+};
 
 async function offscreenCanvasOperation(
   width: number,
@@ -470,6 +603,7 @@ const stringRepresentation = (op: PureRasterOperation): string => {
     case 'blur'      : return `blur(${op.pixels}px)`;
     case 'invert'    : return "invert";
     case 'crop'      : return `crop(${op.x},${op.y},${op.width},${op.height},${op.unit})`;
+    case 'printSet'  : return `printSet(${op.paperSize},${op.orientation},${op.tilingPattern})`;
     case 'grid'      : return `grid(${op.rows},${op.cols})`;
     case 'split'     : return `split(${op.dimension},${op.amount}%)`;
     case 'slideWrap' : return `slideWrap(${op.dimension},${op.amount}%)`;
