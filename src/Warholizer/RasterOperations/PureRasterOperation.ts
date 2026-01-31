@@ -362,31 +362,41 @@ const apply = async (op: PureRasterOperation, inputs: OffscreenCanvas[]): Promis
           threshold(ctx,op.value);
         })));
     case 'rgbChannels': 
+      function rgbaValue(r: number, g: number, b: number, a: number) {
+        //reference: https://computergraphics.stackexchange.com/a/5114
+        //const [rPeakWavelength,gPeakWavelength,bPeakWavelength]=[600,540,450];
+        const [rCoeff, gCoeff, bCoeff] = [0.21, 0.72, 0.07];
+        return Math.floor((a / 255) * ((r * rCoeff) + (g * gCoeff) + (b * bCoeff)));
+      }
       return Promise.all(inputs.flatMap(input => {
         const inputData = input.getContext('2d')!.getImageData(0,0,input.width,input.height);
-        console.log(inputData)
         const out = {
-          r: new ImageData(input.width, input.height),
-          g: new ImageData(input.width, input.height),
-          b: new ImageData(input.width, input.height)
+          r: new ImageData(input.width, input.height, {colorSpace:inputData.colorSpace}),
+          g: new ImageData(input.width, input.height, {colorSpace:inputData.colorSpace}),
+          b: new ImageData(input.width, input.height, {colorSpace:inputData.colorSpace})
         };
+        const empty = 255;
+        const useValue = false;
         for (var i = 0; i < inputData.data.length; i += 4) { // 4 is for RGBA channels
-          const alpha = inputData.data[i+3];
+          const r = inputData.data[i+0];
+          const g = inputData.data[i+1];
+          const b = inputData.data[i+2]; 
+          const a = inputData.data[i+3];
           // R
-          out.r.data[i+0] = inputData.data[i+0];
-          out.r.data[i+1] = 255;
-          out.r.data[i+2] = 255;
-          out.r.data[i+3] = alpha;
+          out.r.data[i+0] = useValue ? rgbaValue(r,empty,empty,a) : r;
+          out.r.data[i+1] = empty;
+          out.r.data[i+2] = empty;
+          out.r.data[i+3] = a;
           // G
-          out.g.data[i+0] = 255;
-          out.g.data[i+1] = inputData.data[i+1];
-          out.g.data[i+2] = 255;
-          out.g.data[i+3] = alpha;
+          out.g.data[i+0] = empty;
+          out.g.data[i+1] = useValue ? rgbaValue(empty,g,empty,a) : g;
+          out.g.data[i+2] = empty;
+          out.g.data[i+3] = a;
           // B
-          out.b.data[i+0] = 255;
-          out.b.data[i+1] = 255;
-          out.b.data[i+2] = inputData.data[i+2];
-          out.b.data[i+3] = alpha;
+          out.b.data[i+0] = empty;
+          out.b.data[i+1] = empty;
+          out.b.data[i+2] = useValue ? rgbaValue(empty,empty,b,a) : b;
+          out.b.data[i+3] = a;
         }
         return [out.r, out.g, out.b].map(data =>
           offscreenCanvasOperation(input.width, input.height,(ctx) => {

@@ -19,6 +19,8 @@ const pureExample = (ops: PureRasterOperation[]): Effect =>
 export default () => {
     const effects: Effect[] = [
         pureExample([{type:'rgbChannels'}]), 
+        pureExample([{type:'rgbChannels'},{type:'stack', blendingMode:'multiply'}]), 
+        pureExample([{type:'rgbChannels'},{type:'grayscale', percent: 100}]), 
         ...PaperSizes.flatMap(paperSize =>
             ['portrait','landscape'].flatMap(orientation =>
                 TilingPatterns.map(tilingPattern =>
