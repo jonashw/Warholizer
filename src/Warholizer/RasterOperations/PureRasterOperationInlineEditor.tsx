@@ -192,6 +192,7 @@ export const PureRasterOperationInlineEditor = ({
             </span>}
             {(() => {
                 switch (opType) {
+                    case 'rgbChannels': return <></>;
                     case 'printSet': return (
                         //op.tilingPattern
                         //op.orientation

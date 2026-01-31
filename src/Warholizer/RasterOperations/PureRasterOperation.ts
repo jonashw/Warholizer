@@ -1,6 +1,30 @@
 import { CSSProperties } from "react";
 import { Angle, Byte, Percentage, PositiveNumber} from "./NumberTypes";
 
+export type PureRasterOperation = 
+  | Stack
+  | Split
+  | Void
+  | Crop
+  | Grid
+  | Fill
+  | Halftone 
+  | Tile
+  | Line
+  | PrintSet
+  | SlideWrap 
+  | Scale
+  | ScaleToFit
+  | Noop
+  | Blur
+  | RotateHue
+  | Rotate
+  | Grayscale
+  | Threshold
+  | RGBChannels
+  | Multiply
+  | Invert;
+
 export type Dimension = 'x'|'y';
 export type Direction = 'up' | 'down' | 'left' | 'right';
 export type Invert = { type: "invert" };
@@ -32,6 +56,7 @@ export type PrintSet = {
   orientation: 'portrait' | 'landscape',
   rowLength: PositiveNumber
 };
+export type RGBChannels = { type: "rgbChannels" };
 
 export type BlendingMode = 
   | "source-over" | "source-in" | "source-out" | "source-atop"
@@ -104,28 +129,6 @@ export const PaperSizeById: {[id in PaperSizeId]: PaperSize} =
     return acc;
   }, {} as {[id in PaperSizeId]: PaperSize});
 
-export type PureRasterOperation = 
-  | Stack
-  | Split
-  | Void
-  | Crop
-  | Grid
-  | Fill
-  | Halftone 
-  | Tile
-  | Line
-  | PrintSet
-  | SlideWrap 
-  | Scale
-  | ScaleToFit
-  | Noop
-  | Blur
-  | RotateHue
-  | Rotate
-  | Grayscale
-  | Threshold
-  | Multiply
-  | Invert;
 
 const threshold = (ctx: OffscreenCanvasRenderingContext2D, value: Byte) => {
   const imgData = ctx.getImageData(0,0,ctx.canvas.width,ctx.canvas.height);
@@ -358,6 +361,38 @@ const apply = async (op: PureRasterOperation, inputs: OffscreenCanvas[]): Promis
           ctx.drawImage(input,0,0);
           threshold(ctx,op.value);
         })));
+    case 'rgbChannels': 
+      return Promise.all(inputs.flatMap(input => {
+        const inputData = input.getContext('2d')!.getImageData(0,0,input.width,input.height);
+        console.log(inputData)
+        const out = {
+          r: new ImageData(input.width, input.height),
+          g: new ImageData(input.width, input.height),
+          b: new ImageData(input.width, input.height)
+        };
+        for (var i = 0; i < inputData.data.length; i += 4) { // 4 is for RGBA channels
+          const alpha = inputData.data[i+3];
+          // R
+          out.r.data[i+0] = inputData.data[i+0];
+          out.r.data[i+1] = 255;
+          out.r.data[i+2] = 255;
+          out.r.data[i+3] = alpha;
+          // G
+          out.g.data[i+0] = 255;
+          out.g.data[i+1] = inputData.data[i+1];
+          out.g.data[i+2] = 255;
+          out.g.data[i+3] = alpha;
+          // B
+          out.b.data[i+0] = 255;
+          out.b.data[i+1] = 255;
+          out.b.data[i+2] = inputData.data[i+2];
+          out.b.data[i+3] = alpha;
+        }
+        return [out.r, out.g, out.b].map(data =>
+          offscreenCanvasOperation(input.width, input.height,(ctx) => {
+            ctx.putImageData(data,0,0);
+          }));
+      }));
     case 'grayscale': 
       return Promise.all(inputs.map(input =>
         offscreenCanvasOperation(input.width, input.height,(ctx) => {
@@ -597,6 +632,7 @@ const stringRepresentation = (op: PureRasterOperation): string => {
     case 'noop'      : return "noop";
     case 'multiply'  : return `multiply(${op.n})`;
     case 'threshold' : return `threshold(${op.value})`;
+    case 'rgbChannels': return `rgbChannels()`;
     case 'grayscale' : return `grayscale(${op.percent}%)`;
     case 'rotateHue' : return `rotateHue(${op.degrees}deg)`;
     case 'rotate'    : return `rotate(${op.degrees}deg, about ${op.about})`;
