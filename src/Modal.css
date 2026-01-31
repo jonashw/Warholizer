@@ -39,3 +39,20 @@
     padding:0; 
     flex-grow:10;
 }
+
+@media print {
+    *,body {
+        transform:none !important;
+        padding: 0 !important;
+    }
+    .modal-body {
+        margin: 0 !important;
+        overflow: visible !important;
+        border: none !important;
+        outline: none !important;
+        box-shadow: none !important;
+    }
+    .modal-header {
+        display:none;
+    }
+}
