@@ -29,7 +29,8 @@ export type PrintSet = {
   type: "printSet",
   paperSize: PaperSizeId,
   tilingPattern: TilingPattern,
-  orientation: 'portrait' | 'landscape'
+  orientation: 'portrait' | 'landscape',
+  rowLength: PositiveNumber
 };
 
 export type BlendingMode = 
@@ -204,12 +205,11 @@ const apply = async (op: PureRasterOperation, inputs: OffscreenCanvas[]): Promis
     case 'printSet': 
       return Promise.all(inputs.map(async input => {
         const wholeRowsOnly = false;
-        const tilesPerRow = 4;
         const paper = PaperSizeById[op.paperSize]; 
-        const w = input.width * tilesPerRow;
+        const w = input.width * op.rowLength;
         const ar = op.orientation === 'portrait' ? paper.AR : 1 / paper.AR;
         const h = w / ar; 
-        const tileWidth = Math.floor(w / tilesPerRow);
+        const tileWidth = Math.floor(w / op.rowLength);
         const tileAR = (input.width / input.height);
         const tileHeight = tileWidth / tileAR;
         const rowsThatWillFitAtLeastPartially = Math.ceil(h / tileHeight);

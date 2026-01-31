@@ -22,6 +22,6 @@ export const sampleOperations: PureRasterOperation[] = ([
     { "type": "slideWrap", amount: 50, dimension: 'x' } as SlideWrap,
     { "type": "grayscale", percent: 100 } as Grayscale,
     { "type": "blur", pixels: 5 } as Blur,
-    { "type": "printSet", paperSize: 'letter', orientation:'portrait', tilingPattern: 'half-drop'} as PrintSet,
+    { "type": "printSet", paperSize: 'letter', orientation:'portrait', tilingPattern: 'half-drop', rowLength: 3} as PrintSet,
 ] as PureRasterOperation[])
 .sort((a,b) => a.type < b.type ? -1 : b.type < a.type ? 1 : 0);

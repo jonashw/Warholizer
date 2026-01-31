@@ -25,6 +25,7 @@ export default () => {
                         type:'printSet',
                         paperSize: paperSize.id,
                         tilingPattern,
+                        rowLength: positiveNumber(4),
                         orientation: orientation as unknown as 'portrait' | 'landscape'  }]),
                 ))),
         ...([2] as number[]).map(blurPixels =>

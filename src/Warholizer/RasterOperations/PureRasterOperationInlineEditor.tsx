@@ -211,6 +211,14 @@ export const PureRasterOperationInlineEditor = ({
                                 options={(["portrait","landscape"] as ("portrait"|"landscape")[]).map(value => ({value, label: value}))}
                                 onChange={orientation => onChange({...op, orientation})}
                             />
+                            <NumberSpinnerInput<PositiveNumber>
+                                value={op.rowLength}
+                                min={positiveNumber(1)}
+                                max={positiveNumber(10)}
+                                step={1}
+                                onChange={rowLength => onChange({ ...op, rowLength })}
+                                sanitize={positiveNumber}
+                            />
                         </>
                     );
                     case 'halftone': return (
