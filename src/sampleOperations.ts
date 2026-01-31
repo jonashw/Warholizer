@@ -1,4 +1,4 @@
-import { Blur, Crop, Fill, Grayscale, Grid, Halftone, Invert, Line, Multiply, Noop, PrintSet, PureRasterOperation, RGBChannels, Rotate, RotateHue, Scale, ScaleToFit, SlideWrap, Split, Stack, Threshold, Tile, Void } from './Warholizer/RasterOperations/PureRasterOperation';
+import { Blur, Crop, Fill, Grayscale, Grid, Halftone, Invert, Line, Multiply, Noise, Noop, PrintSet, PureRasterOperation, RGBChannels, Rotate, RotateHue, Scale, ScaleToFit, SlideWrap, Split, Stack, Threshold, Tile, Void } from './Warholizer/RasterOperations/PureRasterOperation';
 import { angle, byte, positiveNumber } from './Warholizer/RasterOperations/NumberTypes';
 
 export const sampleOperations: PureRasterOperation[] = ([
@@ -23,6 +23,7 @@ export const sampleOperations: PureRasterOperation[] = ([
     { "type": "grayscale", percent: 100 } as Grayscale,
     { "type": "blur", pixels: 5 } as Blur,
     { "type": "printSet", paperSize: 'letter', orientation:'portrait', tilingPattern: 'half-drop', rowLength: 3} as PrintSet,
-    { "type": "rgbChannels" } as RGBChannels
+    { "type": "rgbChannels" } as RGBChannels,
+    { "type": "noise", monochromatic: false, amount: 30 } as Noise,
 ] as PureRasterOperation[])
 .sort((a,b) => a.type < b.type ? -1 : b.type < a.type ? 1 : 0);

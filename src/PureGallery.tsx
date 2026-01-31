@@ -18,6 +18,8 @@ const pureExample = (ops: PureRasterOperation[]): Effect =>
 
 export default () => {
     const effects: Effect[] = [
+        pureExample([{type:'noise', monochromatic: true, amount: 50}]),
+        pureExample([{type:'noise', monochromatic: false, amount: 50}]),
         pureExample([{type:'rgbChannels'}]), 
         pureExample([{type:'rgbChannels'},{type:'stack', blendingMode:'multiply'}]), 
         pureExample([{type:'rgbChannels'},{type:'grayscale', percent: 100}]), 

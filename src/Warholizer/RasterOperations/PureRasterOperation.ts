@@ -14,6 +14,7 @@ export type PureRasterOperation =
   | PrintSet
   | SlideWrap 
   | Scale
+  | Noise
   | ScaleToFit
   | Noop
   | Blur
@@ -49,6 +50,7 @@ export type Line = { type: "line", direction: Direction, squish:boolean};
 export type Tile = { type: "tile", primaryDimension: Dimension, lineLength: number };
 export type Grid = { type: "grid", rows: number, cols: number };
 export type Stack = {type: "stack", blendingMode: BlendingMode};
+export type Noise = { type: "noise", monochromatic: boolean, amount: Percentage };
 export type PrintSet = {
   type: "printSet",
   paperSize: PaperSizeId,
@@ -361,6 +363,35 @@ const apply = async (op: PureRasterOperation, inputs: OffscreenCanvas[]): Promis
           ctx.drawImage(input,0,0);
           threshold(ctx,op.value);
         })));
+    case 'noise':
+      return Promise.all(inputs.map(async input => {
+        const inputData = input.getContext('2d')!.getImageData(0,0,input.width,input.height);
+        const noiseImg = await offscreenCanvasOperation(input.width, input.height,(ctx) => {
+          const outputData = new ImageData(input.width, input.height, {colorSpace:inputData.colorSpace});
+          const randomByte = () => Math.floor(Math.random() * 255);
+          const mono = op.monochromatic;
+          for (var i = 0; i < inputData.data.length; i += 4) { // 4 is for RGBA channels
+            if(mono){
+              const rand = randomByte();
+              outputData.data[i + 0] = rand;
+              outputData.data[i + 1] = rand;
+              outputData.data[i + 2] = rand;
+              outputData.data[i + 3] = 255;
+            } else {
+              outputData.data[i + 0] = randomByte();
+              outputData.data[i + 1] = randomByte();
+              outputData.data[i + 2] = randomByte();
+              outputData.data[i + 3] = 255;
+            }
+          }
+          ctx.putImageData(outputData,0,0); 
+        })
+        return offscreenCanvasOperation(input.width, input.height,(ctx) => {
+          ctx.drawImage(input,0,0);
+          ctx.globalAlpha = op.amount / 100;
+          ctx.drawImage(noiseImg,0,0);
+        });
+      }));
     case 'rgbChannels': 
       function rgbaValue(r: number, g: number, b: number, a: number) {
         //reference: https://computergraphics.stackexchange.com/a/5114
@@ -658,6 +689,7 @@ const stringRepresentation = (op: PureRasterOperation): string => {
     case 'line'      : return `line(${op.direction,op.squish})`;
     case 'tile'      : return `tile(${op.primaryDimension},${op.lineLength})`;
     case 'void'      : return `void`;
+    case 'noise'     : return `noise(${op.amount}%,mono:${op.monochromatic})`;
     case 'fill'      : return `fill(${op.color})`;
     default: {
       throw new Error(`Unexpected operation type: ${opType}`);

@@ -298,6 +298,23 @@ export const PureRasterOperationInlineEditor = ({
                             </>
                         );
                     }
+                    case 'noise': return (
+                        <>
+                        <PercentageInput
+                            value={op.amount}
+                            onChange={amount => onChange({...op, amount}) }
+                        />
+                        <span className="form-check">
+                            <input
+                                type="checkbox"
+                                checked={op.monochromatic}
+                                className="form-check-input" id="monochromatic" 
+                                onChange={e => onChange({...op,monochromatic:e.target.checked})}
+                            />
+                            <label htmlFor="monochromatic" className="form-check-label">Monochromatic</label>
+                        </span>
+                        </>
+                    );
                     case 'threshold': return (
                         <ByteInput
                             value={op.value}
