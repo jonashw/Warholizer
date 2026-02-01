@@ -11,7 +11,7 @@ export const sampleOperations: PureRasterOperation[] = ([
     { "type": "crop", width: 50, height: 50, x: 0, y: 0, unit: '%' } as Crop,
     { "type": "scaleToFit", w: positiveNumber(500), h: positiveNumber(500) } as ScaleToFit,
     { "type": "tile", primaryDimension: 'x', lineLength: 2 } as Tile,
-    { "type": "halftone", blurPixels:2, dotDiameter:10} as Halftone,
+    { "type": "halftone", blurPixels:2, dotDiameter:10, angle:0, dotsOnly: false} as Halftone,
     { "type": "line", direction: 'right', squish: false} as Line,
     { "type": "grid", rows: 2, cols: 2 } as Grid,
     { "type": "threshold", value: byte(128) } as Threshold,

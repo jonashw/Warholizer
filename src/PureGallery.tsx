@@ -3,7 +3,7 @@ import ImageUtil from './Warholizer/ImageUtil';
 import { applyPureOperationPipeline } from './Warholizer/RasterOperations/apply';
 import { OffscreenCanvasImage } from './OffscreenCanvasImage';
 import { Dimension, PaperSizes, PureRasterOperation, PureRasterOperations, TilingPatterns } from './Warholizer/RasterOperations/PureRasterOperation';
-import { Angle, Byte, Percentage, PositiveNumber, positiveNumber } from './Warholizer/RasterOperations/NumberTypes';
+import { angle, Angle, Byte, Percentage, PositiveNumber, positiveNumber } from './Warholizer/RasterOperations/NumberTypes';
 import onFilePaste from './Warholizer/onFilePaste';
 import fileToDataUrl from './fileToDataUrl';
 
@@ -18,6 +18,12 @@ const pureExample = (ops: PureRasterOperation[]): Effect =>
 
 export default () => {
     const effects: Effect[] = [
+        ...([0,15,30,45,60] as number[]).map(ang =>
+            pureExample([{'type':'fill',color:'grey'},{type:'halftone', angle: angle(ang), blurPixels:0, dotDiameter: 20, dotsOnly:true}]),
+        ),
+        ...([0,15,30,45,60] as number[]).map(ang =>
+            pureExample([{type:'halftone', angle: angle(ang), blurPixels:2, dotDiameter: 10}]),
+        ),
         pureExample([{type:'noise', monochromatic: true, amount: 50}]),
         pureExample([{type:'noise', monochromatic: false, amount: 50}]),
         pureExample([{type:'rgbChannels'}]), 
@@ -34,7 +40,7 @@ export default () => {
                         orientation: orientation as unknown as 'portrait' | 'landscape'  }]),
                 ))),
         ...([2] as number[]).map(blurPixels =>
-            pureExample([{type:'halftone', blurPixels, dotDiameter: 10}]),
+            pureExample([{type:'halftone', angle: 0, blurPixels, dotDiameter: 10}]),
         ),
         ...([90,180,270] as Angle[]).map(degrees =>
             pureExample([{type:'rotateHue', degrees}]),

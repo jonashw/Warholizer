@@ -234,6 +234,11 @@ export const PureRasterOperationInlineEditor = ({
                                     onChange({...op, dotDiameter });
                                 }}
                             />
+                            <AngleDialInput 
+                                value={op.angle}
+                                step={angleStep}
+                                onChange={angle => onChange({...op, angle})}
+                            />
                             <NumberSpinnerInput
                                 value={op.blurPixels}
                                 min={0}

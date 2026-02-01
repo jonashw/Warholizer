@@ -37,7 +37,7 @@ export type Threshold = { type: "threshold", value: Byte };
 export type Multiply = { type: "multiply", n: number };
 export type Split = { type: "split", dimension: Dimension, amount: Percentage };
 export type SlideWrap = { type: "slideWrap", dimension: Dimension, amount: Percentage };
-export type Halftone = { type: "halftone", dotDiameter: number, blurPixels: number };
+export type Halftone = { type: "halftone", angle: Angle, dotDiameter: number, blurPixels: number, dotsOnly?: boolean };
 export type Blur = { type: "blur", pixels: number };
 export type Grayscale = { type: "grayscale", percent: Percentage };
 export type RotationOrigin = "center"|"top-right"|"top-left"|"bottom-left"|"bottom-right";
@@ -277,9 +277,9 @@ const apply = async (op: PureRasterOperation, inputs: OffscreenCanvas[]): Promis
       }));
     case 'halftone': 
       return Promise.all(inputs.map(async input => {
-        const patternSpacingRatio = 3/2;
+        const patternSpacingRatio = 2;
         const patternSideLength = op.dotDiameter * patternSpacingRatio;
-        const pattern = await offscreenCanvasOperation(patternSideLength, patternSideLength, (ctx) => {
+        const patternImage = await offscreenCanvasOperation(patternSideLength, patternSideLength, (ctx) => {
           ctx.fillStyle = "white";
           ctx.fillRect(0,0,patternSideLength,patternSideLength);
 
@@ -292,6 +292,24 @@ const apply = async (op: PureRasterOperation, inputs: OffscreenCanvas[]): Promis
             ctx.fill();
           }
         });
+        const patternAreaW = input.width*patternSpacingRatio;
+        const patternAreaH = input.height*patternSpacingRatio;
+        const dotsImage = await offscreenCanvasOperation(patternAreaW,patternAreaH,(ctx) => {
+          //this image is bigger than it needs to be to account for rotation.
+          const w = patternAreaW;
+          const h = patternAreaH;
+          ctx.fillStyle = ctx.createPattern(patternImage,'repeat')!;
+          ctx.translate(w/2,h/2);
+          ctx.rotate(op.angle * Math.PI / 180);
+          ctx.translate(-w/2,-h/2);
+          ctx.fillRect(0,0,w,h);
+        });
+        if(op.dotsOnly){
+          return offscreenCanvasOperation(input.width,input.height,(ctx) => {
+            ctx.translate(-input.width/2,-input.height/2);
+            ctx.drawImage(dotsImage,0,0);
+          });
+        }
         return offscreenCanvasOperation(input.width,input.height,(ctx) => {
           ctx.save();
           ctx.fillRect(0,0,input.width,input.height);
@@ -300,8 +318,8 @@ const apply = async (op: PureRasterOperation, inputs: OffscreenCanvas[]): Promis
           ctx.filter=`blur(${op.blurPixels}px)`;
           ctx.fillStyle='black';
           ctx.globalCompositeOperation = 'color-burn';
-          ctx.fillStyle=ctx.createPattern(pattern,'repeat')!;
-          ctx.fillRect(0,0,input.width,input.height);
+          ctx.translate(-input.width/2,-input.height/2); //use the good parts of the dots image
+          ctx.drawImage(dotsImage,0,0);
           ctx.restore();
           threshold(ctx,1);
         });
@@ -668,7 +686,7 @@ function rgbaValue(r: number, g: number, b: number, a: number) {
 const stringRepresentation = (op: PureRasterOperation): string => {
   const opType = op.type;
   switch(opType){
-    case 'halftone'  : return `halftone(${op.dotDiameter}px, ${op.blurPixels}px)`;
+    case 'halftone'  : return `halftone(${op.dotDiameter}px, ${op.angle}deg, ${op.blurPixels}px)`;
     case 'stack'     : return `stack(${op.blendingMode})`;
     case 'noop'      : return "noop";
     case 'multiply'  : return `multiply(${op.n})`;
