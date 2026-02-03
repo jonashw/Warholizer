@@ -30,14 +30,14 @@ export type Dimension = 'x'|'y';
 export type Direction = 'up' | 'down' | 'left' | 'right';
 export type Invert = { type: "invert" };
 export type Void = { type: "void" };
-export type Fill = { type: "fill", color: CSSProperties["color"] };
+export type Fill = { type: "fill", color: CSSProperties["color"], blendingMode: BlendingMode};
 export type Noop = { type: "noop" };
 export type Crop = { type: "crop", x: number, y: number, width: number, height: number, unit: 'px' | '%' }
 export type Threshold = { type: "threshold", value: Byte };
 export type Multiply = { type: "multiply", n: number };
 export type Split = { type: "split", dimension: Dimension, amount: Percentage };
 export type SlideWrap = { type: "slideWrap", dimension: Dimension, amount: Percentage };
-export type Halftone = { type: "halftone", angle: Angle, dotDiameter: number, blurPixels: number, dotsOnly?: boolean };
+export type Halftone = { type: "halftone", angle: Angle, dotDiameter: number, blurPixels: number, dotsOnly?: boolean, invert?: boolean };
 export type Blur = { type: "blur", pixels: number };
 export type Grayscale = { type: "grayscale", percent: Percentage };
 export type RotationOrigin = "center"|"top-right"|"top-left"|"bottom-left"|"bottom-right";
@@ -68,32 +68,32 @@ export type BlendingMode =
   | "difference" | "exclusion" | "hue" | "saturation" | "color" | "luminosity";
   
 export const BlendingModes: BlendingMode[] = [
-  "source-over",
-  "source-in",
-  "source-out",
-  "source-atop",
-  "destination-over",
+  "color",
+  "color-burn",
+  "color-dodge",
+  "copy",
+  "darken",
+  "destination-atop",
   "destination-in",
   "destination-out",
-  "destination-atop",
-  "lighter",
-  "copy",
-  "xor",
-  "multiply",
-  "screen",
-  "overlay",
-  "darken",
-  "lighten",
-  "color-dodge",
-  "color-burn",
-  "hard-light",
-  "soft-light",
+  "destination-over",
   "difference",
   "exclusion",
+  "hard-light",
   "hue",
+  "lighten",
+  "lighter",
+  "luminosity",
+  "multiply",
+  "overlay",
   "saturation",
-  "color",
-  "luminosity"
+  "screen",
+  "soft-light",
+  "source-atop",
+  "source-in",
+  "source-out",
+  "source-over",
+  "xor",
 ];
 
 export type TilingPattern = "normal" | "half-drop" | "half-brick" | "mirror" | "wacky";
@@ -310,10 +310,13 @@ const apply = async (op: PureRasterOperation, inputs: OffscreenCanvas[]): Promis
             ctx.drawImage(dotsImage,0,0);
           });
         }
-        return offscreenCanvasOperation(input.width,input.height,(ctx) => {
+        const halftoned = await offscreenCanvasOperation(input.width,input.height,(ctx) => {
           ctx.save();
           ctx.fillRect(0,0,input.width,input.height);
-          ctx.filter=`grayscale(100%)`
+          ctx.filter=`grayscale(100%)`;
+          if(op.invert){
+            ctx.filter+=" invert()";
+          }
           ctx.drawImage(input,0,0); 
           ctx.filter=`blur(${op.blurPixels}px)`;
           ctx.fillStyle='black';
@@ -323,6 +326,14 @@ const apply = async (op: PureRasterOperation, inputs: OffscreenCanvas[]): Promis
           ctx.restore();
           threshold(ctx,1);
         });
+        if(!op.invert){
+          return halftoned;
+        }
+
+        return offscreenCanvasOperation(input.width,input.height,(ctx) => {
+           ctx.filter="invert()";
+           ctx.drawImage(halftoned,0,0);
+          });
       }));
     case 'stack':
       {
@@ -346,7 +357,9 @@ const apply = async (op: PureRasterOperation, inputs: OffscreenCanvas[]): Promis
     case 'fill':
       return Promise.all(inputs.map(input => {
         return offscreenCanvasOperation(input.width,input.height,(ctx) => {
+          ctx.globalCompositeOperation=op.blendingMode;
           ctx.fillStyle=op.color ?? "#000000";
+          ctx.drawImage(input,0,0);
           ctx.fillRect(0,0,input.width,input.height);
         });
       }));
@@ -686,7 +699,7 @@ function rgbaValue(r: number, g: number, b: number, a: number) {
 const stringRepresentation = (op: PureRasterOperation): string => {
   const opType = op.type;
   switch(opType){
-    case 'halftone'  : return `halftone(${op.dotDiameter}px, ${op.angle}deg, ${op.blurPixels}px)`;
+    case 'halftone'  : return `halftone(${op.dotDiameter}px, ${op.angle}deg, ${op.blurPixels}px${!op.invert ? '' : ', invert'}${!op.dotsOnly ? '' : ', dotsOnly'})`;
     case 'stack'     : return `stack(${op.blendingMode})`;
     case 'noop'      : return "noop";
     case 'multiply'  : return `multiply(${op.n})`;

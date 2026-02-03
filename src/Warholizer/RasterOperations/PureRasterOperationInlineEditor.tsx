@@ -226,9 +226,9 @@ export const PureRasterOperationInlineEditor = ({
                         <>
                             <NumberSpinnerInput
                                 value={op.dotDiameter}
-                                min={1}
+                                min={0}
                                 max={100}
-                                step={1}
+                                step={0.5}
                                 sanitize={n => n}
                                 onChange={dotDiameter => {
                                     onChange({...op, dotDiameter });
@@ -243,24 +243,39 @@ export const PureRasterOperationInlineEditor = ({
                                 value={op.blurPixels}
                                 min={0}
                                 max={10}
-                                step={1}
+                                step={0.5}
                                 sanitize={n => n}
                                 onChange={blurPixels => {
                                     onChange({...op, blurPixels });
                                 }}
                             />
+                            <span className="frm-check">
+                                <input
+                                    type="checkbox"
+                                    checked={op.invert}
+                                    className="form-check-input" id="halftone_invert" 
+                                    onChange={e => onChange({...op, invert:e.target.checked})}
+                                />{' '}
+                                <label htmlFor="halftone_invert" className="form-check-label">Invert</label>
+                            </span>
                         </>
                     );
                     case 'noop': return;
                     case 'void': return;
                     case 'fill': return (
-                        <input type="color"
-                            value={op.color}
-                            className="ms-2"
-                            onChange={e => {
-                                onChange({...op, color: e.target.value ?? "#000000"});
-                            }}/>
-                        );
+                        <>
+                            <input type="color"
+                                value={op.color}
+                                className="ms-2"
+                                onChange={e => {
+                                    onChange({...op, color: e.target.value ?? "#000000"});
+                                }}/>
+                            <DropdownSelector<BlendingMode> 
+                                value={op.blendingMode}
+                                options={BlendingModes.map(value => ({value, label: value}))}
+                                onChange={blendingMode => onChange({...op, blendingMode})}
+                            />
+                        </>);
                     case 'multiply': return (
                         <NumberSpinnerInput
                             value={op.n}
@@ -419,16 +434,12 @@ export const PureRasterOperationInlineEditor = ({
                         </>
                     );
                     case 'stack': return(
-                        <select value={op.blendingMode} onChange={e => {
-                            onChange({...op, blendingMode: e.target.value as BlendingMode})
-                        }}>
-                            {BlendingModes.map(bm => 
-                                <option value={bm} key={bm}>
-                                    {bm}
-                                </option>
-                            )}
-                        </select>
-                        );
+                        <DropdownSelector<BlendingMode> 
+                            value={op.blendingMode}
+                            options={BlendingModes.map(value => ({value, label: value}))}
+                            onChange={blendingMode => onChange({...op, blendingMode})}
+                        />
+                    );
                     case 'grid': return (
                         <>
                             <NumberSpinnerInput

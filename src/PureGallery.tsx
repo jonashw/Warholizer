@@ -18,11 +18,12 @@ const pureExample = (ops: PureRasterOperation[]): Effect =>
 
 export default () => {
     const effects: Effect[] = [
+        ...[false,true].flatMap(invert => 
+            ([0,15,30,45,60] as number[]).map(ang =>
+                pureExample([{type:'halftone', angle: angle(ang), blurPixels:1, dotDiameter: 5, invert}]),
+            )),
         ...([0,15,30,45,60] as number[]).map(ang =>
-            pureExample([{'type':'fill',color:'grey'},{type:'halftone', angle: angle(ang), blurPixels:0, dotDiameter: 20, dotsOnly:true}]),
-        ),
-        ...([0,15,30,45,60] as number[]).map(ang =>
-            pureExample([{type:'halftone', angle: angle(ang), blurPixels:2, dotDiameter: 10}]),
+            pureExample([{type:'halftone', angle: angle(ang), blurPixels:0, dotDiameter: 20, dotsOnly:true}]),
         ),
         pureExample([{type:'noise', monochromatic: true, amount: 50}]),
         pureExample([{type:'noise', monochromatic: false, amount: 50}]),
