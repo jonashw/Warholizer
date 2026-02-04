@@ -13,7 +13,7 @@ import Fonts from './Fonts';
 import { tilingPatterns, defaultTilingPattern,  TILINGPATTERN} from './TilingPattern';
 import { ValueRange, split } from './ValueRange';
 import RasterOperations from './RasterOperations';
-import { Byte, byte } from './RasterOperations/NumberTypes';
+import { Byte, byte } from '../NumberTypes';
 
 const colors = ["#ffff00", "#ff00ff", "#00ff00","#6666ff",'#ff0000'];
 

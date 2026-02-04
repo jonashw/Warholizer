@@ -1,6 +1,5 @@
-import { Angle, angle } from "./NumberTypes";
+import { Angle, angle, anglesEvery } from "../NumberTypes";
 import React from "react";
-import { anglesEvery } from "./PureRasterOperationInlineEditor";
 
 export function AngleDialInput({
     value,

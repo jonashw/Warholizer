@@ -3,7 +3,7 @@ import ImageUtil from './Warholizer/ImageUtil';
 import { applyPureOperationPipeline } from './Warholizer/RasterOperations/apply';
 import { OffscreenCanvasImage } from './OffscreenCanvasImage';
 import { Dimension, PaperSizes, PureRasterOperation, PureRasterOperations, TilingPatterns } from './Warholizer/RasterOperations/PureRasterOperation';
-import { angle, Angle, Byte, Percentage, PositiveNumber, positiveNumber } from './Warholizer/RasterOperations/NumberTypes';
+import { angle, Angle, Byte, Percentage, PositiveNumber, positiveNumber } from './NumberTypes';
 import onFilePaste from './Warholizer/onFilePaste';
 import fileToDataUrl from './fileToDataUrl';
 

@@ -11,6 +11,16 @@ export type Angle = IntRange<0,361>;
 export type RightAngle = 0 | 90 | 180 | 270 | 360;
 export const rightAngles: RightAngle[] = [0,90,180,270,360];
 
+export const anglesEvery = (degrees: Angle): Angle[] => {
+    const angles: Angle[] = [];
+    let lastAngle: Angle = angle(0);
+    while(lastAngle < 360){
+        angles.push(lastAngle);
+        lastAngle += degrees;
+    }
+    return angles;
+};
+
 
 type NonNegativeInteger<T extends number> =
     number extends T 

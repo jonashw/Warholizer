@@ -1,4 +1,4 @@
-import { Byte } from "./RasterOperations/NumberTypes";
+import { Byte } from "../NumberTypes";
 
 export type ValueRange = {
   min: Byte,

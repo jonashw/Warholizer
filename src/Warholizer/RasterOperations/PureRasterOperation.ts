@@ -1,5 +1,5 @@
 import { CSSProperties } from "react";
-import { Angle, Byte, Percentage, PositiveNumber} from "./NumberTypes";
+import { Angle, Byte, Percentage, PositiveNumber} from "../../NumberTypes";
 
 export type PureRasterOperation = 
   | Stack

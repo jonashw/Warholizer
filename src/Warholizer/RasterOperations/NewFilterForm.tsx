@@ -1,7 +1,7 @@
 import React from "react";
 import { PureRasterOperation, Scale, SlideWrap } from "./PureRasterOperation";
 import { Filter } from "./Filter";
-import { percentage } from "./NumberTypes";
+import { percentage } from "../../NumberTypes";
 
 
 export const NewFilterForm = ({

@@ -1,6 +1,6 @@
 import React from 'react';
-import { ButtonRadiosInput } from './Warholizer/RasterOperations/ButtonRadiosInput';
-import { positiveNumber } from './Warholizer/RasterOperations/NumberTypes';
+import { ButtonRadiosInput } from './FormComponents/ButtonRadiosInput';
+import { positiveNumber } from './NumberTypes';
 import {  PureRasterApplicator, PureRasterTransformerRecord, transformerAsRecord } from './Warholizer/RasterOperations/PureRasterApplicator';
 import { ImageGraphSideBySide } from './ImageGraphSideBySide';
 import { ImageRecord, imageAsRecord } from './ImageRecord';

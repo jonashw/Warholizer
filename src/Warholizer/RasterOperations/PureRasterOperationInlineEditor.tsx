@@ -1,25 +1,16 @@
-import { Angle, Byte, Percentage, PositiveNumber, angle, byte, percentage, positiveNumber } from "./NumberTypes";
+import { Angle, Byte, Percentage, PositiveNumber, angle, byte, percentage, positiveNumber } from "../../NumberTypes";
 import { BlendingMode, BlendingModes, Dimension, Direction, PaperSizeId, PaperSizes, PureRasterOperation, RotationOrigin, RotationOrigins, TilingPatterns, TilingPattern} from "./PureRasterOperation";
-import { ButtonRadiosInput } from "./ButtonRadiosInput";
+import { ButtonRadiosInput } from "../../FormComponents/ButtonRadiosInput";
 import { OperationIcon } from "./OperationIcon";
 import { PureRasterOperationRecord, operationAsRecord } from "./PureRasterApplicator";
-import { DropdownSelector } from "./DropdownSelector";
+import { DropdownSelector } from "../../FormComponents/DropdownSelector";
 import React from "react";
-import { AngleDialInput } from "./AngleDialInput";
+import { AngleDialInput } from "../../FormComponents/AngleDialInput";
 import { Add, Remove } from "@mui/icons-material";
 
 const toPrecision = (n: number, fractionalDigits: number) => 
     parseFloat(n.toFixed(fractionalDigits));
 
-export const anglesEvery = (degrees: Angle): Angle[] => {
-    const angles: Angle[] = [];
-    let lastAngle: Angle = angle(0);
-    while(lastAngle < 360){
-        angles.push(lastAngle);
-        lastAngle += degrees;
-    }
-    return angles;
-};
 
 function NumberSpinnerInput<T extends number>({
     min,

@@ -3,7 +3,7 @@ import VR, { ValueRange } from "./ValueRange";
 import { TilingPattern } from "./TilingPattern";
 import RasterOperations from "./RasterOperations";
 import { PureRasterOperation, PureRasterOperations } from "./RasterOperations/PureRasterOperation";
-import { Byte } from "./RasterOperations/NumberTypes";
+import { Byte } from "../NumberTypes";
 
 export type ImagePayload = {dataUrl: string; width:number; height: number,imageData: ImageData};
 

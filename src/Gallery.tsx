@@ -3,7 +3,7 @@ import ImageUtil,{ImagePayload, WarholizerImage} from './Warholizer/ImageUtil';
 import ValueRange from "./Warholizer/ValueRange";
 import { tilingPatterns } from './Warholizer/TilingPattern';
 import { Dimension, PureRasterOperation } from './Warholizer/RasterOperations/PureRasterOperation';
-import { Percentage } from './Warholizer/RasterOperations/NumberTypes';
+import { Percentage } from './NumberTypes';
 
 type ImageOutput = {description: string, img: ImagePayload, histogram: ImagePayload, msElapsed: number};
 type Effect = [string, (img:ImagePayload) => Promise<ImagePayload>, Effect[]?];

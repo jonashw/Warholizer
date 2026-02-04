@@ -2,7 +2,7 @@ import React from 'react';
 import ImageUtil from './Warholizer/ImageUtil';
 import { OffscreenCanvasImage } from './OffscreenCanvasImage';
 import { PureRasterOperation, PureRasterOperations } from './Warholizer/RasterOperations/PureRasterOperation';
-import { positiveNumber } from './Warholizer/RasterOperations/NumberTypes';
+import { positiveNumber } from './NumberTypes';
 import onFilePaste from './Warholizer/onFilePaste';
 import fileToDataUrl from './fileToDataUrl';
 import { useUndo } from './undo/useUndo';
