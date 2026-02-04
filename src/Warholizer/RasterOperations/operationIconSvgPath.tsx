@@ -1,6 +1,6 @@
 import { PureRasterOperation } from "./PureRasterOperation";
 import ReactDOMServer from 'react-dom/server';
-import { OperationIcon } from "./OperationIcon";
+import { OperationIcon } from "./PureRasterOperation/OperationIcon";
 
 const parser = new DOMParser();
 

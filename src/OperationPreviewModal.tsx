@@ -4,8 +4,8 @@ import { ImageRecord } from './ImageRecord';
 import { Modal } from './Modal';
 import { WarholizerImage } from './WarholizerImage';
 import { sampleOperations } from './sampleOperations';
-import { OperationIcon } from './Warholizer/RasterOperations/OperationIcon';
-import { PureRasterOperations } from './Warholizer/RasterOperations/PureRasterOperation';
+import { OperationIcon } from './Warholizer/RasterOperations/PureRasterOperation/OperationIcon';
+import * as PureRasterOperations from "./Warholizer/RasterOperations/PureRasterOperation/";
 import { Thumbnail } from './Thumbnail';
 
 

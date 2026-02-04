@@ -1,4 +1,4 @@
-import { PureRasterOperation } from "./PureRasterOperation";
+import { PureRasterOperation } from ".";
 import { 
     BlurOn, Contrast, DynamicFeed,
     FilterBAndW, Functions, GridView,

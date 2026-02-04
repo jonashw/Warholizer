@@ -1,6 +1,6 @@
 import React from 'react';
 import { PureRasterApplicatorRecord, operationAsRecord, PureRasterApplicatorType, PureRasterApplicators } from './Warholizer/RasterOperations/PureRasterApplicator';
-import { PureRasterOperationInlineEditor } from './Warholizer/RasterOperations/PureRasterOperationInlineEditor';
+import { PureRasterOperationInlineEditor } from './Warholizer/RasterOperations/PureRasterOperation/PureRasterOperationInlineEditor';
 import { ButtonRadiosInput } from './FormComponents/ButtonRadiosInput';
 import {  Draggable, Droppable } from 'react-beautiful-dnd';
 import { sampleOperations } from './sampleOperations';

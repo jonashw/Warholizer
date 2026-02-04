@@ -3,7 +3,7 @@ import { useContainerWidth } from './useContainerWidth';
 import React from 'react';
 import { operationIconSvgPath } from './Warholizer/RasterOperations/operationIconSvgPath';
 import pureGraphs, { PureGraphData, PureGraphNode } from './pureGraphs';
-import { iconTransform } from './Warholizer/RasterOperations/OperationIcon';
+import { iconTransform } from './Warholizer/RasterOperations/PureRasterOperation/OperationIcon';
 import { GraphRefType, blue, red } from './PureGraphEditor';
 
 export function PureGraphViewer({

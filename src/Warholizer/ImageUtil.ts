@@ -2,7 +2,8 @@ import { Crop } from "react-image-crop";
 import VR, { ValueRange } from "./ValueRange";
 import { TilingPattern } from "./TilingPattern";
 import RasterOperations from "./RasterOperations";
-import { PureRasterOperation, PureRasterOperations } from "./RasterOperations/PureRasterOperation";
+import { PureRasterOperation} from "./RasterOperations/PureRasterOperation/";
+import * as PureRasterOperations from "./RasterOperations/PureRasterOperation/";
 import { Byte } from "../NumberTypes";
 
 export type ImagePayload = {dataUrl: string; width:number; height: number,imageData: ImageData};

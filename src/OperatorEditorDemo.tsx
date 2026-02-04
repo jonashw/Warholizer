@@ -1,9 +1,10 @@
 import React from "react";
 import { PureRasterOperationRecord, operationAsRecord } from "./Warholizer/RasterOperations/PureRasterApplicator";
 import { ImageRecord, imageAsRecord } from "./ImageRecord";
-import { PureRasterOperationInlineEditor } from "./Warholizer/RasterOperations/PureRasterOperationInlineEditor";
+import { PureRasterOperationInlineEditor } from "./Warholizer/RasterOperations/PureRasterOperation/PureRasterOperationInlineEditor";
 import { Outputs } from "./Outputs";
-import { PureRasterOperation, PureRasterOperations } from "./Warholizer/RasterOperations/PureRasterOperation";
+import { PureRasterOperation } from "./Warholizer/RasterOperations/PureRasterOperation/";
+import * as PureRasterOperations from "./Warholizer/RasterOperations/PureRasterOperation/";
 import { sampleOperations } from "./sampleOperations";
 import { InputsEditor } from "./InputsEditor";
 import { useSampleImages } from "./useSampleImages";

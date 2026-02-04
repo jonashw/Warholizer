@@ -1,4 +1,4 @@
-import { Blur, Crop, Fill, Grayscale, Grid, Halftone, Invert, Line, Multiply, Noise, Noop, PrintSet, PureRasterOperation, RGBChannels, Rotate, RotateHue, Scale, ScaleToFit, SlideWrap, Split, Stack, Threshold, Tile, Void } from './Warholizer/RasterOperations/PureRasterOperation';
+import { Blur, Crop, Fill, Grayscale, Grid, Halftone, Invert, Line, Multiply, Noise, Noop, PrintSet, PureRasterOperation, RGBChannels, Rotate, RotateHue, Scale, ScaleToFit, SlideWrap, Split, Stack, Threshold, Tile, Void } from './Warholizer/RasterOperations/PureRasterOperation/';
 import { angle, byte, positiveNumber } from './NumberTypes';
 
 export const sampleOperations: PureRasterOperation[] = ([

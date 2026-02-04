@@ -4,7 +4,7 @@ import React from 'react';
 import pureGraphs, { PureGraphData, PureGraphLink, PureGraphNode, PureGraphOutput } from './pureGraphs';
 import { useUndo } from './undo/useUndo';
 import { UndoRedoToolbar } from './undo/UndoRedoToolbar';
-import { PureRasterOperationInlineEditor } from './Warholizer/RasterOperations/PureRasterOperationInlineEditor';
+import { PureRasterOperationInlineEditor } from './Warholizer/RasterOperations/PureRasterOperation/PureRasterOperationInlineEditor';
 import { sampleOperations } from './sampleOperations';
 import { InputsEditor } from './InputsEditor';
 import { ImageRecord } from './ImageRecord';

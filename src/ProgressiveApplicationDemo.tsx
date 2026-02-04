@@ -4,7 +4,7 @@ import { Outputs } from "./Outputs";
 import {  operationAsRecord } from "./Warholizer/RasterOperations/PureRasterApplicator";
 import pureGraphs, { PureGraphOutput }  from "./pureGraphs";
 import { useSampleImages } from "./useSampleImages";
-import { PureRasterOperations } from "./Warholizer/RasterOperations/PureRasterOperation";
+import * as PureRasterOperations from "./Warholizer/RasterOperations/PureRasterOperation/";
 import "./ProgressiveApplicationDemo.scss";
 import { OffscreenCanvasImageBundle } from "./OffscreenCanvasImageBundle";
 

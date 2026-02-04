@@ -1,6 +1,7 @@
 import { RasterOperation/*, RasterOperationDocument*/ } from "./RasterOperation";
 import { Filter } from "./Filter";
-import { PureRasterOperation, PureRasterOperations } from "./PureRasterOperation";
+import * as PureRasterOperations from "./PureRasterOperation/";
+import { PureRasterOperation} from "./PureRasterOperation/";
 
 const offscreenCanvasOperation = async (
   width: number,

@@ -4,7 +4,8 @@ import { OffscreenCanvasImage } from "./OffscreenCanvasImage";
 import { PureRasterApplicator, PureRasterApplicators } from "./Warholizer/RasterOperations/PureRasterApplicator";
 import { ImageRecord, imageAsRecord } from "./ImageRecord";
 import { CSSLength, Thumbnail } from "./Thumbnail";
-import { PureRasterOperation, PureRasterOperations } from "./Warholizer/RasterOperations/PureRasterOperation";
+import { PureRasterOperation} from './Warholizer/RasterOperations/PureRasterOperation/';
+import * as PureRasterOperations from './Warholizer/RasterOperations/PureRasterOperation/';
 
 export type WarholizerImageRef = {getHeight: () => number};
 

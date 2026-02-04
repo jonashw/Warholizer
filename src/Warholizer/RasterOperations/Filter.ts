@@ -1,4 +1,4 @@
-import { PureRasterOperation } from "./PureRasterOperation";
+import { PureRasterOperation } from "./PureRasterOperation/";
 
 export type Filter = {
   id: string;

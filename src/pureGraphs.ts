@@ -1,7 +1,7 @@
 import { DirectedGraphData, DirectedGraphLink } from "./DirectedGraphData";
 import { ImageRecord, imageAsRecord } from "./ImageRecord";
 import { PureRasterOperationRecord } from "./Warholizer/RasterOperations/PureRasterApplicator";
-import { PureRasterOperations } from "./Warholizer/RasterOperations/PureRasterOperation";
+import * as PureRasterOperations from "./Warholizer/RasterOperations/PureRasterOperation/";
 
 export type PureGraphData = 
   DirectedGraphData<

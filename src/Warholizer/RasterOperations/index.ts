@@ -1,4 +1,4 @@
-import { PureRasterOperations } from "./PureRasterOperation";
+import * as PureRasterOperations from "./PureRasterOperation/";
 import { apply, applyFlat } from "./apply";
 
 export default {apply,applyFlat, applyPureOperation: PureRasterOperations.apply};

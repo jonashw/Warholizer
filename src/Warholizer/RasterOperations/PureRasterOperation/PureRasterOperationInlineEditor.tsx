@@ -1,11 +1,11 @@
-import { Angle, Byte, Percentage, PositiveNumber, angle, byte, percentage, positiveNumber } from "../../NumberTypes";
-import { BlendingMode, BlendingModes, Dimension, Direction, PaperSizeId, PaperSizes, PureRasterOperation, RotationOrigin, RotationOrigins, TilingPatterns, TilingPattern} from "./PureRasterOperation";
-import { ButtonRadiosInput } from "../../FormComponents/ButtonRadiosInput";
+import { Angle, Byte, Percentage, PositiveNumber, angle, byte, percentage, positiveNumber } from "../../../NumberTypes";
+import { BlendingMode, BlendingModes, Dimension, Direction, PaperSizeId, PaperSizes, PureRasterOperation, RotationOrigin, RotationOrigins, TilingPatterns, TilingPattern} from "./types";
+import { ButtonRadiosInput } from "../../../FormComponents/ButtonRadiosInput";
 import { OperationIcon } from "./OperationIcon";
-import { PureRasterOperationRecord, operationAsRecord } from "./PureRasterApplicator";
-import { DropdownSelector } from "../../FormComponents/DropdownSelector";
+import { PureRasterOperationRecord, operationAsRecord } from "../PureRasterApplicator";
+import { DropdownSelector } from "../../../FormComponents/DropdownSelector";
 import React from "react";
-import { AngleDialInput } from "../../FormComponents/AngleDialInput";
+import { AngleDialInput } from "../../../FormComponents/AngleDialInput";
 import { Add, Remove } from "@mui/icons-material";
 
 const toPrecision = (n: number, fractionalDigits: number) => 
