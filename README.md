@@ -10,3 +10,12 @@ You can quickly fill a sheet of printer paper with a stylized version of an imag
 
 
 [![Netlify Status](https://api.netlify.com/api/v1/badges/74f5cdc7-1db1-40b9-8981-6734cf18daec/deploy-status)](https://warholizer.jonashw.dev)
+
+## Get started with development
+
+1. Install mkcert if you haven't already:
+<br>```brew install mkcert```
+2. Run the script to generate certificates:
+<br>```./generate-certs.sh```
+3. Start your dev server:
+<br>```netlify dev```

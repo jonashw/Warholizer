@@ -1,0 +1,15 @@
+[build]
+command = "npm run build"
+publish = "dist"
+functions = "api"
+
+[dev]
+framework = "#auto"
+port = 8888
+autoLaunch = false
+https = { keyFile = ".netlify/localhost-key.pem", certFile = ".netlify/localhost-cert.pem" }
+
+[[redirects]]
+from = "/api/*"
+to = "/.netlify/functions/:splat" #everything matched by *
+status = 200 #rewrite

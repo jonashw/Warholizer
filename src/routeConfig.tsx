@@ -9,6 +9,7 @@ import { OperatorEditorDemo } from "./OperatorEditorDemo";
 import { ProgressiveApplicationDemo } from "./ProgressiveApplicationDemo";
 import { ImmersiveEditorDemo } from "./ImmersiveEditorDemo";
 import GoogleLoginPage from "./GoogleLoginPage";
+import GoogleLoginComplete from "./GoogleLoginComplete";
 
 export const routeConfig: RouteObject[] = [
   {
@@ -45,6 +46,10 @@ export const routeConfig: RouteObject[] = [
       {
         path: 'google-login',
         element: <GoogleLoginPage/>
+      },
+      {
+        path: 'google-login-complete',
+        element: <GoogleLoginComplete/>
       },
       {
         path: '',

@@ -7,6 +7,7 @@ import {
   RouterProvider,
 } from "react-router-dom";
 import { routeConfig } from './routeConfig.tsx';
+import AuthContext from './AuthContext.tsx';
 
 const googleAuthClientId = import.meta.env.VITE_GOOGLE_AUTH_CLIENT_ID;
 if(googleAuthClientId === undefined) {
@@ -15,7 +16,9 @@ if(googleAuthClientId === undefined) {
 const router = createBrowserRouter(routeConfig);
 
 ReactDOM.createRoot(document.getElementById('root')!).render(
-  <GoogleOAuthProvider clientId={googleAuthClientId}>
-    <RouterProvider router={router} />
-  </GoogleOAuthProvider>
+  <AuthContext.Provider>
+    <GoogleOAuthProvider clientId={googleAuthClientId}>
+      <RouterProvider router={router} />
+    </GoogleOAuthProvider>
+  </AuthContext.Provider>
 );
