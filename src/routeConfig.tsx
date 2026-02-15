@@ -8,6 +8,7 @@ import { GraphEditorDemo } from "./GraphEditorDemo";
 import { OperatorEditorDemo } from "./OperatorEditorDemo";
 import { ProgressiveApplicationDemo } from "./ProgressiveApplicationDemo";
 import { ImmersiveEditorDemo } from "./ImmersiveEditorDemo";
+import GoogleLoginPage from "./GoogleLoginPage";
 
 export const routeConfig: RouteObject[] = [
   {
@@ -19,6 +20,7 @@ export const routeConfig: RouteObject[] = [
         }}>{[
           {href:'/',label:'Warholizer'},
           {href:'/gallery',label:'Gallery'},
+          {href:'/google-login',label:'Google Login'},
           {href:'/pure-gallery',label:'Pure Gallery'},
           {href:'/pure-editor',label:'Pure Editor'},
           {href:'/graph-viewer-demo',label:'Graph Viewer'},
@@ -40,6 +42,10 @@ export const routeConfig: RouteObject[] = [
       </div>
     ),
     children: [
+      {
+        path: 'google-login',
+        element: <GoogleLoginPage/>
+      },
       {
         path: '',
         element: <App />,
