@@ -7,6 +7,7 @@ export default () => {
     const auth = AuthContext.useAuth();
     const navigate = useNavigate();
     return <GoogleLogin
+        useOneTap={true}
         onSuccess={async (credentialResponse) => {
             //https://developers.google.com/identity/gsi/web/guides/display-google-one-tap#credential_response
             const id_token = credentialResponse.credential!;
