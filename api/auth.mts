@@ -1,6 +1,5 @@
 import type { Config } from "@netlify/functions"
 import { OAuth2Client } from 'google-auth-library';
-import { neon } from '@netlify/neon';
 import { db } from "../db";
 import { user_signins, users } from "../db/schema";
 
