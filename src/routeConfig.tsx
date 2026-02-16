@@ -10,6 +10,7 @@ import { ProgressiveApplicationDemo } from "./ProgressiveApplicationDemo";
 import { ImmersiveEditorDemo } from "./ImmersiveEditorDemo";
 import GoogleLoginPage from "./GoogleLoginPage";
 import GoogleLoginComplete from "./GoogleLoginComplete";
+import FileUploadPage from "./FileUploadPage";
 
 export const routeConfig: RouteObject[] = [
   {
@@ -44,16 +45,20 @@ export const routeConfig: RouteObject[] = [
     ),
     children: [
       {
+        path: '',
+        element: <App />,
+      },
+      {
+        path: 'file-upload',
+        element: <FileUploadPage/>
+      },
+      {
         path: 'google-login',
         element: <GoogleLoginPage/>
       },
       {
         path: 'google-login-complete',
         element: <GoogleLoginComplete/>
-      },
-      {
-        path: '',
-        element: <App />,
       },
       {
         path: 'gallery',

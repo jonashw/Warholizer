@@ -29,6 +29,20 @@
       "when": 1771202616640,
       "tag": "0003_breezy_wonder_man",
       "breakpoints": true
+    },
+    {
+      "idx": 4,
+      "version": "7",
+      "when": 1771203721433,
+      "tag": "0004_wooden_mephisto",
+      "breakpoints": true
+    },
+    {
+      "idx": 5,
+      "version": "7",
+      "when": 1771211018747,
+      "tag": "0005_bitter_sage",
+      "breakpoints": true
     }
   ]
 }

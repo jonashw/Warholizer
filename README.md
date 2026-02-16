@@ -13,6 +13,12 @@ You can quickly fill a sheet of printer paper with a stylized version of an imag
 
 ## Get started with development
 
+Application components:
+
+- React SPA
+- Netlify serverless functions
+- Neon serverless PostgreSQL database
+
 1. Install mkcert if you haven't already:
 <br>```brew install mkcert```
 2. Run the script to generate certificates:
