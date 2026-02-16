@@ -1,5 +1,9 @@
 import type { Config } from "@netlify/functions"
 import { OAuth2Client } from 'google-auth-library';
+import { neon } from '@netlify/neon';
+import { db } from "../db";
+import { user_signins, users } from "../db/schema";
+
 const clientId = process.env.VITE_GOOGLE_AUTH_CLIENT_ID;
 const client = new OAuth2Client();
 
@@ -68,10 +72,21 @@ export default async (req: Request) => {
         //[WEB_CLIENT_ID_1, WEB_CLIENT_ID_2, WEB_CLIENT_ID_3]
     });
     var user = tryGetUserFromTicket(ticket);
-    if(user instanceof String) {
+    if(typeof user === "string") {
         console.log(user);
         return new Response(JSON.stringify({error: user}),{headers: {'Content-Type': 'application/json'}, status: 401});
     }
+    const u: User = user;
+
+    await db
+    .insert(users)
+    .values(u)
+    .onConflictDoNothing();
+
+    await db
+    .insert(user_signins)
+    .values({user_id: u.id});
+
     return new Response(JSON.stringify(user),{headers: {'Content-Type': 'application/json'}});
 }
 
