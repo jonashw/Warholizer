@@ -1,6 +1,6 @@
 import { apply as applyOnMainThread } from "../apply";
 import { PureRasterOperation } from "../types";
-import { ExecutionHint, operationRegistry } from "../registry";
+import { ExecutionHint, executionOf } from "../registry";
 import { RasterEngine } from "./RasterEngine";
 import { createWorkerEngine } from "./workerEngine";
 import { createApply } from "../apply";
@@ -19,7 +19,7 @@ const workersSupported = () =>
 /** Sends each operation to the engine its registry entry's execution hint names. */
 export const createRoutingEngine = (
   engines: Record<ExecutionHint, RasterEngine>,
-  route: (op: PureRasterOperation) => ExecutionHint = op => operationRegistry[op.type].execution
+  route: (op: PureRasterOperation) => ExecutionHint = executionOf
 ): RasterEngine => ({
   name: 'routed',
   apply: (op, inputs) => engines[route(op)].apply(op, inputs),

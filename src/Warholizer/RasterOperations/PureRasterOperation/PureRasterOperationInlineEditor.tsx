@@ -13,6 +13,8 @@ import { AngleDialInput } from "../../../FormComponents/AngleDialInput";
 import { Add, Remove } from "@mui/icons-material";
 import { PaletteReplacementsInput } from "./editors/PaletteReplacementsInput";
 import { VisualCropModal } from "./editors/VisualCropModal";
+import { ColorStopsInput } from "./editors/ColorStopsInput";
+import { BayerSize, DiffusionMethod } from "./types";
 
 const toPrecision = (n: number, fractionalDigits: number) => 
     parseFloat(n.toFixed(fractionalDigits));
@@ -157,6 +159,18 @@ const DirectionInput = ({
         options={(["up","down","left","right"] as Direction[]).map(value => ({value, label: value}))}
         onChange={onChange}
     />;
+
+function Checkbox({ label, checked, onChange }: { label: string, checked: boolean, onChange: (checked: boolean) => void }) {
+    const id = React.useId();
+    return (
+        <span className="form-check form-check-inline m-0">
+            <input type="checkbox" className="form-check-input" id={id} checked={checked} onChange={e => onChange(e.target.checked)} />
+            <label htmlFor={id} className="form-check-label small">{label}</label>
+        </span>
+    );
+}
+
+const clampInt = (min: number, max: number) => (n: number) => Math.round(Math.min(max, Math.max(min, n)));
 
 export const PureRasterOperationInlineEditor = ({
     value,
@@ -467,6 +481,78 @@ export const PureRasterOperationInlineEditor = ({
                             <span title="Black point">◐ <ByteInput value={op.black} onChange={black => onChange({ ...op, black })} /></span>
                             <span title="White point">○ <ByteInput value={op.white} onChange={white => onChange({ ...op, white })} /></span>
                             <span title="Gamma (midtones)">γ <FractionalNumberInput value={op.gamma} onChange={gamma => onChange({ ...op, gamma: Math.max(0.1, gamma) })} /></span>
+                        </>
+                    );
+                    case 'gradientMap': return (
+                        <ColorStopsInput stops={op.stops} onChange={stops => onChange({ ...op, stops })} />
+                    );
+                    case 'posterize': return (
+                        <NumberSpinnerInput<number> value={op.levels} min={2} max={16} step={1}
+                            sanitize={clampInt(2, 16)} onChange={levels => onChange({ ...op, levels })} />
+                    );
+                    case 'orderedDither': return (
+                        <>
+                            <ButtonRadiosInput<BayerSize>
+                                value={op.matrixSize}
+                                options={([2, 4, 8] as BayerSize[]).map(value => ({ value, label: `${value}×${value}` }))}
+                                onChange={matrixSize => onChange({ ...op, matrixSize })} />
+                            <span title="Levels per channel"><NumberSpinnerInput<number> value={op.levels} min={2} max={8} step={1}
+                                sanitize={clampInt(2, 8)} onChange={levels => onChange({ ...op, levels })} /></span>
+                            <span title="Pixel size"><NumberSpinnerInput<number> value={op.pixelSize} min={1} max={16} step={1}
+                                sanitize={clampInt(1, 16)} onChange={pixelSize => onChange({ ...op, pixelSize })} /></span>
+                            <Checkbox label="Mono" checked={op.monochrome} onChange={monochrome => onChange({ ...op, monochrome })} />
+                        </>
+                    );
+                    case 'errorDiffusion': return (
+                        <>
+                            <ButtonRadiosInput<DiffusionMethod>
+                                value={op.method}
+                                options={(['floyd-steinberg', 'atkinson'] as DiffusionMethod[]).map(value => ({ value, label: value === 'atkinson' ? 'Atkinson' : 'Floyd-Steinberg' }))}
+                                onChange={method => onChange({ ...op, method })} />
+                            <span title="Levels per channel"><NumberSpinnerInput<number> value={op.levels} min={2} max={8} step={1}
+                                sanitize={clampInt(2, 8)} onChange={levels => onChange({ ...op, levels })} /></span>
+                            <Checkbox label="Mono" checked={op.monochrome} onChange={monochrome => onChange({ ...op, monochrome })} />
+                        </>
+                    );
+                    case 'edges': return (
+                        <>
+                            <span title="Strength"><NumberSpinnerInput<number> value={op.strength} min={0.5} max={20} step={0.5}
+                                sanitize={n => Math.min(20, Math.max(0.5, n))} onChange={strength => onChange({ ...op, strength })} /></span>
+                            <span title="Threshold (0 = soft lines)"><ByteInput value={op.threshold} onChange={threshold => onChange({ ...op, threshold })} /></span>
+                            <Checkbox label="Invert" checked={op.invert} onChange={invert => onChange({ ...op, invert })} />
+                        </>
+                    );
+                    case 'stickerBorder': return (
+                        <>
+                            <span title="Border width (px)"><NumberSpinnerInput<number> value={op.width} min={0} max={100} step={1}
+                                sanitize={clampInt(0, 100)} onChange={width => onChange({ ...op, width })} /></span>
+                            <input type="color" className="form-control form-control-color form-control-sm p-0" style={{ width: '2em', height: '1.6em' }}
+                                value={op.color} onChange={e => onChange({ ...op, color: e.target.value })} />
+                            <Checkbox label="Cut line" checked={op.cutLine} onChange={cutLine => onChange({ ...op, cutLine })} />
+                        </>
+                    );
+                    case 'colorKey': return (
+                        <>
+                            <Checkbox label="Edge color" checked={op.color === null}
+                                onChange={auto => onChange({ ...op, color: auto ? null : '#ffffff' })} />
+                            {op.color !== null && (
+                                <input type="color" className="form-control form-control-color form-control-sm p-0" style={{ width: '2em', height: '1.6em' }}
+                                    value={op.color} onChange={e => onChange({ ...op, color: e.target.value })} />
+                            )}
+                            <span title="Tolerance"><NumberSpinnerInput<number> value={op.tolerance} min={0} max={442} step={5}
+                                sanitize={clampInt(0, 442)} onChange={tolerance => onChange({ ...op, tolerance })} /></span>
+                            <span title="Softness"><NumberSpinnerInput<number> value={op.softness} min={0} max={200} step={5}
+                                sanitize={clampInt(0, 200)} onChange={softness => onChange({ ...op, softness })} /></span>
+                            <Checkbox label="Only from edges" checked={op.connected} onChange={connected => onChange({ ...op, connected })} />
+                        </>
+                    );
+                    case 'cmykChannels': return <></>;
+                    case 'colorHalftone': return (
+                        <>
+                            <span title="Dot diameter (px)"><NumberSpinnerInput<number> value={op.dotDiameter} min={2} max={40} step={1}
+                                sanitize={n => Math.min(40, Math.max(2, n))} onChange={dotDiameter => onChange({ ...op, dotDiameter })} /></span>
+                            <span title="Blur (px)"><NumberSpinnerInput<number> value={op.blurPixels} min={0} max={10} step={1}
+                                sanitize={clampInt(0, 10)} onChange={blurPixels => onChange({ ...op, blurPixels })} /></span>
                         </>
                     );
                     case 'stack': return(

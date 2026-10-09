@@ -1,4 +1,4 @@
-import { PixelKernels, cpuKernels } from "../kernels";
+import { PixelKernels, bayerMatrix, cpuKernels, inks } from "../kernels";
 import { RGB } from "../palette";
 
 /** Largest palette the GPU kernel supports; larger palettes fall back to the CPU. */
@@ -22,10 +22,23 @@ precision highp int;
 uniform sampler2D u_input;
 uniform ivec2 u_size;
 out vec4 outColor;
-// Input pixel for this fragment in 0..255 straight alpha. Canvas rows run top-down; GL's run bottom-up.
+// This fragment's pixel in canvas coordinates (rows top-down; GL's run bottom-up).
+ivec2 canvasCoord() {
+  return ivec2(int(gl_FragCoord.x), u_size.y - 1 - int(gl_FragCoord.y));
+}
+// A pixel in 0..255 straight alpha, clamped to the image edges.
+vec4 pixelAt(ivec2 p) {
+  return texelFetch(u_input, clamp(p, ivec2(0), u_size - 1), 0) * 255.0;
+}
 vec4 inputPixel() {
-  ivec2 p = ivec2(int(gl_FragCoord.x), u_size.y - 1 - int(gl_FragCoord.y));
-  return texelFetch(u_input, p, 0) * 255.0;
+  return pixelAt(canvasCoord());
+}
+float lum(vec3 c) {
+  return 0.21 * c.r + 0.72 * c.g + 0.07 * c.b;
+}
+// JavaScript's Math.round for non-negative values.
+float roundJs(float v) {
+  return floor(v + 0.5);
 }
 `;
 
@@ -109,6 +122,94 @@ void main() {
   outColor = vec4(v / 255.0, c.a / 255.0);
 }`;
 
+const gradientMapShader = fragmentPrelude + `
+uniform vec3 u_stops[8];
+uniform int u_count;
+void main() {
+  vec4 c = inputPixel();
+  vec3 rgb = u_stops[0];
+  if (u_count > 1) {
+    float t = clamp(lum(c.rgb) / 255.0, 0.0, 1.0) * float(u_count - 1);
+    int i = min(u_count - 2, int(floor(t)));
+    float f = t - float(i);
+    rgb = vec3(roundJs(u_stops[i].r + (u_stops[i + 1].r - u_stops[i].r) * f),
+               roundJs(u_stops[i].g + (u_stops[i + 1].g - u_stops[i].g) * f),
+               roundJs(u_stops[i].b + (u_stops[i + 1].b - u_stops[i].b) * f));
+  }
+  outColor = vec4(rgb / 255.0, c.a / 255.0);
+}`;
+
+const posterizeShader = fragmentPrelude + `
+uniform float u_levels;
+void main() {
+  vec4 c = inputPixel();
+  vec3 v = floor(floor(c.rgb / 255.0 * (u_levels - 1.0) + 0.5) / (u_levels - 1.0) * 255.0 + 0.5);
+  outColor = vec4(v / 255.0, c.a / 255.0);
+}`;
+
+const orderedDitherShader = fragmentPrelude + `
+uniform float u_bayer[64];
+uniform int u_n;
+uniform float u_levels;
+uniform bool u_mono;
+uniform int u_pixelSize;
+float dither(float v, float t) {
+  return roundJs(min(u_levels - 1.0, floor(v / 255.0 * (u_levels - 1.0) + t)) / (u_levels - 1.0) * 255.0);
+}
+void main() {
+  ivec2 p = canvasCoord() / u_pixelSize;
+  float t = (u_bayer[(p.y % u_n) * u_n + (p.x % u_n)] + 0.5) / float(u_n * u_n);
+  vec4 c = inputPixel();
+  vec3 v = u_mono ? vec3(dither(lum(c.rgb), t)) : vec3(dither(c.r, t), dither(c.g, t), dither(c.b, t));
+  outColor = vec4(v / 255.0, c.a / 255.0);
+}`;
+
+const edgesShader = fragmentPrelude + `
+uniform float u_strength;
+uniform float u_threshold;
+uniform bool u_invert;
+float l(int dx, int dy) {
+  vec4 c = pixelAt(canvasCoord() + ivec2(dx, dy));
+  return lum(c.rgb) * c.a / 255.0;
+}
+void main() {
+  float gx = l(1, -1) + 2.0 * l(1, 0) + l(1, 1) - l(-1, -1) - 2.0 * l(-1, 0) - l(-1, 1);
+  float gy = l(-1, 1) + 2.0 * l(0, 1) + l(1, 1) - l(-1, -1) - 2.0 * l(0, -1) - l(1, -1);
+  float line = min(1.0, sqrt(gx * gx + gy * gy) / (4.0 * 255.0) * u_strength);
+  if (u_threshold > 0.0) {
+    line = line * 255.0 >= u_threshold ? 1.0 : 0.0;
+  }
+  float v = roundJs(255.0 * (u_invert ? line : 1.0 - line));
+  outColor = vec4(vec3(v / 255.0), 1.0);
+}`;
+
+const colorKeyShader = fragmentPrelude + `
+uniform vec3 u_key;
+uniform float u_tolerance;
+uniform float u_softness;
+void main() {
+  vec4 c = inputPixel();
+  float d = length(c.rgb - u_key);
+  float f = u_softness <= 0.0 ? (d > u_tolerance ? 1.0 : 0.0) : clamp((d - u_tolerance) / u_softness, 0.0, 1.0);
+  outColor = vec4(c.rgb / 255.0, roundJs(c.a * f) / 255.0);
+}`;
+
+const cmykShader = fragmentPrelude + `
+uniform int u_channel;
+uniform bool u_amount;
+uniform vec3 u_ink;
+void main() {
+  vec4 c = inputPixel();
+  vec3 cmy = 1.0 - c.rgb / 255.0;
+  float k = min(cmy.r, min(cmy.g, cmy.b));
+  vec4 amounts = k >= 1.0 ? vec4(0.0, 0.0, 0.0, 1.0) : vec4((cmy - k) / (1.0 - k), k);
+  float t = amounts[u_channel];
+  vec3 v = u_amount
+    ? vec3(roundJs(255.0 * (1.0 - t)))
+    : vec3(roundJs(255.0 - t * (255.0 - u_ink.r)), roundJs(255.0 - t * (255.0 - u_ink.g)), roundJs(255.0 - t * (255.0 - u_ink.b)));
+  outColor = vec4(v / 255.0, c.a / 255.0);
+}`;
+
 type Program = {
   program: WebGLProgram,
   uniform: (name: string) => WebGLUniformLocation | null
@@ -145,7 +246,10 @@ type GpuContext = {
   canvas: OffscreenCanvas,
   gl: WebGL2RenderingContext,
   texture: WebGLTexture,
-  programs: { threshold: Program, rgbChannels: Program, noise: Program, palette: Program, levels: Program },
+  programs: {
+    threshold: Program, rgbChannels: Program, noise: Program, palette: Program, levels: Program,
+    gradientMap: Program, posterize: Program, orderedDither: Program, edges: Program, colorKey: Program, cmyk: Program
+  },
   lost: boolean
 };
 
@@ -183,6 +287,12 @@ const createContext = (): GpuContext | undefined => {
       noise: compile(gl, noiseShader),
       palette: compile(gl, paletteShader),
       levels: compile(gl, levelsShader),
+      gradientMap: compile(gl, gradientMapShader),
+      posterize: compile(gl, posterizeShader),
+      orderedDither: compile(gl, orderedDitherShader),
+      edges: compile(gl, edgesShader),
+      colorKey: compile(gl, colorKeyShader),
+      cmyk: compile(gl, cmykShader),
     },
     lost: false,
   };
@@ -272,6 +382,58 @@ export const createWebglKernels = (): PixelKernels | undefined => {
         gpu.gl.uniform1f(p.uniform('u_white'), white);
         gpu.gl.uniform1f(p.uniform('u_gamma'), gamma);
       }),
+
+    gradientMap: async (input, stops) =>
+      !usable(input) || stops.length === 0 || stops.length > 8
+      ? cpuKernels.gradientMap(input, stops)
+      : run(gpu, input, gpu.programs.gradientMap, p => {
+        gpu.gl.uniform3fv(p.uniform('u_stops'), new Float32Array(stops.flat()));
+        gpu.gl.uniform1i(p.uniform('u_count'), stops.length);
+      }),
+
+    posterize: async (input, levels) =>
+      !usable(input)
+      ? cpuKernels.posterize(input, levels)
+      : run(gpu, input, gpu.programs.posterize, p => gpu.gl.uniform1f(p.uniform('u_levels'), levels)),
+
+    orderedDither: async (input, matrixSize, levels, monochrome, pixelSize) =>
+      !usable(input) || matrixSize > 8
+      ? cpuKernels.orderedDither(input, matrixSize, levels, monochrome, pixelSize)
+      : run(gpu, input, gpu.programs.orderedDither, p => {
+        gpu.gl.uniform1fv(p.uniform('u_bayer'), new Float32Array(bayerMatrix(matrixSize)));
+        gpu.gl.uniform1i(p.uniform('u_n'), matrixSize);
+        gpu.gl.uniform1f(p.uniform('u_levels'), levels);
+        gpu.gl.uniform1i(p.uniform('u_mono'), monochrome ? 1 : 0);
+        gpu.gl.uniform1i(p.uniform('u_pixelSize'), Math.max(1, Math.round(pixelSize)));
+      }),
+
+    edges: async (input, strength, threshold, invert) =>
+      !usable(input)
+      ? cpuKernels.edges(input, strength, threshold, invert)
+      : run(gpu, input, gpu.programs.edges, p => {
+        gpu.gl.uniform1f(p.uniform('u_strength'), strength);
+        gpu.gl.uniform1f(p.uniform('u_threshold'), threshold);
+        gpu.gl.uniform1i(p.uniform('u_invert'), invert ? 1 : 0);
+      }),
+
+    colorKey: async (input, key, tolerance, softness) =>
+      !usable(input)
+      ? cpuKernels.colorKey(input, key, tolerance, softness)
+      : run(gpu, input, gpu.programs.colorKey, p => {
+        gpu.gl.uniform3f(p.uniform('u_key'), ...key);
+        gpu.gl.uniform1f(p.uniform('u_tolerance'), tolerance);
+        gpu.gl.uniform1f(p.uniform('u_softness'), softness);
+      }),
+
+    cmykChannels: async (input, mode) =>
+      !usable(input)
+      ? cpuKernels.cmykChannels(input, mode)
+      : [0, 1, 2, 3].map(channel =>
+        run(gpu, input, gpu.programs.cmyk, p => {
+          gpu.gl.uniform1i(p.uniform('u_channel'), channel);
+          gpu.gl.uniform1i(p.uniform('u_amount'), mode === 'amount' ? 1 : 0);
+          gpu.gl.uniform3f(p.uniform('u_ink'), ...inks[channel]);
+        })),
 
     rgbChannels: async (input) =>
       !usable(input)

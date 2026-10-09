@@ -27,7 +27,16 @@ export type PureRasterOperation =
   | Invert
   | Quantize
   | SeparateColors
-  | Levels;
+  | Levels
+  | GradientMap
+  | Posterize
+  | OrderedDither
+  | ErrorDiffusion
+  | Edges
+  | StickerBorder
+  | ColorKey
+  | CmykChannels
+  | ColorHalftone;
 
 export type Dimension = 'x'|'y';
 export type Direction = 'up' | 'down' | 'left' | 'right';
@@ -38,6 +47,22 @@ export type Quantize = { type: "quantize", colors: number, replacements: (string
 export type SeparateColors = { type: "separateColors", colors: number, replacements: (string | null)[] };
 /** Remap tones: `black` and `white` points (0-255) and gamma (> 1 brightens midtones). */
 export type Levels = { type: "levels", black: Byte, white: Byte, gamma: number };
+/** Brightness mapped through color stops (hex), dark to light; two stops make a duotone. */
+export type GradientMap = { type: "gradientMap", stops: string[] };
+export type Posterize = { type: "posterize", levels: number };
+export type BayerSize = 2 | 4 | 8;
+export type OrderedDither = { type: "orderedDither", matrixSize: BayerSize, levels: number, monochrome: boolean, pixelSize: number };
+export type DiffusionMethod = 'floyd-steinberg' | 'atkinson';
+export type ErrorDiffusion = { type: "errorDiffusion", method: DiffusionMethod, levels: number, monochrome: boolean };
+/** Line art from edges: `strength` scales line darkness; `threshold` > 0 makes lines solid. */
+export type Edges = { type: "edges", strength: number, threshold: Byte, invert: boolean };
+/** A die-cut style border of `width` px around the opaque shape, optionally with a cut line. */
+export type StickerBorder = { type: "stickerBorder", width: number, color: string, cutLine: boolean };
+/** Makes a color transparent; `color` null keys the average edge color; `connected` keys only regions touching the edges. */
+export type ColorKey = { type: "colorKey", color: string | null, tolerance: number, softness: number, connected: boolean };
+export type CmykChannels = { type: "cmykChannels" };
+/** Ben-Day style CMYK halftone: each ink halftoned at its traditional screen angle, multiplied together. */
+export type ColorHalftone = { type: "colorHalftone", dotDiameter: number, blurPixels: number };
 export type Void = { type: "void" };
 export type Fill = { type: "fill", color: CSSProperties["color"], blendingMode: BlendingMode};
 export type Noop = { type: "noop" };

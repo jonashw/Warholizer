@@ -1,6 +1,8 @@
 import { Line, PaperSizeById, PureRasterOperation, SlideWrap, Tile } from "./types";
-import { PixelKernels, cpuKernels } from "./kernels";
-import { medianCutPalette, paintColors } from "./palette";
+import { PixelKernels, cpuKernels, inks } from "./kernels";
+import { RGB, medianCutPalette, paintColors, parseHexColor, toHexColor } from "./palette";
+import { borderColor, connectedColorKey, errorDiffusion, stickerBorder } from "./sequential";
+import { angle } from "../../../NumberTypes";
 
 
 
@@ -61,7 +63,8 @@ const line = async (inputs: OffscreenCanvas[], op: Line): Promise<OffscreenCanva
  * Builds `apply` around a set of pixel kernels. Composition (layout, geometry, compositing) is
  * shared Canvas 2D code; only the per-pixel loops differ between CPU and GPU implementations.
  */
-const createApply = (kernels: PixelKernels) => async (op: PureRasterOperation, inputs: OffscreenCanvas[]): Promise<OffscreenCanvas[]> => {
+const createApply = (kernels: PixelKernels) => {
+const applyOp = async (op: PureRasterOperation, inputs: OffscreenCanvas[]): Promise<OffscreenCanvas[]> => {
   const opType = op.type;
   switch(opType){
     case 'printSet': 
@@ -259,6 +262,58 @@ const createApply = (kernels: PixelKernels) => async (op: PureRasterOperation, i
         const paint = paintColors(palette, op.replacements);
         return Promise.all(palette.map((_, i) => kernels.mapToPalette(input, palette, paint, i)));
       }))).flat();
+    case 'gradientMap': {
+      const stops = op.stops.map(parseHexColor).filter((c): c is RGB => c !== undefined);
+      return Promise.all(inputs.map(input => kernels.gradientMap(input, stops)));
+    }
+    case 'posterize':
+      return Promise.all(inputs.map(input => kernels.posterize(input, Math.max(2, op.levels))));
+    case 'orderedDither':
+      return Promise.all(inputs.map(input =>
+        kernels.orderedDither(input, op.matrixSize, Math.max(2, op.levels), op.monochrome, Math.max(1, op.pixelSize))));
+    case 'errorDiffusion':
+      return inputs.map(input => errorDiffusion(input, op.method, Math.max(2, op.levels), op.monochrome));
+    case 'edges':
+      return Promise.all(inputs.map(input => kernels.edges(input, op.strength, op.threshold, op.invert)));
+    case 'stickerBorder':
+      return inputs.map(input => stickerBorder(input, Math.max(0, op.width), parseHexColor(op.color) ?? [255, 255, 255], op.cutLine));
+    case 'colorKey':
+      return Promise.all(inputs.map(input => {
+        if (input.width === 0 || input.height === 0) {
+          return kernels.colorKey(input, [0, 0, 0], op.tolerance, op.softness);
+        }
+        const key = parseHexColor(op.color) ?? borderColor(input);
+        return op.connected
+          ? connectedColorKey(input, key, op.tolerance, op.softness)
+          : kernels.colorKey(input, key, op.tolerance, op.softness);
+      }));
+    case 'cmykChannels':
+      return (await Promise.all(inputs.map(input => kernels.cmykChannels(input, 'ink')))).flat();
+    case 'colorHalftone':
+      return Promise.all(inputs.map(async input => {
+        // Traditional screen angles keep the four dot grids from forming moiré.
+        const angles = [15, 75, 0, 45];
+        const amounts = await kernels.cmykChannels(input, 'amount');
+        const layers = await Promise.all(amounts.map(async (amount, k) => {
+          const [dots] = await applyOp({ type: 'halftone', angle: angle(angles[k]), dotDiameter: op.dotDiameter, blurPixels: op.blurPixels, invert: false }, [amount]);
+          // Black dots become ink; white stays white.
+          return offscreenCanvasOperation(input.width, input.height, ctx => {
+            ctx.drawImage(dots, 0, 0);
+            ctx.globalCompositeOperation = 'lighten';
+            ctx.fillStyle = toHexColor(inks[k]);
+            ctx.fillRect(0, 0, input.width, input.height);
+          });
+        }));
+        return offscreenCanvasOperation(input.width, input.height, ctx => {
+          ctx.fillStyle = 'white';
+          ctx.fillRect(0, 0, input.width, input.height);
+          ctx.globalCompositeOperation = 'multiply';
+          layers.forEach(layer => ctx.drawImage(layer, 0, 0));
+          // Keep the input's transparency.
+          ctx.globalCompositeOperation = 'destination-in';
+          ctx.drawImage(input, 0, 0);
+        });
+      }));
     case 'levels':
       return Promise.all(inputs.map(input => kernels.levels(input, op.black, op.white, op.gamma)));
     case 'rgbChannels': 
@@ -402,7 +457,9 @@ const createApply = (kernels: PixelKernels) => async (op: PureRasterOperation, i
     default:
       throw new Error(`Unexpected operation type: ${opType}`);
   }
-}
+};
+return applyOp;
+};
 
 const flipped = (input: OffscreenCanvas, flipX: boolean, flipY: boolean): Promise<OffscreenCanvas> => {
   return offscreenCanvasOperation(input.width, input.height, (ctx) => {

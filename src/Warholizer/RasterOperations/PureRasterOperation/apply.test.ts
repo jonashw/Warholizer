@@ -122,6 +122,92 @@ describe('quantize, separate colors, levels', () => {
   });
 });
 
+describe('gradient map, posterize, dithering, edges, color key, sticker, CMYK', () => {
+  const gray = (v: number): RGBA => [v, v, v, 255];
+  const values = (c: OffscreenCanvas) => new Set(allPixels(c).map(p => p[0]));
+  const whiteFraction = (c: OffscreenCanvas) => allPixels(c).filter(p => p[0] === 255).length / (c.width * c.height);
+
+  it('gradientMap maps dark to the first stop and light to the last', async () => {
+    const out = await one({ type: 'gradientMap', stops: ['#ff0000', '#0000ff'] }, bands(4, 1, [BLACK, WHITE]));
+    expect(pixel(out, 0, 0)).toEqual(RED);
+    expect(pixel(out, 3, 0)).toEqual(BLUE);
+  });
+
+  it('posterize to 2 levels', async () => {
+    const out = await one({ type: 'posterize', levels: 2 }, bands(4, 1, [gray(100), gray(200)]));
+    expect(allPixels(out)).toEqual([BLACK, BLACK, WHITE, WHITE]);
+  });
+
+  it('ordered dither renders mid gray as half white, half black', async () => {
+    const out = await one({ type: 'orderedDither', matrixSize: 4, levels: 2, monochrome: true, pixelSize: 1 }, solid(16, 16, gray(128)));
+    expect(values(out)).toEqual(new Set([0, 255]));
+    expect(whiteFraction(out)).toBe(0.5);
+  });
+
+  it('ordered dither pixelSize makes cells', async () => {
+    const out = await one({ type: 'orderedDither', matrixSize: 2, levels: 2, monochrome: true, pixelSize: 2 }, solid(8, 8, gray(128)));
+    expect(pixel(out, 0, 0)).toEqual(pixel(out, 1, 1));
+  });
+
+  it.each(['floyd-steinberg', 'atkinson'] as const)('%s error diffusion keeps average tone with two levels', async (method) => {
+    const out = await one({ type: 'errorDiffusion', method, levels: 2, monochrome: true }, solid(32, 32, gray(128)));
+    expect(values(out)).toEqual(new Set([0, 255]));
+    expect(Math.abs(whiteFraction(out) - 0.5)).toBeLessThan(0.08);
+  });
+
+  it('edges: flat image has no lines; a boundary does', async () => {
+    const flat = await one({ type: 'edges', strength: 3, threshold: byte(0), invert: false }, solid(8, 8, RED));
+    expect(values(flat)).toEqual(new Set([255]));
+    const edge = await one({ type: 'edges', strength: 3, threshold: byte(0), invert: false }, bands(8, 4, [BLACK, WHITE]));
+    expect(pixel(edge, 4, 2)[0]).toBeLessThan(128);
+    expect(pixel(edge, 0, 2)[0]).toBe(255);
+  });
+
+  it('colorKey removes the key color', async () => {
+    const out = await one({ type: 'colorKey', color: '#ffffff', tolerance: 10, softness: 0, connected: false }, bands(4, 1, [WHITE, RED]));
+    expect(pixel(out, 0, 0)[3]).toBe(0);
+    expect(pixel(out, 3, 0)).toEqual(RED);
+  });
+
+  it('colorKey connected keeps matching colors enclosed by the subject; global removes them', async () => {
+    // White background, red square, white hole in the middle.
+    const c = solid(12, 12, WHITE);
+    const ctx = c.getContext('2d')!;
+    ctx.fillStyle = 'red'; ctx.fillRect(2, 2, 8, 8);
+    ctx.fillStyle = 'white'; ctx.fillRect(5, 5, 2, 2);
+    const connected = await one({ type: 'colorKey', color: null, tolerance: 10, softness: 0, connected: true }, c);
+    expect(pixel(connected, 0, 0)[3]).toBe(0);
+    expect(pixel(connected, 5, 5)).toEqual(WHITE);
+    const global = await one({ type: 'colorKey', color: null, tolerance: 10, softness: 0, connected: false }, c);
+    expect(pixel(global, 5, 5)[3]).toBe(0);
+  });
+
+  it('stickerBorder grows the canvas and surrounds the shape', async () => {
+    const out = await one({ type: 'stickerBorder', width: 4, color: '#ffffff', cutLine: false }, solid(10, 10, RED));
+    const pad = 4 + 1;
+    expect(size(out)).toEqual([10 + 2 * pad, 10 + 2 * pad]);
+    expect(pixel(out, pad + 5, pad + 5)).toEqual(RED);
+    expect(pixel(out, pad - 2, pad + 5)).toEqual(WHITE);
+    expect(pixel(out, 0, 0)[3]).toBe(0); // rounded corner, outside the border
+  });
+
+  it('cmykChannels separates inks', async () => {
+    const [c, m, y, k] = await apply({ type: 'cmykChannels' }, [bands(4, 1, [[0, 255, 255, 255], BLACK])]);
+    expect([pixel(c, 0, 0), pixel(m, 0, 0), pixel(y, 0, 0), pixel(k, 0, 0)]).toEqual([[0, 255, 255, 255], WHITE, WHITE, WHITE]);
+    expect([pixel(c, 3, 0), pixel(m, 3, 0), pixel(y, 3, 0), pixel(k, 3, 0)]).toEqual([WHITE, WHITE, WHITE, BLACK]);
+  });
+
+  it('colorHalftone keeps size; white stays white, black gets dark', async () => {
+    const op: PureRasterOperation = { type: 'colorHalftone', dotDiameter: 4, blurPixels: 0 };
+    const white = await one(op, solid(32, 32, WHITE));
+    expect(size(white)).toEqual([32, 32]);
+    expect(values(white)).toEqual(new Set([255]));
+    const black = await one(op, solid(32, 32, BLACK));
+    const mean = allPixels(black).reduce((s, p) => s + p[0], 0) / (32 * 32);
+    expect(mean).toBeLessThan(128);
+  });
+});
+
 describe('filter operations (1→1, same size, neighborhood)', () => {
   it('blur 0 is identity', async () => {
     const input = bands(4, 2, [RED, BLUE]);

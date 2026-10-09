@@ -19,7 +19,16 @@ import {
     Texture,
     ColorLens,
     ViewQuilt,
-    Exposure
+    Exposure,
+    Gradient,
+    Filter4,
+    GridOn,
+    ScatterPlot,
+    Gesture,
+    ContentCut,
+    FormatColorReset,
+    Style,
+    BlurCircular
 } from "@mui/icons-material";
 import type { SvgIconComponent } from "@mui/icons-material";
 
@@ -50,6 +59,15 @@ const operationIcons: Record<PureRasterOperation['type'], SvgIconComponent> = {
     quantize: ColorLens,
     separateColors: ViewQuilt,
     levels: Exposure,
+    gradientMap: Gradient,
+    posterize: Filter4,
+    orderedDither: GridOn,
+    errorDiffusion: ScatterPlot,
+    edges: Gesture,
+    stickerBorder: ContentCut,
+    colorKey: FormatColorReset,
+    cmykChannels: Style,
+    colorHalftone: BlurCircular,
 };
 
 export const OperationIcon = ({

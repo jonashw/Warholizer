@@ -7,7 +7,7 @@ import { operationAsRecord } from "./Warholizer/RasterOperations/PureRasterAppli
 import {
   AnySweep, ExecutionHint, PureRasterOperation, PureRasterOperationInlineEditor, RasterEngine, getEngine, getGpuEngine,
   getGpuWorkerEngine, getWorkerEngine, mainThreadEngine,
-  operationKinds, operationRegistry, stringRepresentation, sweepsOf, withSweepValue
+  executionOf, operationKinds, operationRegistry, stringRepresentation, sweepsOf, withSweepValue
 } from "./Warholizer/RasterOperations/PureRasterOperation";
 import { OperationTypeOptions } from "./Warholizer/RasterOperations/PureRasterOperation/OperationTypeOptions";
 import { resized } from "./Warholizer/RasterOperations/PureRasterOperation/benchmark";
@@ -169,7 +169,7 @@ export default function FilterGalleryPage() {
                 <OperationTypeOptions />
               </select>
               <div className="small text-muted mb-2">
-                {kindLabel} · {registration.description} Runs on {runsOn(registration.execution)}.
+                {kindLabel} · {registration.description} Runs on {runsOn(executionOf(op))}.
               </div>
               <PureRasterOperationInlineEditor
                 value={opRecord}

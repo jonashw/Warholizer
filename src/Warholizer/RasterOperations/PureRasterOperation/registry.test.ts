@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { OperationKind, OperationType, defaultOperations, defaultOperationsByKind, operationKinds, operationRegistry, sweepsOf, withSweepValue } from './registry';
+import { OperationKind, OperationType, executionOf, defaultOperations, defaultOperationsByKind, operationKinds, operationRegistry, sweepsOf, withSweepValue } from './registry';
 import { apply } from './apply';
 import { BLUE, RED, solid } from './testUtil';
 import { createRoutingEngine } from './engine';
@@ -8,10 +8,10 @@ import { PureRasterOperation } from './types';
 
 // The taxonomy from ADR 0002.
 const expectedKinds: Record<OperationKind, OperationType[]> = {
-  tone: ['invert', 'threshold', 'grayscale', 'rotateHue', 'fill', 'noise', 'levels', 'quantize'],
-  filter: ['blur', 'halftone'],
-  geometry: ['crop', 'scale', 'scaleToFit', 'rotate', 'slideWrap'],
-  cardinality: ['copies', 'split', 'rgbChannels', 'separateColors', 'void', 'noop'],
+  tone: ['invert', 'threshold', 'grayscale', 'rotateHue', 'fill', 'noise', 'levels', 'quantize', 'gradientMap', 'posterize', 'colorKey'],
+  filter: ['blur', 'halftone', 'orderedDither', 'errorDiffusion', 'edges', 'colorHalftone'],
+  geometry: ['crop', 'scale', 'scaleToFit', 'rotate', 'slideWrap', 'stickerBorder'],
+  cardinality: ['copies', 'split', 'rgbChannels', 'separateColors', 'cmykChannels', 'void', 'noop'],
   layout: ['stack', 'line', 'tile', 'grid', 'printSet'],
 };
 
@@ -46,10 +46,12 @@ describe('operation registry', () => {
     expect(defaultOperationsByKind.flatMap(g => g.operations)).toEqual(defaultOperations);
   });
 
-  it('sends exactly the operations with pixel kernels to the GPU', () => {
-    expect(types.filter(t => operationRegistry[t].execution === 'gpu').sort())
-      .toEqual(['halftone', 'levels', 'noise', 'quantize', 'rgbChannels', 'separateColors', 'threshold']);
-    expect(types.filter(t => operationRegistry[t].execution === 'worker')).toEqual([]);
+  it('sends pixel-kernel operations to the GPU and sequential ones to workers', () => {
+    expect(types.filter(t => executionOf(operationRegistry[t].defaults) === 'gpu').sort()).toEqual([
+      'cmykChannels', 'colorHalftone', 'edges', 'gradientMap', 'halftone', 'levels', 'noise',
+      'orderedDither', 'posterize', 'quantize', 'rgbChannels', 'separateColors', 'threshold']);
+    expect(types.filter(t => executionOf(operationRegistry[t].defaults) === 'worker').sort()).toEqual(['colorKey', 'errorDiffusion', 'stickerBorder']);
+    expect(executionOf({ ...operationRegistry.colorKey.defaults, connected: false })).toBe('gpu');
   });
 });
 

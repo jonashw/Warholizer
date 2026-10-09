@@ -115,6 +115,43 @@ describe('WebGL2 kernels', () => {
       expect(mismatchRate(actual, expected, 2)).toBe(0);
     });
 
+    it('gradientMap', async () => {
+      const input = testImage(64, 48);
+      const stops: [number, number, number][] = [[26, 26, 110], [255, 111, 145], [255, 232, 163]];
+      const [e, a] = await Promise.all([cpuKernels.gradientMap(input, stops), gpu.gradientMap(input, stops)]);
+      expect(mismatchRate(a, e, 2)).toBeLessThan(0.005);
+    });
+
+    it.each([2, 3, 5, 8])('posterize %i', async (levels) => {
+      const input = testImage(64, 48);
+      const [e, a] = await Promise.all([cpuKernels.posterize(input, levels), gpu.posterize(input, levels)]);
+      expect(mismatchRate(a, e, 2)).toBeLessThan(0.005);
+    });
+
+    it.each([[2, 2, true, 1], [4, 2, true, 1], [8, 3, false, 1], [4, 2, true, 3]] as const)('orderedDither %i×%i levels %i mono %s px %i', async (n, levels, mono, px) => {
+      const input = testImage(64, 48);
+      const [e, a] = await Promise.all([cpuKernels.orderedDither(input, n, levels, mono, px), gpu.orderedDither(input, n, levels, mono, px)]);
+      expect(mismatchRate(a, e, 2)).toBeLessThan(0.01);
+    });
+
+    it.each([[3, 0, false], [5, 60, false], [2, 0, true]] as const)('edges ×%f ≥%i invert %s', async (strength, threshold, invert) => {
+      const input = testImage(64, 48);
+      const [e, a] = await Promise.all([cpuKernels.edges(input, strength, threshold, invert), gpu.edges(input, strength, threshold, invert)]);
+      expect(mismatchRate(a, e, 2)).toBeLessThan(0.01);
+    });
+
+    it('colorKey', async () => {
+      const input = testImage(64, 48);
+      const [e, a] = await Promise.all([cpuKernels.colorKey(input, [20, 200, 90], 60, 30), gpu.colorKey(input, [20, 200, 90], 60, 30)]);
+      expect(mismatchRate(a, e, 2)).toBeLessThan(0.01);
+    });
+
+    it.each(['ink', 'amount'] as const)('cmykChannels (%s)', async (mode) => {
+      const input = testImage(64, 48);
+      const [e, a] = await Promise.all([cpuKernels.cmykChannels(input, mode), gpu.cmykChannels(input, mode)]);
+      a.forEach((layer, i) => expect(mismatchRate(layer, e[i], 2)).toBeLessThan(0.005));
+    });
+
     it('falls back to the CPU for zero-area images', async () => {
       const out = await gpu.threshold(new OffscreenCanvas(0, 3), byte(128));
       expect(size(out)).toEqual([0, 3]);

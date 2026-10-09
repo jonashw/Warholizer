@@ -25,7 +25,8 @@ export type OperationRegistration<T extends OperationType = OperationType> = {
   label: string,
   description: string,
   defaults: OperationOfType<T>,
-  execution: ExecutionHint,
+  /** Where to run; a function when it depends on parameters (e.g. a CPU-only mode). */
+  execution: ExecutionHint | ((op: OperationOfType<T>) => ExecutionHint),
   /** Parameters worth exploring, first is the default. */
   sweeps?: readonly Sweep<OperationOfType<T>>[]
 };
@@ -93,6 +94,30 @@ export const operationRegistry: { [T in OperationType]: OperationRegistration<T>
       ['#222222', '#e63946', '#a8dadc', '#f1faee'], ['#2b2d42', '#8d99ae', '#ef233c', '#edf2f4'],
     ] }],
   },
+  gradientMap: {
+    kind: 'tone', label: 'Gradient map', execution: 'gpu',
+    description: 'Maps brightness to a color ramp; two colors make a duotone.',
+    defaults: { type: 'gradientMap', stops: ['#1a1a6e', '#ff6f91', '#ffe8a3'] },
+    sweeps: [{ param: 'stops', values: [
+      ['#000000', '#ffffff'], ['#1a1a6e', '#ffe8a3'], ['#0b3d2e', '#f2c14e'], ['#3a0ca3', '#f72585'],
+      ['#1a1a6e', '#ff6f91', '#ffe8a3'], ['#000000', '#e63946', '#f1faee'], ['#03045e', '#00b4d8', '#caf0f8'],
+      ['#240046', '#ff006e', '#ffbe0b', '#ffffff'],
+    ] }],
+  },
+  posterize: {
+    kind: 'tone', label: 'Posterize', execution: 'gpu',
+    description: 'Reduces each color channel to a few even steps.',
+    defaults: { type: 'posterize', levels: 4 },
+    sweeps: [{ param: 'levels', values: [2, 3, 4, 5, 6, 8] }],
+  },
+  colorKey: {
+    kind: 'tone', label: 'Color key',
+    description: 'Makes a color (by default, the edge color) transparent, e.g. to cut out a background.',
+    // The connected mode is a sequential flood fill on the CPU; keep it off the main thread.
+    execution: op => op.connected ? 'worker' : 'gpu',
+    defaults: { type: 'colorKey', color: null, tolerance: 40, softness: 20, connected: true },
+    sweeps: [{ param: 'tolerance', values: [10, 25, 40, 60, 90, 130] }, { param: 'softness', values: [0, 10, 20, 40, 80] }, { param: 'connected', values: [true, false] }],
+  },
   blur: {
     kind: 'filter', label: 'Blur', execution: 'main',
     description: 'Softens the image.',
@@ -104,6 +129,36 @@ export const operationRegistry: { [T in OperationType]: OperationRegistration<T>
     description: 'Renders the image as a pattern of dots.',
     defaults: { type: 'halftone', dotDiameter: 3.5, blurPixels: 1, angle: angle(0), dotsOnly: false, invert: true },
     sweeps: [{ param: 'dotDiameter', values: [2, 3, 4, 6, 8, 12] }, { param: 'angle', values: range(0, 75, 15).map(angle) }, { param: 'blurPixels', values: [0, 1, 2, 4] }, { param: 'invert', values: [false, true] }],
+  },
+  orderedDither: {
+    kind: 'filter', label: 'Ordered dither', execution: 'gpu',
+    description: 'Renders tones as a regular Bayer dot pattern, like early printers and screens.',
+    defaults: { type: 'orderedDither', matrixSize: 4, levels: 2, monochrome: true, pixelSize: 1 },
+    sweeps: [{ param: 'pixelSize', values: [1, 2, 3, 4, 6] }, { param: 'matrixSize', values: [2, 4, 8] }, { param: 'levels', values: [2, 3, 4] }, { param: 'monochrome', values: [true, false] }],
+  },
+  errorDiffusion: {
+    kind: 'filter', label: 'Error-diffusion dither', execution: 'worker',
+    description: 'Renders tones with few colors by spreading rounding error to neighbors (Floyd-Steinberg, Atkinson).',
+    defaults: { type: 'errorDiffusion', method: 'floyd-steinberg', levels: 2, monochrome: true },
+    sweeps: [{ param: 'method', values: ['floyd-steinberg', 'atkinson'] }, { param: 'levels', values: [2, 3, 4, 6] }, { param: 'monochrome', values: [true, false] }],
+  },
+  edges: {
+    kind: 'filter', label: 'Edges', execution: 'gpu',
+    description: 'Line art from the edges in the image.',
+    defaults: { type: 'edges', strength: 3, threshold: byte(0), invert: false },
+    sweeps: [{ param: 'strength', values: [1, 2, 3, 5, 8, 12] }, { param: 'threshold', values: [0, 40, 80, 120, 160].map(byte) }, { param: 'invert', values: [false, true] }],
+  },
+  colorHalftone: {
+    kind: 'filter', label: 'Color halftone', execution: 'gpu',
+    description: 'Comic-book CMYK dots: each ink halftoned at its own screen angle.',
+    defaults: { type: 'colorHalftone', dotDiameter: 6, blurPixels: 1 },
+    sweeps: [{ param: 'dotDiameter', values: [3, 4, 6, 8, 12, 16] }, { param: 'blurPixels', values: [0, 1, 2, 4] }],
+  },
+  stickerBorder: {
+    kind: 'geometry', label: 'Sticker border', execution: 'worker',
+    description: 'Adds a die-cut style border around the opaque shape, optionally with a cut line.',
+    defaults: { type: 'stickerBorder', width: 12, color: '#ffffff', cutLine: true },
+    sweeps: [{ param: 'width', values: [4, 8, 12, 20, 32] }, { param: 'color', values: ['#ffffff', '#000000', '#ffcc00', '#ff3399'] }, { param: 'cutLine', values: [true, false] }],
   },
   crop: {
     kind: 'geometry', label: 'Crop', execution: 'main',
@@ -150,6 +205,11 @@ export const operationRegistry: { [T in OperationType]: OperationRegistration<T>
     description: 'Splits the image into one layer per quantized color, like screenprint separations.',
     defaults: { type: 'separateColors', colors: 4, replacements: [] },
     sweeps: [{ param: 'colors', values: [2, 3, 4, 6] }],
+  },
+  cmykChannels: {
+    kind: 'cardinality', label: 'CMYK channels', execution: 'gpu',
+    description: 'Separates each image into cyan, magenta, yellow, and black ink layers.',
+    defaults: { type: 'cmykChannels' },
   },
   rgbChannels: {
     kind: 'cardinality', label: 'RGB channels', execution: 'gpu',
@@ -207,6 +267,12 @@ export const sweepsOf = (type: OperationType): readonly AnySweep[] =>
 /** `op` with `param` set to a value taken from one of its sweeps. */
 export const withSweepValue = (op: PureRasterOperation, param: string, value: unknown): PureRasterOperation =>
   ({ ...op, [param]: value }) as PureRasterOperation;
+
+/** Where `op` should run, resolving parameter-dependent hints. */
+export const executionOf = (op: PureRasterOperation): ExecutionHint => {
+  const execution = operationRegistry[op.type].execution as ExecutionHint | ((op: PureRasterOperation) => ExecutionHint);
+  return typeof execution === 'function' ? execution(op) : execution;
+};
 
 export const registrationOf = <T extends OperationType>(op: { type: T }): OperationRegistration<T> =>
   operationRegistry[op.type];

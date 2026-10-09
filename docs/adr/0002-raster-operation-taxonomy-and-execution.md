@@ -137,3 +137,10 @@ Classifying current operations by signature (input count → output count, wheth
 - Workers can now run the WebGL2 kernels (`createWorkerEngine(size, 'gpu')`, `getGpuWorkerEngine`); requests carry which kernels to use. Parity tests confirm results match the main-thread GPU engine.
 - Measured: [docs/benchmarks/2026-10-08-gpu-workers.md](../benchmarks/2026-10-08-gpu-workers.md). The main-thread GPU engine already stalls only 1–10 ms per 12-preview gallery; GPU workers add 2–9 ms latency per call and help only operations with heavy Canvas 2D composition. Default routing is unchanged; GPU workers remain selectable (filter gallery engine picker, `/benchmark`).
 
+### 2026-10-08: nine more operations; no WebAssembly yet
+
+- GPU kernels: **gradient map** (incl. duotone), **posterize**, **ordered dither** (Bayer 2/4/8, levels, pixel size), **edges** (Sobel line art), **color key** (global), **CMYK channels**. **Color halftone** is composed from CMYK amounts, the existing halftone per ink at screen angles 15/75/0/45, and a multiply stack (`createApply` now supports recursion).
+- Sequential CPU in workers (`sequential.ts`): **error-diffusion dither** (Floyd-Steinberg, Atkinson), **sticker border** (exact Euclidean distance transform, antialiased, optional cut line, canvas grows), **connected color key** (flood fill from edges; edge color as the default key).
+- Execution hints can depend on parameters (`executionOf`): color key is GPU when global, worker when connected.
+- WebAssembly evaluated and deferred: [docs/benchmarks/2026-10-08-new-operations.md](../benchmarks/2026-10-08-new-operations.md). GPU kernels are 50–170× faster than CPU JavaScript for per-pixel work (WebAssembly would be a regression there); sequential algorithms take 16–61 ms at 1024² in workers.
+

@@ -29,6 +29,15 @@ export const stringRepresentation = (op: PureRasterOperation): string => {
     case 'quantize'  : return `quantize(${op.colors}${op.replacements.some(r => r) ? `, ${op.replacements.map(r => r ?? '_').join(' ')}` : ''})`;
     case 'separateColors': return `separateColors(${op.colors}${op.replacements.some(r => r) ? `, ${op.replacements.map(r => r ?? '_').join(' ')}` : ''})`;
     case 'levels'    : return `levels(${op.black}, ${op.white}, γ${op.gamma})`;
+    case 'gradientMap': return `gradientMap(${op.stops.join(' ')})`;
+    case 'posterize' : return `posterize(${op.levels})`;
+    case 'orderedDither': return `orderedDither(${op.matrixSize}×${op.matrixSize}, ${op.levels}${op.monochrome ? ', mono' : ''}${op.pixelSize > 1 ? `, ${op.pixelSize}px` : ''})`;
+    case 'errorDiffusion': return `errorDiffusion(${op.method}, ${op.levels}${op.monochrome ? ', mono' : ''})`;
+    case 'edges'     : return `edges(×${op.strength}${op.threshold > 0 ? `, ≥${op.threshold}` : ''}${op.invert ? ', invert' : ''})`;
+    case 'stickerBorder': return `stickerBorder(${op.width}px, ${op.color}${op.cutLine ? ', cut line' : ''})`;
+    case 'colorKey'  : return `colorKey(${op.color ?? 'edge color'}, ±${op.tolerance}${op.softness > 0 ? `~${op.softness}` : ''}${op.connected ? ', connected' : ''})`;
+    case 'cmykChannels': return `cmykChannels()`;
+    case 'colorHalftone': return `colorHalftone(${op.dotDiameter}px, ${op.blurPixels}px)`;
     default: {
       throw new Error(`Unexpected operation type: ${opType}`);
     }
