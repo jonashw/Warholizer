@@ -700,3 +700,37 @@ describe('effect fusion', () => {
     expect(fusible(operationNode({ type: 'blur', pixels: 2 }))).toBe(false);
   });
 });
+
+describe('pick pushdown', () => {
+  const counting = () => {
+    const ran: string[] = [];
+    return { ran, ops: { ...canvasOps, apply: async (op: PureRasterOperation, inputs: OffscreenCanvas[]) => { ran.push(op.type); return canvasOps.apply(op, inputs); } } };
+  };
+  const pixels = (cube: Cube<OffscreenCanvas>) => cube.cells.map(c => [JSON.stringify(c.coords), pixel(c.image, 1, 1)]);
+
+  it('computes only the picked variant, with the same result as computing all of them', async () => {
+    const v = variationsList(allPerImage,
+      operationNode({ type: 'invert' }), operationNode({ type: 'grayscale', percent: 100 }), operationNode({ type: 'blur', pixels: 1 })) as Extract<Node, { kind: 'variations' }>;
+    const second = (v.variants as { children: Node[] }).children[1];
+    const root = sequence(v, operationNode({ type: 'rotateHue', degrees: angle(90) }), { kind: 'pick', id: 'p', dimension: v.id, members: second.id });
+    const input = () => photoCube([solid(4, 4, RED), solid(4, 4, BLUE)]);
+    const pushed = counting();
+    const fast = await evaluate(root, input(), pushed.ops);
+    expect(pushed.ran).toEqual(['grayscale', 'grayscale', 'rotateHue', 'rotateHue']);
+    const full = await evaluate(root, input(), canvasOps, new Map());
+    expect(pixels(fast)).toEqual(pixels(full));
+  });
+
+  it('keeps only the picked photos from the start, and stays off when a step looks across the dimension', async () => {
+    const pickPhoto: Node = { kind: 'pick', id: 'p', dimension: PHOTO, members: ['2'] };
+    const pushed = counting();
+    const out = await evaluate(sequence(operationNode({ type: 'invert' }), pickPhoto), photoCube([solid(4, 4, RED), solid(4, 4, BLUE), solid(4, 4, GREEN)]), pushed.ops);
+    expect(pushed.ran).toEqual(['invert']);
+    expect(out.cells.map(c => c.coords[PHOTO])).toEqual(['2']);
+    const { pushdownFor } = await import('./pushdown');
+    const pooled: Node = { kind: 'operation', id: 't', op: { type: 'tone', method: { type: 'auto', clip: 0 } } };
+    expect(pushdownFor([pooled, pickPhoto]).photos).toBeUndefined();
+    const dealt = variationsList(inTurn, operationNode({ type: 'invert' }), operationNode({ type: 'noop' }));
+    expect(pushdownFor([dealt, { kind: 'pick', id: 'q', dimension: dealt.id, members: 'x' }]).variations.size).toBe(0);
+  });
+});

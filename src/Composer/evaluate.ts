@@ -5,6 +5,7 @@ import { isGroupAware } from "../Warholizer/RasterOperations/PureRasterOperation
 import { PureRasterOperation } from "../Warholizer/RasterOperations/PureRasterOperation/types";
 import { childrenOf } from "./tree";
 import { composeCurves, Curve, fusible } from "./fusion";
+import { pushdownFor } from "./pushdown";
 import { dealShuffled, groupCells, normalize, unionDimensions, uniqueName } from "./cube";
 import { isSeparation, listDimension, operationLabel, separationDimension } from "./labels";
 import { formatSpreadValue, spreadSetting, spreadValuesFor } from "./spread";
@@ -43,6 +44,8 @@ export type EvaluateOptions<Img = unknown> = {
   onPlaced?: (placement: { photo: MemberKey | undefined, photoScale: number, format: Format }) => void,
   /** Reuses step outputs whose step and incoming images are unchanged (ADR 0003, future direction 2). */
   cache?: EvaluationCache<Img>,
+  /** For one Variations step: only these members need computing (Pick pushdown). */
+  only?: Map<DimensionId, Set<MemberKey>>,
 };
 
 /**
@@ -98,7 +101,8 @@ export const evaluate = async <Img>(
   trace?: Trace<Img>,
   options: EvaluateOptions<Img> = defaultOptions as EvaluateOptions<Img>,
 ): Promise<Cube<Img>> => {
-  const cache = options.cache;
+  // A pushed-down evaluation computes fewer members than its key says, so it never touches the cache.
+  const cache = options.only ? undefined : options.cache;
   const key = cache ? `${JSON.stringify(node)}\u0000${cubeKey(input)}` : '';
   const cached = cache?.entries.get(key);
   if (cache && cached) {
@@ -136,7 +140,13 @@ const evaluateNode = <Img>(node: Node, input: Cube<Img>, ops: ImageOps<Img>, tra
  * its own output for peeks.
  */
 const evaluateSequence = async <Img>(children: Node[], input: Cube<Img>, ops: ImageOps<Img>, trace: Trace<Img> | undefined, options: EvaluateOptions<Img>): Promise<Cube<Img>> => {
-  let cube = input;
+  const { only: _only, ...inherited } = options;
+  void _only;
+  // Pick pushdown, like fusion, only without a trace: previews keep every step's full output for peeks.
+  const pushdown = trace ? undefined : pushdownFor(children);
+  let cube = pushdown?.photos
+    ? { dimensions: input.dimensions, cells: input.cells.filter(c => c.coords[PHOTO] === undefined || pushdown.photos!.has(c.coords[PHOTO])) }
+    : input;
   for (let i = 0; i < children.length; i++) {
     let end = i;
     if (!trace && ops.curve) {
@@ -148,7 +158,8 @@ const evaluateSequence = async <Img>(children: Node[], input: Cube<Img>, ops: Im
       cube = { dimensions: cube.dimensions, cells };
       i = end - 1;
     } else {
-      cube = await evaluate(children[i], cube, ops, trace, options);
+      const only = pushdown?.variations.get(i);
+      cube = await evaluate(children[i], cube, ops, trace, only ? { ...inherited, only } : inherited);
     }
   }
   return cube;
@@ -291,7 +302,14 @@ const assignments = (node: VariationsNode, cellCount: number, variantCount: numb
 };
 
 const evaluateVariations = async <Img>(node: VariationsNode, input: Cube<Img>, ops: ImageOps<Img>, trace: Trace<Img> | undefined, options: EvaluateOptions<Img>): Promise<Cube<Img>> => {
-  const { variants, dimensions: variationDimensions } = variantsOf(node, input.dimensions);
+  const { only, ...childOptions } = options;
+  options = childOptions;
+  const all = variantsOf(node, input.dimensions);
+  // Pick pushdown: compute only the variants a later Pick keeps.
+  const variants = only
+    ? all.variants.filter(v => Object.entries(v.coords).every(([dimension, key]) => !only.has(dimension) || only.get(dimension)!.has(key)))
+    : all.variants;
+  const variationDimensions = all.dimensions;
   if (variants.length === 0) {
     return normalize(input.dimensions, []);
   }
