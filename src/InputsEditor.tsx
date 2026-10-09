@@ -9,7 +9,7 @@ import fileToDataUrl from './fileToDataUrl';
 import { useUndo } from './undo/useUndo';
 import { UndoRedoToolbar } from './undo/UndoRedoToolbar';
 import { ImageRecord } from './ImageRecord';
-import { DragDropContext, Draggable, Droppable } from 'react-beautiful-dnd';
+import { DragDropContext, Draggable, Droppable } from '@hello-pangea/dnd';
 import { DragDropHelper } from './DragDropHelper';
 import { WebcamModal } from "./WebcamModal";
 

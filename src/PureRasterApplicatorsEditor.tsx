@@ -4,7 +4,7 @@ import { PureRasterApplicatorListItemEditor } from './PureRasterApplicatorListIt
 import { useUndo } from './undo/useUndo';
 import { UndoRedoToolbar } from './undo/UndoRedoToolbar';
 import { defaultApplicator } from './defaultApplicator';
-import { DragDropContext } from 'react-beautiful-dnd';
+import { DragDropContext } from '@hello-pangea/dnd';
 import { DragDropHelper } from './DragDropHelper';
 import { imageAsRecord, ImageRecord } from './ImageRecord';
 

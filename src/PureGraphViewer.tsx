@@ -17,7 +17,7 @@ export function PureGraphViewer({
   nodeActive?: (node: NodeObject<NodeObject<PureGraphNode>>) => boolean;
 }) {
 
-  const graphRef = React.useRef<GraphRefType>();
+  const graphRef = React.useRef<GraphRefType>(undefined);
   const { containerRef, availableWidth } = useContainerWidth();
 
   React.useEffect(() => {

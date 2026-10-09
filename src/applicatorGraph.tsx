@@ -102,7 +102,7 @@ export function ApplicatorGraph({
     applicatorDirectedGraph(inputs,applicators, relateOpsBetweenApps),
     [inputs, applicators, relateOpsBetweenApps]);
 
-  const graphRef = React.useRef<GraphRefType>();
+  const graphRef = React.useRef<GraphRefType>(undefined);
 
   React.useEffect(() => {
     if(!graphRef.current){
