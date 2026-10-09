@@ -187,9 +187,9 @@ describe('cardinality operations (n→m, pixels unchanged)', () => {
     expect(await apply({ type: 'noop' }, inputs)).toEqual(inputs);
   });
 
-  it('multiply repeats the inputs n times', async () => {
+  it('copies repeats the inputs n times', async () => {
     const a = solid(2, 2, RED), b = solid(2, 2, BLUE);
-    expect(await apply({ type: 'multiply', n: 3 }, [a, b])).toEqual([a, b, a, b, a, b]);
+    expect(await apply({ type: 'copies', n: 3 }, [a, b])).toEqual([a, b, a, b, a, b]);
   });
 
   it('split x divides by proportion', async () => {
@@ -301,7 +301,7 @@ describe('layout operations (n→1 or 1→larger)', () => {
 describe('composition', () => {
   it('applyPipeline threads each input through ops in sequence', async () => {
     const outs = await applyPipeline(
-      [{ type: 'split', dimension: 'x', amount: 50 }, { type: 'multiply', n: 2 }],
+      [{ type: 'split', dimension: 'x', amount: 50 }, { type: 'copies', n: 2 }],
       [solid(4, 2, RED), solid(4, 2, BLUE)]);
     expect(outs).toHaveLength(8);
   });

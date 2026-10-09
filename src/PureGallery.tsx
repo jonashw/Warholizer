@@ -75,7 +75,7 @@ const effects: Effect[] = [
         pureExample([{type:'grayscale', percent}]),
     ),
     ...[1,2,3].map(n =>
-        pureExample([{type:'multiply',n}]),
+        pureExample([{type:'copies',n}]),
     ),
 ];
 

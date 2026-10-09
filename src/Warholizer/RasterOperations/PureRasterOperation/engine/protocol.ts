@@ -17,7 +17,7 @@ export type ApplyRequest = {
 /**
  * Each output is either one of the request's inputs passed through unchanged (by index),
  * so the main thread can return the original canvas object, or a new image (by index into `images`).
- * Repeated outputs (e.g. `multiply`) refer to the same index, preserving identity.
+ * Repeated outputs (e.g. `copies`) refer to the same index, preserving identity.
  */
 export type WireOutput =
   | { kind: 'input', index: number }

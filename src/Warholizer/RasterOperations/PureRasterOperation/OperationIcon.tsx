@@ -2,7 +2,7 @@ import { PureRasterOperation } from ".";
 import { iconTransform } from "./iconTransform";
 import { 
     BlurOn, Contrast, DynamicFeed,
-    FilterBAndW, Functions, GridView,
+    FilterBAndW, GridView,
     InvertColors, LinearScale, Palette,
     PhotoSizeSelectLarge,
     Rotate90DegreesCw, Start, WrapText,
@@ -12,18 +12,22 @@ import {
     Adjust,
     HighlightOff,
     FormatColorFill,
-    Splitscreen
+    Splitscreen,
+    Grain,
+    Print,
+    Tune,
+    Texture
 } from "@mui/icons-material";
 import type { SvgIconComponent } from "@mui/icons-material";
 
-const operationIcons: Partial<Record<PureRasterOperation['type'], SvgIconComponent>> = {
+const operationIcons: Record<PureRasterOperation['type'], SvgIconComponent> = {
     rotate: Rotate90DegreesCw,
     grid: GridView,
     line: LinearScale,
     invert: InvertColors,
     threshold: FilterBAndW,
     rotateHue: Palette,
-    multiply: DynamicFeed,
+    copies: DynamicFeed,
     slideWrap: Start,
     grayscale: Contrast,
     blur: BlurOn,
@@ -36,6 +40,10 @@ const operationIcons: Partial<Record<PureRasterOperation['type'], SvgIconCompone
     void: HighlightOff,
     split: Splitscreen,
     fill: FormatColorFill,
+    halftone: Grain,
+    noise: Texture,
+    rgbChannels: Tune,
+    printSet: Print,
 };
 
 export const OperationIcon = ({
@@ -44,7 +52,7 @@ export const OperationIcon = ({
     op: PureRasterOperation;
     className: string | undefined;
 }) => {
-    const Icon = operationIcons[op.type] ?? Functions;
+    const Icon = operationIcons[op.type];
     const transform = iconTransform(op);
     const transforms = 
     [

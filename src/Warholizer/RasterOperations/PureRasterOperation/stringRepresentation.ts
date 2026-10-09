@@ -6,7 +6,7 @@ export const stringRepresentation = (op: PureRasterOperation): string => {
     case 'halftone'  : return `halftone(${op.dotDiameter}px, ${op.angle}deg, ${op.blurPixels}px${!op.invert ? '' : ', invert'}${!op.dotsOnly ? '' : ', dotsOnly'})`;
     case 'stack'     : return `stack(${op.blendingMode})`;
     case 'noop'      : return "noop";
-    case 'multiply'  : return `multiply(${op.n})`;
+    case 'copies'    : return `copies(${op.n})`;
     case 'threshold' : return `threshold(${op.value})`;
     case 'rgbChannels': return `rgbChannels()`;
     case 'grayscale' : return `grayscale(${op.percent}%)`;

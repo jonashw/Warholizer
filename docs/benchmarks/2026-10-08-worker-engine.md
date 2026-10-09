@@ -34,3 +34,23 @@ ADR 0002 step 3. Collected from `/benchmark` after the worker-backed engine land
 - **Cheap GPU-backed operations** (`blur`, `grayscale`, `invert`, geometry, layout) are slower through workers: the transfer costs more than the operation, and the main thread does the conversion work anyway.
 
 Implication: route by operation cost. The step 4 operation registry should carry an execution hint (or kind) so cheap operations run on the main thread and per-pixel operations go to workers, until the GPU path (step 5) makes per-pixel operations cheap too.
+
+## Addendum: routed engine (ADR 0002 step 4)
+
+The default engine now routes by the registry's execution hint: `threshold`, `noise`, `halftone`, and `rgbChannels` go to workers; everything else stays on the main thread. Same environment, same day.
+
+| Gallery, 12 × 1024² | Main thread: total / froze | Workers: total / froze | Routed: total / froze |
+|---|---:|---:|---:|
+| noise | 291.8 / 291.8 | 110.8 / 15.5 | **106.4 / 13.7** |
+| halftone | 140.9 / 141.0 | 80.0 / 7.8 | **75.2 / 10.8** |
+| threshold | 120.5 / 120.5 | 59.3 / 10.3 | **68.7 / 13.5** |
+| grayscale | 9.8 / 9.8 | 42.2 / 21.4 | **10.5 / 10.6** |
+
+| Single op, 2048² median ms | Main | Workers | Routed |
+|---|---:|---:|---:|
+| printSet | 11.8 | 24.3 | **12.6** |
+| grid | 3.9 | 8.9 | **3.8** |
+| rotate | 1.4 | 4.3 | **1.6** |
+| noise | 91.6 | 99.8 | 94.0 |
+
+Routed matches the main thread for cheap operations and the worker pool for heavy ones in galleries. Heavy single operations pay a small transfer cost in exchange for not blocking the UI.

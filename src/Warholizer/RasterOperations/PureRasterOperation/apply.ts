@@ -220,7 +220,7 @@ const apply = async (op: PureRasterOperation, inputs: OffscreenCanvas[]): Promis
       return [];
     case 'noop': 
       return inputs;
-    case 'multiply': 
+    case 'copies': 
       return Array(op.n).fill(inputs).flatMap(inputs => inputs);
     case 'fill':
       return Promise.all(inputs.map(input => {

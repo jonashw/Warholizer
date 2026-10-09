@@ -5,6 +5,7 @@ import { Angle, Byte, Percentage, PositiveNumber, angle, byte, percentage, posit
 import { BlendingMode, BlendingModes, Dimension, Direction, PaperSizeId, PaperSizes, PureRasterOperation, RotationOrigin, RotationOrigins, TilingPatterns, TilingPattern} from "./types";
 import { ButtonRadiosInput } from "../../../FormComponents/ButtonRadiosInput";
 import { OperationIcon } from "./OperationIcon";
+import { OperationTypeOptions } from "./OperationTypeOptions";
 import { PureRasterOperationRecord, operationAsRecord } from "../PureRasterApplicator";
 import { DropdownSelector } from "../../../FormComponents/DropdownSelector";
 import React from "react";
@@ -177,11 +178,7 @@ export const PureRasterOperationInlineEditor = ({
                         onChange(operationAsRecord(replacementOp));
                     }}
                 >
-                    {sampleOperators.map(op =>
-                        <option value={op.type} key={op.type}>
-                            {op.type}
-                        </option>
-                    )}
+                    <OperationTypeOptions operations={sampleOperators} />
                 </select>
             </span>}
             {(() => {
@@ -270,7 +267,7 @@ export const PureRasterOperationInlineEditor = ({
                                 onChange={blendingMode => onChange({...op, blendingMode})}
                             />
                         </>);
-                    case 'multiply': return (
+                    case 'copies': return (
                         <NumberSpinnerInput
                             value={op.n}
                             min={1}

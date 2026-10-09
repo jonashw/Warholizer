@@ -3,7 +3,6 @@ import { PureRasterApplicatorRecord, PureRasterOperationRecord, operationAsRecor
 import { ImageRecord } from './ImageRecord';
 import { Modal } from './Modal';
 import { WarholizerImage } from './WarholizerImage';
-import { sampleOperations } from './sampleOperations';
 import { OperationIcon } from './Warholizer/RasterOperations/PureRasterOperation/OperationIcon';
 import * as PureRasterOperations from "./Warholizer/RasterOperations/PureRasterOperation/";
 import { Thumbnail } from './Thumbnail';
@@ -25,9 +24,12 @@ export const OperationPreviewModal = ({
             : Array.from(selectedImgIds).filter(i => i !== imgId);
         setSelectedImgIds(new Set(nextImageIds));
     };
-    const candidates = sampleOperations.map(op => ({
-        op,
-        applicators: previewApplicators(operationAsRecord(op))
+    const groups = PureRasterOperations.defaultOperationsByKind.map(group => ({
+        ...group,
+        candidates: group.operations.map(op => ({
+            op,
+            applicators: previewApplicators(operationAsRecord(op))
+        }))
     }));
     return (
         <Modal
@@ -37,7 +39,7 @@ export const OperationPreviewModal = ({
                     {previewImages.length > 1 && (
                         <div className="row">
                             {previewImages.map(img => (
-                                <div className="col">
+                                <div className="col" key={img.id}>
                                     <input
                                         type="checkbox"
                                         checked={selectedImgIds.has(img.id)}
@@ -52,15 +54,19 @@ export const OperationPreviewModal = ({
                             ))}
                         </div>
                     )}
+                    {groups.map(group => (
+                    <React.Fragment key={group.kind}>
+                    <h6 className="mt-3 mb-1" title={group.description}>{group.label}</h6>
                     <div className="row">
-                        {candidates.map(({op,applicators}) => {
+                        {group.candidates.map(({op,applicators}) => {
                             return (
                                 <div 
+                                    key={op.type}
                                     className="col-6 col-sm-4 col-xl-3"
-                                    title={PureRasterOperations.stringRepresentation(op)}
+                                    title={`${PureRasterOperations.operationRegistry[op.type].description}\n${PureRasterOperations.stringRepresentation(op)}`}
                                 >
                                     <OperationIcon op={op} className="me-2"/>
-                                    {op.type}
+                                    {PureRasterOperations.operationRegistry[op.type].label}
                                     <WarholizerImage
                                         thumbnail={90}
                                         onClick={() => {
@@ -75,6 +81,8 @@ export const OperationPreviewModal = ({
                             );
                         })}
                     </div>
+                    </React.Fragment>
+                    ))}
                 </div>
             )}
             title="Choose an operation" />

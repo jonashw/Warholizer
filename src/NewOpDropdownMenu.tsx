@@ -1,6 +1,7 @@
 import React from 'react';
 import { sampleOperations } from './sampleOperations';
 import { PureRasterOperation } from './Warholizer/RasterOperations/PureRasterOperation';
+import { OperationTypeOptions } from './Warholizer/RasterOperations/PureRasterOperation/OperationTypeOptions';
 
 
 export function NewOpDropdownMenu({
@@ -29,8 +30,7 @@ export function NewOpDropdownMenu({
             }}
         >
             <option value={""}>{placeholder ?? 'Add an operation'}</option>
-            {sampleOperations.map(op => <option key={op.type} value={op.type}>{op.type}</option>
-            )}
+            <OperationTypeOptions operations={sampleOperations} />
         </select>
     );
 }

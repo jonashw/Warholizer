@@ -23,7 +23,7 @@ export type PureRasterOperation =
   | Grayscale
   | Threshold
   | RGBChannels
-  | Multiply
+  | Copies
   | Invert;
 
 export type Dimension = 'x'|'y';
@@ -34,7 +34,7 @@ export type Fill = { type: "fill", color: CSSProperties["color"], blendingMode: 
 export type Noop = { type: "noop" };
 export type Crop = { type: "crop", x: number, y: number, width: number, height: number, unit: 'px' | '%' }
 export type Threshold = { type: "threshold", value: Byte };
-export type Multiply = { type: "multiply", n: number };
+export type Copies = { type: "copies", n: number };
 export type Split = { type: "split", dimension: Dimension, amount: Percentage };
 export type SlideWrap = { type: "slideWrap", dimension: Dimension, amount: Percentage };
 export type Halftone = { type: "halftone", angle: Angle, dotDiameter: number, blurPixels: number, dotsOnly?: boolean, invert?: boolean };

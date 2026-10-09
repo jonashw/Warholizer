@@ -58,7 +58,7 @@ Classifying current operations by signature (input count → output count, wheth
 1. **Testing.** Unit tests for `apply.ts` (Vitest browser mode, real Chromium) plus a benchmark page. *Done 2026-10-08; see below.*
 2. **Tech debt.** Dependency upgrades (Vite, MUI, React), replace deprecated `react-beautiful-dnd`, bring `npm run lint` back to passing. The tests from step 1 guard these changes. *Done 2026-10-08.*
 3. **Worker-backed engine interface** used by all editing models. *Done 2026-10-08.*
-4. **Operation registry** with kind; regroup the menu; rename collisions.
+4. **Operation registry** with kind; regroup the menu; rename collisions. *Done 2026-10-08.*
 5. **GPU path** for per-pixel operations; filter gallery.
 6. **New operations**, using WASM where sequential.
 
@@ -102,4 +102,13 @@ Classifying current operations by signature (input count → output count, wheth
 - Parity tests (`engine.test.ts`) compare worker output to the main-thread reference for every sample operation. They exposed a latent bug: `printSet` drew asynchronously but `apply` resolved before drawing finished (fixed in `offscreenCanvasOperation`; regression test added).
 - Results: [docs/benchmarks/2026-10-08-worker-engine.md](../benchmarks/2026-10-08-worker-engine.md). Heavy per-pixel operations no longer freeze the UI and galleries run in parallel; cheap operations pay a transfer cost. Step 4's registry should carry an execution hint so cheap operations stay on the main thread.
 - Not covered: the original Warholizer editor (`Warholizer.tsx`) mostly uses its own `ImageUtil` pipeline (threshold, quantize, tiling) and the legacy `RasterOperations` types, not `PureRasterOperation`. Consolidating it onto this engine is future work.
+
+### 2026-10-08: operation registry (step 4) done
+
+- `PureRasterOperation/registry.ts` is the single source of operation metadata: kind, label, description, default parameters, and execution hint. Its type requires an entry for every operation type, so a new operation cannot compile without one. `sampleOperations` now derives from it.
+- Menus (add-operation dropdown, inline type picker, Explore modal) are grouped by kind and use human labels and descriptions instead of type names.
+- Renamed `multiply` to `copies` (it emits n copies; "multiply" is also a blend mode). No operations are persisted yet, so no data migration was needed; ADR 0001's versioned formula format will start from the new names.
+- The default engine routes by execution hint: per-pixel loop operations (`threshold`, `noise`, `halftone`, `rgbChannels`) to workers, the rest on the main thread. See the addendum in [docs/benchmarks/2026-10-08-worker-engine.md](../benchmarks/2026-10-08-worker-engine.md).
+- The icon map is now complete (`halftone`, `noise`, `rgbChannels`, `printSet` previously fell back to a generic icon). Icons stay in `OperationIcon.tsx` so the registry remains plain data, usable outside React (e.g. formula validation on the server).
+- `registry.test.ts` pins the taxonomy above, defaults, ordering, and routing.
 

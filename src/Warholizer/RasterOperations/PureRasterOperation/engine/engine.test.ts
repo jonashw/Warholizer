@@ -50,7 +50,7 @@ describe('worker engine protocol', () => {
   it('passes inputs through by identity', async () => {
     const inputs = [solid(2, 2, RED), solid(2, 2, BLUE)];
     expect(await workers.apply({ type: 'noop' }, inputs)).toEqual(inputs);
-    const [a, b, c, d] = await workers.apply({ type: 'multiply', n: 2 }, inputs);
+    const [a, b, c, d] = await workers.apply({ type: 'copies', n: 2 }, inputs);
     expect([a, b, c, d]).toEqual([inputs[0], inputs[1], inputs[0], inputs[1]]);
     expect(a).toBe(inputs[0]);
   });

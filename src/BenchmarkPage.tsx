@@ -2,7 +2,7 @@ import React from "react";
 import { sampleOperations } from "./sampleOperations";
 import { sampleImageUrls } from "./sampleImageUrls";
 import ImageUtil from "./Warholizer/ImageUtil";
-import { getEngine, mainThreadEngine, RasterEngine } from "./Warholizer/RasterOperations/PureRasterOperation";
+import { getEngine, getWorkerEngine, mainThreadEngine, RasterEngine } from "./Warholizer/RasterOperations/PureRasterOperation";
 import {
   BenchmarkResult, GalleryBenchmarkResult, benchmarkGallery, benchmarkOperation, resized
 } from "./Warholizer/RasterOperations/PureRasterOperation/benchmark";
@@ -21,7 +21,7 @@ export default function BenchmarkPage() {
   const [status, setStatus] = React.useState<string>("");
   const [running, setRunning] = React.useState(false);
 
-  const engines: RasterEngine[] = [mainThreadEngine, getEngine()].filter((e, i, all) => all.indexOf(e) === i);
+  const engines: RasterEngine[] = [mainThreadEngine, getWorkerEngine(), getEngine()].filter((e, i, all) => all.indexOf(e) === i);
 
   const yieldToPaint = () => new Promise(r => setTimeout(r, 0));
 

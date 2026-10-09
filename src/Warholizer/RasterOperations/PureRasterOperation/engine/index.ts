@@ -1,5 +1,6 @@
 import { apply as applyOnMainThread } from "../apply";
 import { PureRasterOperation } from "../types";
+import { ExecutionHint, operationRegistry } from "../registry";
 import { RasterEngine } from "./RasterEngine";
 import { createWorkerEngine } from "./workerEngine";
 
@@ -13,12 +14,34 @@ const workersSupported = () =>
   && typeof OffscreenCanvas !== 'undefined'
   && typeof createImageBitmap !== 'undefined';
 
+/** Sends each operation to the engine its registry entry's execution hint names. */
+export const createRoutingEngine = (
+  engines: Record<ExecutionHint, RasterEngine>,
+  route: (op: PureRasterOperation) => ExecutionHint = op => operationRegistry[op.type].execution
+): RasterEngine => ({
+  name: 'routed',
+  apply: (op, inputs) => engines[route(op)].apply(op, inputs),
+});
+
+let workerEngine: RasterEngine | undefined;
+
+/** The shared worker pool, created on first use; the main thread where workers are unavailable. */
+export const getWorkerEngine = (): RasterEngine => {
+  if (!workerEngine) {
+    workerEngine = workersSupported() ? createWorkerEngine() : mainThreadEngine;
+  }
+  return workerEngine;
+};
+
 let current: RasterEngine | undefined;
 
-/** The engine used by `apply`. Created lazily: workers when supported, otherwise the main thread. */
+/**
+ * The engine used by `apply`: per-pixel operations go to workers, operations the browser already
+ * accelerates stay on the main thread (see the registry's execution hints).
+ */
 export const getEngine = (): RasterEngine => {
   if (!current) {
-    current = workersSupported() ? createWorkerEngine() : mainThreadEngine;
+    current = createRoutingEngine({ main: mainThreadEngine, worker: getWorkerEngine() });
   }
   return current;
 };

@@ -1,6 +1,7 @@
 export * from "./PureRasterOperationInlineEditor";
 export * from "./types";
 export * from "./stringRepresentation";
+export * from "./registry";
 // Operations run through the engine (workers when available); see ./engine.
-export { apply, applyFlatMap, applyPipeline, getEngine, setEngine, mainThreadEngine, createWorkerEngine } from "./engine";
+export { apply, applyFlatMap, applyPipeline, getEngine, setEngine, getWorkerEngine, mainThreadEngine, createWorkerEngine, createRoutingEngine } from "./engine";
 export type { RasterEngine } from "./engine";
