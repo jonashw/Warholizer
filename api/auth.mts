@@ -13,6 +13,23 @@ export type User = {
     picture: string
 };
 
+// verifyIdToken throws on malformed, expired, or wrongly-signed tokens; treat those as 401, not 500.
+const tryVerifyIdToken = async (idToken: string): Promise<LoginTicket|string> => {
+    try {
+        return await client.verifyIdToken({
+            idToken,
+            audience: clientId,
+            // Or, if multiple clients access the backend:
+            //[WEB_CLIENT_ID_1, WEB_CLIENT_ID_2, WEB_CLIENT_ID_3]
+        });
+    } catch {
+        return 'Invalid token';
+    }
+};
+
+const unauthorized = (error: string) =>
+    new Response(JSON.stringify({ error }), { headers: { 'Content-Type': 'application/json' }, status: 401 });
+
 const tryGetUserFromTicket = (ticket: LoginTicket): User|string => {
     const payload = ticket.getPayload();
     if(!payload) {
@@ -44,17 +61,14 @@ export async function withAuthenticatedGoogleUser(req: Request, next: (user: Use
     if (!authHeader?.startsWith('Bearer ')) {
         return new Response(JSON.stringify({ error: 'Missing or invalid Authorization header' }), { headers: { 'Content-Type': 'application/json' }, status: 401 });
     }
-    const token = authHeader.split(' ')[1];
-    const ticket = await client.verifyIdToken({
-        idToken: token,
-        audience: clientId,
-        // Or, if multiple clients access the backend:
-        //[WEB_CLIENT_ID_1, WEB_CLIENT_ID_2, WEB_CLIENT_ID_3]
-    });
+    const ticket = await tryVerifyIdToken(authHeader.split(' ')[1]);
+    if (typeof ticket === 'string') {
+        return unauthorized(ticket);
+    }
     const user = tryGetUserFromTicket(ticket);
     // tryGetUserFromTicket returns a primitive string on failure, so `instanceof String` never matched.
     if (typeof user === 'string') {
-        return new Response(JSON.stringify({ error: user }), { headers: { 'Content-Type': 'application/json' }, status: 401 });
+        return unauthorized(user);
     }
     return next(user);
 }
@@ -65,16 +79,14 @@ export default async (req: Request) => {
     if(typeof token !== 'string') {
         return new Response(JSON.stringify({error: 'Expected code in request body'}),{headers: {'Content-Type': 'application/json'}, status: 400});
     }
-    const ticket = await client.verifyIdToken({
-        idToken: token,
-        audience: clientId,  
-        // Or, if multiple clients access the backend:
-        //[WEB_CLIENT_ID_1, WEB_CLIENT_ID_2, WEB_CLIENT_ID_3]
-    });
+    const ticket = await tryVerifyIdToken(token);
+    if(typeof ticket === "string") {
+        return unauthorized(ticket);
+    }
     const user = tryGetUserFromTicket(ticket);
     if(typeof user === "string") {
         console.log(user);
-        return new Response(JSON.stringify({error: user}),{headers: {'Content-Type': 'application/json'}, status: 401});
+        return unauthorized(user);
     }
     const u: User = user;
 

@@ -1,8 +1,8 @@
 import { Config, Context } from "@netlify/functions";
 import {sql} from "../db";
 
-export default async (req: Request, context: Context): Promise<Response> => {
-    //return withAuthenticatedGoogleUser(req, async (user) => {
+export default async (_req: Request, context: Context): Promise<Response> => {
+    //return withAuthenticatedGoogleUser(_req, async (user) => {
         const id = context.params?.id;
         if(!id) {
             return Response.json({error: 'Missing file id'});
