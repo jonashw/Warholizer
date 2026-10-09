@@ -56,7 +56,7 @@ Classifying current operations by signature (input count → output count, wheth
 ## Implementation order
 
 1. **Testing.** Unit tests for `apply.ts` (Vitest browser mode, real Chromium) plus a benchmark page. *Done 2026-10-08; see below.*
-2. **Tech debt.** Dependency upgrades (Vite, MUI, React), replace deprecated `react-beautiful-dnd`, bring `npm run lint` back to passing. The tests from step 1 guard these changes.
+2. **Tech debt.** Dependency upgrades (Vite, MUI, React), replace deprecated `react-beautiful-dnd`, bring `npm run lint` back to passing. The tests from step 1 guard these changes. *Done 2026-10-08.*
 3. **Worker-backed engine interface** used by all editing models.
 4. **Operation registry** with kind; regroup the menu; rename collisions.
 5. **GPU path** for per-pixel operations; filter gallery.
@@ -81,3 +81,15 @@ Classifying current operations by signature (input count → output count, wheth
 - Fixed the three known engine bugs above; their tests are now ordinary passing tests. **This changes rendered output**: `rotate` 90°/270° on non-square images, and any non-quarter rotation about `center` on non-square images, now render correctly where they were previously squashed or offset.
 - Fixed `line` and `tile` throwing on an empty input list (seen in the graph demos); they now return no outputs, like `stack`.
 - Remaining console noise, not yet addressed: React "unique key" warnings in `Warholizer`, `GraphViewerDemo`, and `ProgressiveApplicationDemo`.
+
+### 2026-10-08: tech debt (step 2) done
+
+- Fixed the React "unique key" warnings above.
+- Removed unused dependencies; Node 18 → 22 (`.nvmrc`; Vitest 5 and the server libraries need ≥ 22.12).
+- Upgraded: Vite 5 → 8, Vitest 3 → 5, ESLint 8 → 10 (flat config), typescript-eslint 6 → 8, eslint-plugin-react-hooks 4 → 7, React 18 → 19, React Router 6 → 7, MUI 5 → 9, TypeScript 5.3 → 6.0, @netlify/functions 2 → 6, google-auth-library 10 → 11.
+- Replaced deprecated `react-beautiful-dnd` with `@hello-pangea/dnd` (API-compatible fork).
+- react-hooks 7 (React Compiler rules) surfaced effect-driven state updates; these now derive during render or tag async results with their inputs, so stale results can no longer overwrite newer ones.
+- `npm run lint` now covers `api/`; `tsc` now covers `api/` and `db/`.
+- Auth fixes: invalid token payloads were never rejected (`instanceof String` on a primitive), and malformed tokens returned 500 with a stack trace instead of 401.
+- Deferred: TypeScript 7 (typescript-eslint supports < 6.1); `npm audit` reports 4 moderate findings, all via `drizzle-kit`'s bundled esbuild (development-time only).
+- Open security question, not changed: `/api/users` is unauthenticated and returns all users' names, emails, and sign-in history.

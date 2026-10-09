@@ -28,6 +28,7 @@ Application components:
 
 ### Tests and benchmarks
 
+- Use Node 22 (`nvm use`); see `.nvmrc`.
 - `npm test` runs the raster engine tests in headless Chromium (Vitest browser mode). First time only: `npx playwright install chromium`.
 - `npm run test:watch` runs them in watch mode.
 - `/benchmark` (in the running app) times every operation at several image sizes. See [docs/benchmarks](docs/benchmarks).
