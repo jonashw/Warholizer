@@ -187,6 +187,7 @@ export function PureGraphEditor({
                     selectNode(updatedNode.id);
                   }}
                   sampleOperators={sampleOperations}
+                  inputs={() => Promise.resolve((output?.inputsFor[activeNode.op.id] ?? []).map(i => i.osc))}
                 />
               </div>
             </div>

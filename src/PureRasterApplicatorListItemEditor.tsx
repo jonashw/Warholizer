@@ -79,6 +79,7 @@ export const PureRasterApplicatorListItemEditor = ({
                                         <div className="d-flex justify-content-between">
                                             <PureRasterOperationInlineEditor
                                                 sampleOperators={sampleOperations}
+                                                inputs={() => PureRasterApplicators.inputsForOp(value, i, previewImages.map(p => p.osc))}
                                                 value={op}
                                                 onChange={newOp => {
                                                     onChange({

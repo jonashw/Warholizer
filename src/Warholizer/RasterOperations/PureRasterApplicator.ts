@@ -121,4 +121,23 @@ const applyAllIteratively = (applicators: PureRasterApplicatorRecord[], inputs: 
     Promise.resolve([{ inputs, applied: [], outputs: inputs } as IterativeApplication]))
   .then(apps => apps.slice(1)); //exclude seed
 
-export const PureRasterApplicators = {apply,types,applyAll,applyAllIteratively,map};
+/**
+ * The images that flow into `app.ops[index]` when `app` is applied to `inputs`: for `pipe`, the
+ * outputs of the preceding ops; for `flatMap`, the applicator's inputs; for `zip`, the matching input.
+ */
+const inputsForOp = async (app: PureRasterApplicator, index: number, inputs: OffscreenCanvas[]): Promise<OffscreenCanvas[]> => {
+  switch (app.type) {
+    case 'pipe':
+      return app.ops.slice(0, index).reduce(
+        async (prev, op) => PureRasterOperations.apply(op, await prev),
+        Promise.resolve(inputs));
+    case 'flatMap':
+      return inputs;
+    case 'zip':
+      return inputs[index] ? [inputs[index]] : [];
+    default:
+      throw new Error(`Unexpected applicator type: ${app.type}`);
+  }
+};
+
+export const PureRasterApplicators = {apply,types,applyAll,applyAllIteratively,map,inputsForOp};

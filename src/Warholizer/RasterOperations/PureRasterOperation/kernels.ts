@@ -1,5 +1,6 @@
 import { Byte } from "../../../NumberTypes";
 import { Noise } from "./types";
+import { RGB } from "./palette";
 
 /**
  * The per-pixel steps of operations. Everything else in `apply` is composition that the browser
@@ -13,6 +14,32 @@ export type PixelKernels = {
   noise: (input: OffscreenCanvas, op: Noise) => Promise<OffscreenCanvas>,
   /** One image per channel (red, green, blue), each on white, keeping the input's alpha. */
   rgbChannels: (input: OffscreenCanvas) => Promise<OffscreenCanvas[]>,
+  /**
+   * Maps each pixel to its nearest `match` color and paints it with the corresponding `paint` color,
+   * keeping alpha. With `only`, pixels matching other colors become transparent.
+   */
+  mapToPalette: (input: OffscreenCanvas, match: RGB[], paint: RGB[], only?: number) => Promise<OffscreenCanvas>,
+  /** Per channel: `((v - black) / (white - black))` clamped, raised to `1 / gamma`. */
+  levels: (input: OffscreenCanvas, black: number, white: number, gamma: number) => Promise<OffscreenCanvas>,
+};
+
+const nearestIndex = (palette: RGB[], r: number, g: number, b: number) => {
+  let best = 0, bestDistance = Infinity;
+  for (let i = 0; i < palette.length; i++) {
+    const [pr, pg, pb] = palette[i];
+    const d = (r - pr) ** 2 + (g - pg) ** 2 + (b - pb) ** 2;
+    if (d < bestDistance) {
+      bestDistance = d;
+      best = i;
+    }
+  }
+  return best;
+};
+
+/** The levels transfer function on 0..255 values; shared so CPU and GPU agree on edge cases. */
+export const levelsCurve = (v: number, black: number, white: number, gamma: number) => {
+  const t = Math.min(1, Math.max(0, (v - black) / Math.max(1, white - black)));
+  return Math.round(255 * Math.pow(t, 1 / Math.max(0.01, gamma)));
 };
 
 const canvasFrom = (data: ImageData): OffscreenCanvas => {
@@ -32,6 +59,14 @@ function rgbaValue(r: number, g: number, b: number, a: number) {
 }
 
 const isEmpty = (c: OffscreenCanvas) => c.width === 0 || c.height === 0;
+
+const copy = (input: OffscreenCanvas) => {
+  const c = new OffscreenCanvas(input.width, input.height);
+  if (!isEmpty(input)) {
+    c.getContext('2d')!.drawImage(input, 0, 0);
+  }
+  return c;
+};
 
 /** Reference kernels: JavaScript loops over ImageData. Zero-area inputs yield zero-area outputs. */
 export const cpuKernels: PixelKernels = {
@@ -102,5 +137,37 @@ export const cpuKernels: PixelKernels = {
       });
     }
     return channels.map(canvasFrom);
+  },
+
+  mapToPalette: async (input, match, paint, only) => {
+    if (isEmpty(input) || match.length === 0) {
+      return copy(input);
+    }
+    const imgData = readPixels(input);
+    const d = imgData.data;
+    for (let i = 0; i < d.length; i += 4) {
+      const index = nearestIndex(match, d[i], d[i + 1], d[i + 2]);
+      if (only !== undefined && index !== only) {
+        d[i] = d[i + 1] = d[i + 2] = d[i + 3] = 0;
+        continue;
+      }
+      [d[i], d[i + 1], d[i + 2]] = paint[index];
+    }
+    return canvasFrom(imgData);
+  },
+
+  levels: async (input, black, white, gamma) => {
+    if (isEmpty(input)) {
+      return copy(input);
+    }
+    const curve = Array.from({ length: 256 }, (_, v) => levelsCurve(v, black, white, gamma));
+    const imgData = readPixels(input);
+    const d = imgData.data;
+    for (let i = 0; i < d.length; i += 4) {
+      d[i] = curve[d[i]];
+      d[i + 1] = curve[d[i + 1]];
+      d[i + 2] = curve[d[i + 2]];
+    }
+    return canvasFrom(imgData);
   },
 };

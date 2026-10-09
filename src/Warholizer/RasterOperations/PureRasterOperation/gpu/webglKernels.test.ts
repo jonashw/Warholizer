@@ -98,6 +98,23 @@ describe('WebGL2 kernels', () => {
       expect(mismatchRate(actual, expected, 0)).toBeLessThan(0.01);
     });
 
+    it('mapToPalette', async () => {
+      const input = testImage(64, 48);
+      const match: [number, number, number][] = [[0, 0, 0], [255, 40, 0], [20, 200, 90], [10, 30, 255], [255, 255, 255]];
+      const paint: [number, number, number][] = [[255, 0, 255], [0, 0, 0], [255, 255, 0], [0, 255, 255], [9, 9, 9]];
+      const [expected, actual] = await Promise.all([cpuKernels.mapToPalette(input, match, paint), gpu.mapToPalette(input, match, paint)]);
+      // Equidistant pixels may resolve differently; alpha may round by a unit.
+      expect(mismatchRate(actual, expected, 2)).toBeLessThan(0.005);
+      const [e2, a2] = await Promise.all([cpuKernels.mapToPalette(input, match, paint, 2), gpu.mapToPalette(input, match, paint, 2)]);
+      expect(mismatchRate(a2, e2, 2)).toBeLessThan(0.005);
+    });
+
+    it.each([[0, 255, 1], [40, 200, 1], [0, 255, 2.2], [30, 220, 0.6]])('levels %i..%i γ%f', async (black, white, gamma) => {
+      const input = testImage(64, 48);
+      const [expected, actual] = await Promise.all([cpuKernels.levels(input, black, white, gamma), gpu.levels(input, black, white, gamma)]);
+      expect(mismatchRate(actual, expected, 2)).toBe(0);
+    });
+
     it('falls back to the CPU for zero-area images', async () => {
       const out = await gpu.threshold(new OffscreenCanvas(0, 3), byte(128));
       expect(size(out)).toEqual([0, 3]);

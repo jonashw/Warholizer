@@ -72,6 +72,7 @@ export function OperatorEditorDemo() {
                 <div className="d-flex justify-content-between">
                   <PureRasterOperationInlineEditor
                     onChange={onOpChange}
+                    inputs={() => Promise.resolve((inputs ?? []).map(i => i.osc))}
                     value={op} />
                 </div>
               </div>

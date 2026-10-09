@@ -1,5 +1,6 @@
 import { Line, PaperSizeById, PureRasterOperation, SlideWrap, Tile } from "./types";
 import { PixelKernels, cpuKernels } from "./kernels";
+import { medianCutPalette, paintColors } from "./palette";
 
 
 
@@ -247,6 +248,19 @@ const createApply = (kernels: PixelKernels) => async (op: PureRasterOperation, i
       return Promise.all(inputs.map(input => kernels.threshold(input, op.value)));
     case 'noise':
       return Promise.all(inputs.map(input => kernels.noise(input, op)));
+    case 'quantize':
+      return Promise.all(inputs.map(input => {
+        const palette = medianCutPalette(input, op.colors);
+        return kernels.mapToPalette(input, palette, paintColors(palette, op.replacements));
+      }));
+    case 'separateColors':
+      return (await Promise.all(inputs.map(input => {
+        const palette = medianCutPalette(input, op.colors);
+        const paint = paintColors(palette, op.replacements);
+        return Promise.all(palette.map((_, i) => kernels.mapToPalette(input, palette, paint, i)));
+      }))).flat();
+    case 'levels':
+      return Promise.all(inputs.map(input => kernels.levels(input, op.black, op.white, op.gamma)));
     case 'rgbChannels': 
       return (await Promise.all(inputs.map(input => kernels.rgbChannels(input)))).flat();
     case 'grayscale': 

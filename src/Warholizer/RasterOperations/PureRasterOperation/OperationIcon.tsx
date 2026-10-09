@@ -16,7 +16,10 @@ import {
     Grain,
     Print,
     Tune,
-    Texture
+    Texture,
+    ColorLens,
+    ViewQuilt,
+    Exposure
 } from "@mui/icons-material";
 import type { SvgIconComponent } from "@mui/icons-material";
 
@@ -44,6 +47,9 @@ const operationIcons: Record<PureRasterOperation['type'], SvgIconComponent> = {
     noise: Texture,
     rgbChannels: Tune,
     printSet: Print,
+    quantize: ColorLens,
+    separateColors: ViewQuilt,
+    levels: Exposure,
 };
 
 export const OperationIcon = ({

@@ -153,6 +153,7 @@ export default function FilterGalleryPage() {
               </div>
               <PureRasterOperationInlineEditor
                 value={opRecord}
+                inputs={() => Promise.resolve(input ? [input] : [])}
                 onChange={({ id: _id, ...rest }) => setOp(rest as PureRasterOperation)} />
               <div className="mt-2"><code className="small">{stringRepresentation(op)}</code></div>
             </div>

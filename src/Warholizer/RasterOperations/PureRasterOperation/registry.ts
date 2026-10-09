@@ -78,6 +78,21 @@ export const operationRegistry: { [T in OperationType]: OperationRegistration<T>
     defaults: { type: 'noise', monochromatic: false, amount: 30 },
     sweeps: [{ param: 'amount', values: [0, 10, 20, 30, 50, 75, 100] }, { param: 'monochromatic', values: [false, true] }],
   },
+  levels: {
+    kind: 'tone', label: 'Levels', execution: 'gpu',
+    description: 'Sets the black point, white point, and midtone brightness (gamma).',
+    defaults: { type: 'levels', black: byte(0), white: byte(255), gamma: 1 },
+    sweeps: [{ param: 'gamma', values: [0.5, 0.7, 1, 1.4, 2, 3] }, { param: 'black', values: range(0, 160, 32).map(byte) }, { param: 'white', values: range(95, 255, 32).map(byte) }],
+  },
+  quantize: {
+    kind: 'tone', label: 'Quantize', execution: 'gpu',
+    description: 'Reduces the image to a few flat colors, optionally replacing each one.',
+    defaults: { type: 'quantize', colors: 4, replacements: [] },
+    sweeps: [{ param: 'colors', values: [2, 3, 4, 6, 8, 12, 16] }, { param: 'replacements', values: [
+      [], ['#000000', '#ff3399', '#ffcc00', '#ffffff'], ['#1a1a6e', '#00a0e0', '#ff6600', '#ffee88'],
+      ['#222222', '#e63946', '#a8dadc', '#f1faee'], ['#2b2d42', '#8d99ae', '#ef233c', '#edf2f4'],
+    ] }],
+  },
   blur: {
     kind: 'filter', label: 'Blur', execution: 'main',
     description: 'Softens the image.',
@@ -129,6 +144,12 @@ export const operationRegistry: { [T in OperationType]: OperationRegistration<T>
     description: 'Cuts each image into two pieces.',
     defaults: { type: 'split', dimension: 'x', amount: 50 },
     sweeps: [{ param: 'amount', values: [10, 25, 50, 75, 90] }, { param: 'dimension', values: ['x', 'y'] }],
+  },
+  separateColors: {
+    kind: 'cardinality', label: 'Separate colors', execution: 'gpu',
+    description: 'Splits the image into one layer per quantized color, like screenprint separations.',
+    defaults: { type: 'separateColors', colors: 4, replacements: [] },
+    sweeps: [{ param: 'colors', values: [2, 3, 4, 6] }],
   },
   rgbChannels: {
     kind: 'cardinality', label: 'RGB channels', execution: 'gpu',

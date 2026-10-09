@@ -8,10 +8,10 @@ import { PureRasterOperation } from './types';
 
 // The taxonomy from ADR 0002.
 const expectedKinds: Record<OperationKind, OperationType[]> = {
-  tone: ['invert', 'threshold', 'grayscale', 'rotateHue', 'fill', 'noise'],
+  tone: ['invert', 'threshold', 'grayscale', 'rotateHue', 'fill', 'noise', 'levels', 'quantize'],
   filter: ['blur', 'halftone'],
   geometry: ['crop', 'scale', 'scaleToFit', 'rotate', 'slideWrap'],
-  cardinality: ['copies', 'split', 'rgbChannels', 'void', 'noop'],
+  cardinality: ['copies', 'split', 'rgbChannels', 'separateColors', 'void', 'noop'],
   layout: ['stack', 'line', 'tile', 'grid', 'printSet'],
 };
 
@@ -48,7 +48,7 @@ describe('operation registry', () => {
 
   it('sends exactly the operations with pixel kernels to the GPU', () => {
     expect(types.filter(t => operationRegistry[t].execution === 'gpu').sort())
-      .toEqual(['halftone', 'noise', 'rgbChannels', 'threshold']);
+      .toEqual(['halftone', 'levels', 'noise', 'quantize', 'rgbChannels', 'separateColors', 'threshold']);
     expect(types.filter(t => operationRegistry[t].execution === 'worker')).toEqual([]);
   });
 });

@@ -24,11 +24,20 @@ export type PureRasterOperation =
   | Threshold
   | RGBChannels
   | Copies
-  | Invert;
+  | Invert
+  | Quantize
+  | SeparateColors
+  | Levels;
 
 export type Dimension = 'x'|'y';
 export type Direction = 'up' | 'down' | 'left' | 'right';
 export type Invert = { type: "invert" };
+/** Reduce to a median-cut palette; `replacements[i]` (hex or null to keep) recolors the i-th darkest color. */
+export type Quantize = { type: "quantize", colors: number, replacements: (string | null)[] };
+/** One image per palette color (as in Quantize), the rest transparent: screenprint/stencil separations. */
+export type SeparateColors = { type: "separateColors", colors: number, replacements: (string | null)[] };
+/** Remap tones: `black` and `white` points (0-255) and gamma (> 1 brightens midtones). */
+export type Levels = { type: "levels", black: Byte, white: Byte, gamma: number };
 export type Void = { type: "void" };
 export type Fill = { type: "fill", color: CSSProperties["color"], blendingMode: BlendingMode};
 export type Noop = { type: "noop" };

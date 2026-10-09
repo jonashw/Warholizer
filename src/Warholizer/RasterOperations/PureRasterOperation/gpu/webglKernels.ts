@@ -1,4 +1,8 @@
 import { PixelKernels, cpuKernels } from "../kernels";
+import { RGB } from "../palette";
+
+/** Largest palette the GPU kernel supports; larger palettes fall back to the CPU. */
+export const maxGpuPaletteSize = 64;
 
 // WebGL2 implementations of the pixel kernels. One shared OffscreenCanvas context renders each
 // kernel as a full-screen fragment shader; results are copied into ordinary 2D canvases, so the
@@ -67,6 +71,44 @@ void main() {
   outColor = vec4(rgb, a);
 }`;
 
+const paletteShader = fragmentPrelude + `
+const int MAX_COLORS = ${maxGpuPaletteSize};
+uniform vec3 u_match[MAX_COLORS];
+uniform vec3 u_paint[MAX_COLORS];
+uniform int u_count;
+uniform int u_only;
+void main() {
+  vec4 c = inputPixel();
+  int best = 0;
+  float bestDistance = 1e20;
+  for (int i = 0; i < MAX_COLORS; i++) {
+    if (i >= u_count) break;
+    vec3 d = c.rgb - u_match[i];
+    float distance = dot(d, d);
+    // Strictly less: ties go to the earlier (darker) color, as in the CPU reference.
+    if (distance < bestDistance) {
+      bestDistance = distance;
+      best = i;
+    }
+  }
+  if (u_only >= 0 && best != u_only) {
+    outColor = vec4(0.0);
+    return;
+  }
+  outColor = vec4(u_paint[best] / 255.0, c.a / 255.0);
+}`;
+
+const levelsShader = fragmentPrelude + `
+uniform float u_black;
+uniform float u_white;
+uniform float u_gamma;
+void main() {
+  vec4 c = inputPixel();
+  vec3 t = clamp((c.rgb - u_black) / max(1.0, u_white - u_black), 0.0, 1.0);
+  vec3 v = floor(255.0 * pow(t, vec3(1.0 / max(0.01, u_gamma))) + 0.5);
+  outColor = vec4(v / 255.0, c.a / 255.0);
+}`;
+
 type Program = {
   program: WebGLProgram,
   uniform: (name: string) => WebGLUniformLocation | null
@@ -103,7 +145,7 @@ type GpuContext = {
   canvas: OffscreenCanvas,
   gl: WebGL2RenderingContext,
   texture: WebGLTexture,
-  programs: { threshold: Program, rgbChannels: Program, noise: Program },
+  programs: { threshold: Program, rgbChannels: Program, noise: Program, palette: Program, levels: Program },
   lost: boolean
 };
 
@@ -139,6 +181,8 @@ const createContext = (): GpuContext | undefined => {
       threshold: compile(gl, thresholdShader),
       rgbChannels: compile(gl, rgbChannelsShader),
       noise: compile(gl, noiseShader),
+      palette: compile(gl, paletteShader),
+      levels: compile(gl, levelsShader),
     },
     lost: false,
   };
@@ -207,6 +251,26 @@ export const createWebglKernels = (): PixelKernels | undefined => {
         // Fresh randomness per call, like Math.random in the CPU reference.
         seed = (seed * 1103515245 + 12345) >>> 0;
         gpu.gl.uniform1ui(p.uniform('u_seed'), seed);
+      }),
+
+    mapToPalette: async (input, match, paint, only) =>
+      !usable(input) || match.length === 0 || match.length > maxGpuPaletteSize
+      ? cpuKernels.mapToPalette(input, match, paint, only)
+      : run(gpu, input, gpu.programs.palette, p => {
+        const flat = (colors: RGB[]) => new Float32Array(colors.flat());
+        gpu.gl.uniform3fv(p.uniform('u_match'), flat(match));
+        gpu.gl.uniform3fv(p.uniform('u_paint'), flat(paint));
+        gpu.gl.uniform1i(p.uniform('u_count'), match.length);
+        gpu.gl.uniform1i(p.uniform('u_only'), only ?? -1);
+      }),
+
+    levels: async (input, black, white, gamma) =>
+      !usable(input)
+      ? cpuKernels.levels(input, black, white, gamma)
+      : run(gpu, input, gpu.programs.levels, p => {
+        gpu.gl.uniform1f(p.uniform('u_black'), black);
+        gpu.gl.uniform1f(p.uniform('u_white'), white);
+        gpu.gl.uniform1f(p.uniform('u_gamma'), gamma);
       }),
 
     rgbChannels: async (input) =>

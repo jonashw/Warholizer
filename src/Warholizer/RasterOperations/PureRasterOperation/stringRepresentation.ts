@@ -26,6 +26,9 @@ export const stringRepresentation = (op: PureRasterOperation): string => {
     case 'void'      : return `void`;
     case 'noise'     : return `noise(${op.amount}%,mono:${op.monochromatic})`;
     case 'fill'      : return `fill(${op.color})`;
+    case 'quantize'  : return `quantize(${op.colors}${op.replacements.some(r => r) ? `, ${op.replacements.map(r => r ?? '_').join(' ')}` : ''})`;
+    case 'separateColors': return `separateColors(${op.colors}${op.replacements.some(r => r) ? `, ${op.replacements.map(r => r ?? '_').join(' ')}` : ''})`;
+    case 'levels'    : return `levels(${op.black}, ${op.white}, γ${op.gamma})`;
     default: {
       throw new Error(`Unexpected operation type: ${opType}`);
     }

@@ -123,3 +123,12 @@ Classifying current operations by signature (input count → output count, wheth
 - Fixed along the way: `byte`, `angle`, and `percentage` in `NumberTypes.ts` were accidentally generic (`<Byte>(input) => ...` declares a type parameter shadowing the type), so their return types were unchecked. Noted, not fixed: `PositiveNumber` resolves to `never`.
 - Follow-ups: run WebGL2 kernels inside workers (GPU speed without main-thread blocking); port `halftone`'s composition to a single shader; new operations (posterize, duotone, dithering, Ben-Day dots, edge detection) as kernels, using WASM for error-diffusion dithering.
 
+### 2026-10-08: new operations: quantize, separate colors, levels; visual crop
+
+- **Quantize** (tone): median-cut palette (`palette.ts`; any color count, not only powers of two) mapped per pixel to the nearest palette color. Optional `replacements` recolor palette entries, ordered darkest to lightest so a replacement palette applies predictably. Carries over the original editor's quantizer as a composable operation.
+- **Separate colors** (cardinality): one layer per palette color, others transparent; screenprint or stencil separations, recombinable with `stack`.
+- **Levels** (tone): black point, white point, gamma.
+- New "analysis then map" kernel pattern: the palette is computed on the CPU from a 128 px sample (histogram median split, O(n) per split) and cached per input canvas; mapping runs as a GPU kernel (`mapToPalette`, up to 64 colors) with a CPU reference. Engine canvases are treated as immutable, which makes the cache safe.
+- **Visual crop**: the inline editor takes an optional `inputs` loader for the images flowing into the operation (`PureRasterApplicators.inputsForOp` for pipe/flatMap/zip, graph `inputsFor`, gallery input). With it, crop offers "Crop visually…", a `react-image-crop` dialog over those images, as in the original editor. Crops are stored in percent so they hold across resolutions and inputs.
+- Gallery sweeps: quantize color count and five replacement palettes; separate colors count; levels gamma, black, and white.
+

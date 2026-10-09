@@ -76,6 +76,52 @@ describe('tone operations (1→1, same size, per pixel)', () => {
   });
 });
 
+describe('quantize, separate colors, levels', () => {
+  const four = () => bands(40, 4, [WHITE, RED, BLACK, GREEN]);
+
+  it('quantize keeps an image that already has few colors', async () => {
+    const out = await one({ type: 'quantize', colors: 4, replacements: [] }, four());
+    expect([0, 10, 20, 30].map(x => pixel(out, x, 0))).toEqual([WHITE, RED, BLACK, GREEN]);
+  });
+
+  it('quantize replaces colors darkest first', async () => {
+    const out = await one({ type: 'quantize', colors: 4, replacements: ['#0000ff', null, null, '#000000'] }, four());
+    expect([0, 10, 20, 30].map(x => pixel(out, x, 0))).toEqual([BLACK, RED, BLUE, GREEN]);
+  });
+
+  it('quantize to two colors merges similar ones', async () => {
+    const out = await one({ type: 'quantize', colors: 2, replacements: [] }, bands(40, 4, [BLACK, [20, 20, 20, 255], WHITE, [235, 235, 235, 255]]));
+    const colors = new Set(allPixels(out).map(p => p.join()));
+    expect(colors.size).toBe(2);
+  });
+
+  it('separateColors emits one layer per color, darkest first', async () => {
+    const outs = await apply({ type: 'separateColors', colors: 4, replacements: [] }, [four()]);
+    expect(outs).toHaveLength(4);
+    // Layer 0 is the black band (x 20..29) only.
+    expect(pixel(outs[0], 25, 0)).toEqual(BLACK);
+    expect(pixel(outs[0], 5, 0)[3]).toBe(0);
+    expect(pixel(outs[3], 5, 0)).toEqual(WHITE);
+    expect(pixel(outs[3], 25, 0)[3]).toBe(0);
+  });
+
+  it('levels with defaults is identity', async () => {
+    const input = bands(8, 2, [[10, 128, 250, 255], [64, 192, 0, 255]]);
+    const out = await one({ type: 'levels', black: byte(0), white: byte(255), gamma: 1 }, input);
+    expect(allPixels(out)).toEqual(allPixels(input));
+  });
+
+  it('levels stretches between black and white points', async () => {
+    const out = await one({ type: 'levels', black: byte(64), white: byte(192), gamma: 1 }, solid(2, 2, [64, 128, 192, 255]));
+    expect(pixel(out, 0, 0)).toEqual([0, 128, 255, 255]);
+  });
+
+  it('levels gamma > 1 brightens midtones', async () => {
+    const out = await one({ type: 'levels', black: byte(0), white: byte(255), gamma: 2 }, solid(2, 2, [64, 64, 64, 255]));
+    expect(pixel(out, 0, 0)).toEqual([128, 128, 128, 255]);
+  });
+});
+
 describe('filter operations (1→1, same size, neighborhood)', () => {
   it('blur 0 is identity', async () => {
     const input = bands(4, 2, [RED, BLUE]);

@@ -11,6 +11,8 @@ import { DropdownSelector } from "../../../FormComponents/DropdownSelector";
 import React from "react";
 import { AngleDialInput } from "../../../FormComponents/AngleDialInput";
 import { Add, Remove } from "@mui/icons-material";
+import { PaletteReplacementsInput } from "./editors/PaletteReplacementsInput";
+import { VisualCropModal } from "./editors/VisualCropModal";
 
 const toPrecision = (n: number, fractionalDigits: number) => 
     parseFloat(n.toFixed(fractionalDigits));
@@ -159,12 +161,16 @@ const DirectionInput = ({
 export const PureRasterOperationInlineEditor = ({
     value,
     onChange,
-    sampleOperators
+    sampleOperators,
+    inputs
 }:{
     value: PureRasterOperationRecord,
     onChange:(newOp: PureRasterOperationRecord) => void,
     sampleOperators?: PureRasterOperation[];
+    /** Loads the images flowing into this operation, enabling visual editors (crop, palettes). */
+    inputs?: () => Promise<OffscreenCanvas[]>;
 }) => {
+    const [cropModalOpen, setCropModalOpen] = React.useState(false);
     const angleStep: Angle = angle(22.5);
     const op = value;
     const opType = op.type;
@@ -401,6 +407,19 @@ export const PureRasterOperationInlineEditor = ({
                     );
                     case 'crop': return (
                         <>
+                            {inputs && (
+                                <button className="btn btn-sm btn-outline-primary" onClick={() => setCropModalOpen(true)}>
+                                    Crop visually…
+                                </button>
+                            )}
+                            {inputs && cropModalOpen && (
+                                <VisualCropModal
+                                    op={op}
+                                    inputs={inputs}
+                                    onChange={cropped => onChange({ ...cropped, id: op.id })}
+                                    onClose={() => setCropModalOpen(false)}
+                                />
+                            )}
                             <NumberInput
                                 value={op.x}
                                 onChange={x => onChange({...op, x})}
@@ -422,6 +441,32 @@ export const PureRasterOperationInlineEditor = ({
                                 options={(["px","%"] as ("px"|"%")[]).map(value => ({value, label: value}))}
                                 onChange={unit => onChange({...op, unit})}
                             />
+                        </>
+                    );
+                    case 'quantize':
+                    case 'separateColors': return (
+                        <>
+                            <NumberSpinnerInput<number>
+                                value={op.colors}
+                                min={2}
+                                max={32}
+                                step={1}
+                                onChange={colors => onChange({ ...op, colors })}
+                                sanitize={n => Math.round(Math.min(32, Math.max(2, n)))}
+                            />
+                            <PaletteReplacementsInput
+                                colors={op.colors}
+                                replacements={op.replacements}
+                                onChange={replacements => onChange({ ...op, replacements })}
+                                inputs={inputs}
+                            />
+                        </>
+                    );
+                    case 'levels': return (
+                        <>
+                            <span title="Black point">◐ <ByteInput value={op.black} onChange={black => onChange({ ...op, black })} /></span>
+                            <span title="White point">○ <ByteInput value={op.white} onChange={white => onChange({ ...op, white })} /></span>
+                            <span title="Gamma (midtones)">γ <FractionalNumberInput value={op.gamma} onChange={gamma => onChange({ ...op, gamma: Math.max(0.1, gamma) })} /></span>
                         </>
                     );
                     case 'stack': return(
