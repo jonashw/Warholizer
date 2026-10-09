@@ -8,10 +8,14 @@ export type WireImage =
   | { kind: 'bitmap', bitmap: ImageBitmap }
   | { kind: 'empty', width: number, height: number };
 
+/** Which pixel kernels the worker uses: the CPU reference, or WebGL2 (falling back to CPU if unavailable). */
+export type WorkerKernels = 'cpu' | 'gpu';
+
 export type ApplyRequest = {
   id: number,
   op: PureRasterOperation,
-  inputs: WireImage[]
+  inputs: WireImage[],
+  kernels: WorkerKernels
 };
 
 /**

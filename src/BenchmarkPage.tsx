@@ -2,13 +2,13 @@ import React from "react";
 import { sampleOperations } from "./sampleOperations";
 import { sampleImageUrls } from "./sampleImageUrls";
 import ImageUtil from "./Warholizer/ImageUtil";
-import { getEngine, getGpuEngine, getWorkerEngine, mainThreadEngine, RasterEngine } from "./Warholizer/RasterOperations/PureRasterOperation";
+import { getEngine, getGpuEngine, getGpuWorkerEngine, getWorkerEngine, mainThreadEngine, RasterEngine } from "./Warholizer/RasterOperations/PureRasterOperation";
 import {
   BenchmarkResult, GalleryBenchmarkResult, benchmarkGallery, benchmarkOperation, resized
 } from "./Warholizer/RasterOperations/PureRasterOperation/benchmark";
 
 const sizes = [256, 1024, 2048];
-const galleryOpTypes = ['threshold', 'halftone', 'noise', 'rgbChannels', 'blur', 'grayscale'];
+const galleryOpTypes = ['threshold', 'halftone', 'noise', 'rgbChannels', 'quantize', 'levels', 'blur', 'grayscale'];
 const gallerySize = 1024;
 const galleryPreviews = 12;
 
@@ -21,7 +21,7 @@ export default function BenchmarkPage() {
   const [status, setStatus] = React.useState<string>("");
   const [running, setRunning] = React.useState(false);
 
-  const engines: RasterEngine[] = [mainThreadEngine, getWorkerEngine(), getGpuEngine(), getEngine()]
+  const engines: RasterEngine[] = [mainThreadEngine, getWorkerEngine(), getGpuEngine(), getGpuWorkerEngine(), getEngine()]
     .filter((e): e is RasterEngine => e !== undefined)
     .filter((e, i, all) => all.indexOf(e) === i);
 

@@ -132,3 +132,8 @@ Classifying current operations by signature (input count → output count, wheth
 - **Visual crop**: the inline editor takes an optional `inputs` loader for the images flowing into the operation (`PureRasterApplicators.inputsForOp` for pipe/flatMap/zip, graph `inputsFor`, gallery input). With it, crop offers "Crop visually…", a `react-image-crop` dialog over those images, as in the original editor. Crops are stored in percent so they hold across resolutions and inputs.
 - Gallery sweeps: quantize color count and five replacement palettes; separate colors count; levels gamma, black, and white.
 
+### 2026-10-08: GPU kernels inside workers (evaluated)
+
+- Workers can now run the WebGL2 kernels (`createWorkerEngine(size, 'gpu')`, `getGpuWorkerEngine`); requests carry which kernels to use. Parity tests confirm results match the main-thread GPU engine.
+- Measured: [docs/benchmarks/2026-10-08-gpu-workers.md](../benchmarks/2026-10-08-gpu-workers.md). The main-thread GPU engine already stalls only 1–10 ms per 12-preview gallery; GPU workers add 2–9 ms latency per call and help only operations with heavy Canvas 2D composition. Default routing is unchanged; GPU workers remain selectable (filter gallery engine picker, `/benchmark`).
+

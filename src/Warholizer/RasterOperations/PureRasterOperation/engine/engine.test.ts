@@ -2,10 +2,11 @@ import { afterAll, describe, expect, it } from 'vitest';
 import { sampleOperations } from '../../../../sampleOperations';
 import { PureRasterOperation } from '../types';
 import { BLUE, RED, RGBA, allPixels, bands, size, solid } from '../testUtil';
-import { createWorkerEngine, mainThreadEngine } from '.';
+import { createWorkerEngine, getGpuEngine, mainThreadEngine } from '.';
 
 const workers = createWorkerEngine(2);
-afterAll(() => workers.terminate());
+const gpuWorkers = createWorkerEngine(2, 'gpu');
+afterAll(() => { workers.terminate(); gpuWorkers.terminate(); });
 
 // A gradient with partial transparency, to catch premultiplied-alpha or color-space drift in transfer.
 const gradient = (width: number, height: number): OffscreenCanvas => {
@@ -76,5 +77,28 @@ describe('worker engine protocol', () => {
       Array.from({ length: 20 }, (_, i) =>
         workers.apply({ type: 'scale', x: 1 + i, y: 1 }, [solid(2, 2, RED)])));
     expect(results.map(([o]) => o.width)).toEqual(Array.from({ length: 20 }, (_, i) => 2 * (1 + i)));
+  });
+});
+
+describe.runIf(getGpuEngine())('GPU kernels in workers', () => {
+  // Same shaders as the main-thread GPU engine, so results should match it (noise is random).
+  it.each(sampleOperations.filter(op => op.type !== 'noise').map(op => [op.type, op] as const))(
+    '%s matches the main-thread GPU engine',
+    async (_, op) => {
+      const inputs = [gradient(24, 16), bands(24, 16, [RED, BLUE])];
+      const [expected, actual] = await Promise.all([getGpuEngine()!.apply(op, inputs), gpuWorkers.apply(op, inputs)]);
+      expect(actual.map(size)).toEqual(expected.map(size));
+      actual.forEach((a, i) => {
+        if (a.width > 0 && a.height > 0) {
+          expect(maxChannelDifference(allPixels(a), allPixels(expected[i]))).toBeLessThanOrEqual(1);
+        }
+      });
+    });
+
+  it('handles concurrent GPU requests across workers', async () => {
+    const op = { type: 'threshold', value: 128 } as PureRasterOperation;
+    const results = await Promise.all(Array.from({ length: 12 }, () => gpuWorkers.apply(op, [gradient(32, 32)])));
+    const first = allPixels(results[0][0]);
+    results.forEach(([o]) => expect(allPixels(o)).toEqual(first));
   });
 });

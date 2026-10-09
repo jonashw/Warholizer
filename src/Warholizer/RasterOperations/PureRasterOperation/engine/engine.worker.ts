@@ -1,14 +1,29 @@
 /// <reference lib="webworker" />
-import { apply } from "../apply";
-import { ApplyRequest, ApplyResponse, WireImage, WireOutput, fromWireImage, toWireImage, transferablesOf } from "./protocol";
+import { apply, createApply } from "../apply";
+import { createWebglKernels } from "../gpu/webglKernels";
+import { ApplyRequest, ApplyResponse, WireImage, WireOutput, WorkerKernels, fromWireImage, toWireImage, transferablesOf } from "./protocol";
 
 declare const self: DedicatedWorkerGlobalScope;
 
+// Each worker owns its own WebGL2 context (OffscreenCanvas supports WebGL2 in workers), created on
+// first GPU request, so GPU work, its readback waits, and composition all stay off the main thread.
+let gpuApply: typeof apply | undefined;
+const applierFor = (kernels: WorkerKernels): typeof apply => {
+  if (kernels === 'cpu') {
+    return apply;
+  }
+  if (!gpuApply) {
+    const webgl = createWebglKernels();
+    gpuApply = webgl ? createApply(webgl) : apply;
+  }
+  return gpuApply;
+};
+
 self.onmessage = async (e: MessageEvent<ApplyRequest>) => {
-  const { id, op, inputs } = e.data;
+  const { id, op, inputs, kernels } = e.data;
   try {
     const inputCanvases = inputs.map(fromWireImage);
-    const outputCanvases = await apply(op, inputCanvases);
+    const outputCanvases = await applierFor(kernels)(op, inputCanvases);
 
     const images: WireImage[] = [];
     const imageIndexByCanvas = new Map<OffscreenCanvas, number>();

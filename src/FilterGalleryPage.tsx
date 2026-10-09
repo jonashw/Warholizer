@@ -5,7 +5,8 @@ import { sampleImageUrls, SampleImageUrl } from "./sampleImageUrls";
 import ImageUtil from "./Warholizer/ImageUtil";
 import { operationAsRecord } from "./Warholizer/RasterOperations/PureRasterApplicator";
 import {
-  AnySweep, ExecutionHint, PureRasterOperation, PureRasterOperationInlineEditor, apply, getGpuEngine,
+  AnySweep, ExecutionHint, PureRasterOperation, PureRasterOperationInlineEditor, RasterEngine, getEngine, getGpuEngine,
+  getGpuWorkerEngine, getWorkerEngine, mainThreadEngine,
   operationKinds, operationRegistry, stringRepresentation, sweepsOf, withSweepValue
 } from "./Warholizer/RasterOperations/PureRasterOperation";
 import { OperationTypeOptions } from "./Warholizer/RasterOperations/PureRasterOperation/OperationTypeOptions";
@@ -23,11 +24,21 @@ const runsOn = (hint: ExecutionHint) =>
 
 const formatValue = (v: unknown) => typeof v === 'string' ? v : JSON.stringify(v);
 
+/** Engines to compare in the gallery; "auto" is the default routed engine used everywhere else. */
+const engineChoices = (): { label: string, engine: RasterEngine }[] => [
+  { label: 'auto', engine: getEngine() },
+  ...(getGpuEngine() ? [{ label: 'GPU', engine: getGpuEngine()! }] : []),
+  { label: 'GPU workers', engine: getGpuWorkerEngine() ?? getWorkerEngine() },
+  { label: 'CPU workers', engine: getWorkerEngine() },
+  { label: 'CPU', engine: mainThreadEngine },
+];
+
 /**
  * Renders every value of a sweep concurrently, reporting tiles as they finish.
  * Returns a cancel function; after cancelling, no more progress is reported.
  */
 const renderSweep = (
+  engine: RasterEngine,
   input: OffscreenCanvas,
   op: PureRasterOperation,
   sweep: AnySweep | undefined,
@@ -40,7 +51,7 @@ const renderSweep = (
   Promise.all(values.map(async (value, i) => {
     const tileOp = sweep ? withSweepValue(op, sweep.param, value) : op;
     const start = performance.now();
-    const outputs = await apply(tileOp, [input]);
+    const outputs = await engine.apply(tileOp, [input]);
     if (!cancelled) {
       tiles[i] = { value, outputs, ms: performance.now() - start };
       onProgress([...tiles]);
@@ -60,6 +71,9 @@ const renderSweep = (
 export default function FilterGalleryPage() {
   const [source, setSource] = React.useState<OffscreenCanvas>();
   const [previewSize, setPreviewSize] = React.useState(512);
+  const [engineLabel, setEngineLabel] = React.useState('auto');
+  const engines = React.useMemo(() => engineChoices(), []);
+  const engine = (engines.find(e => e.label === engineLabel) ?? engines[0]).engine;
   const [op, setOp] = React.useState<PureRasterOperation>(operationRegistry.halftone.defaults);
   const sweeps = sweepsOf(op.type);
   const [sweepParamChoice, setSweepParam] = React.useState<string>();
@@ -71,7 +85,7 @@ export default function FilterGalleryPage() {
     [source, previewSize]);
 
   const [result, setResult] = React.useState<{ key: unknown[], tiles: (Tile | undefined)[], totalMs?: number }>();
-  const key = [input, op, sweep];
+  const key = [input, op, sweep, engine];
   const current = result && result.key.every((k, i) => k === key[i]) ? result : undefined;
 
   const loadUrl = React.useCallback((url: string) => ImageUtil.loadOffscreen(url).then(setSource), []);
@@ -92,9 +106,9 @@ export default function FilterGalleryPage() {
     if (!input) {
       return;
     }
-    const resultKey = [input, op, sweep];
-    return renderSweep(input, op, sweep, (tiles, totalMs) => setResult({ key: resultKey, tiles, totalMs }));
-  }, [input, op, sweep]);
+    const resultKey = [input, op, sweep, engine];
+    return renderSweep(engine, input, op, sweep, (tiles, totalMs) => setResult({ key: resultKey, tiles, totalMs }));
+  }, [input, op, sweep, engine]);
 
   // Stable record per op, so the editor's inputs keep focus while editing.
   const opRecord = React.useMemo(() => operationAsRecord(op), [op]);
@@ -125,6 +139,12 @@ export default function FilterGalleryPage() {
                 </label>
               </div>
               <div className="form-text">Or paste an image.</div>
+              <div className="mt-2">
+                <label className="form-label small mb-1">Engine</label>
+                <select className="form-select form-select-sm" value={engineLabel} onChange={e => setEngineLabel(e.target.value)}>
+                  {engines.map(e => <option key={e.label} value={e.label}>{e.label}</option>)}
+                </select>
+              </div>
               <div className="mt-2">
                 <label className="form-label small mb-1">Preview size</label>
                 <div className="btn-group btn-group-sm d-flex">

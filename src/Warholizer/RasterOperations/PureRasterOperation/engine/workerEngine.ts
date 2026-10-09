@@ -1,6 +1,6 @@
 import { PureRasterOperation } from "../types";
 import { RasterEngine } from "./RasterEngine";
-import { ApplyRequest, ApplyResponse, fromWireImage, toWireImage, transferablesOf } from "./protocol";
+import { ApplyRequest, ApplyResponse, WorkerKernels, fromWireImage, toWireImage, transferablesOf } from "./protocol";
 
 type Pending = {
   worker: PooledWorker,
@@ -21,7 +21,10 @@ export const defaultPoolSize = () =>
  * Runs operations in a pool of module workers. Each request goes to the least busy worker,
  * so independent operations (e.g. a gallery of previews) run in parallel.
  */
-export const createWorkerEngine = (poolSize = defaultPoolSize()): RasterEngine & { terminate: () => void } => {
+export const createWorkerEngine = (
+  poolSize = defaultPoolSize(),
+  kernels: WorkerKernels = 'cpu'
+): RasterEngine & { terminate: () => void } => {
   const pending = new Map<number, Pending>();
   let nextId = 0;
   const pool: PooledWorker[] = [];
@@ -74,7 +77,7 @@ export const createWorkerEngine = (poolSize = defaultPoolSize()): RasterEngine &
     target.inFlight++;
     return new Promise((resolve, reject) => {
       pending.set(id, { worker: target, inputs, resolve, reject });
-      const request: ApplyRequest = { id, op, inputs: wireInputs };
+      const request: ApplyRequest = { id, op, inputs: wireInputs, kernels };
       target.worker.postMessage(request, transferablesOf(wireInputs));
     });
   };
@@ -86,5 +89,5 @@ export const createWorkerEngine = (poolSize = defaultPoolSize()): RasterEngine &
     pending.clear();
   };
 
-  return { name: 'worker', apply, terminate };
+  return { name: kernels === 'gpu' ? 'gpu workers' : 'worker', apply, terminate };
 };

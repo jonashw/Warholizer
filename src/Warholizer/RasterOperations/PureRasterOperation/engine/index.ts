@@ -35,6 +35,16 @@ export const getWorkerEngine = (): RasterEngine => {
   return workerEngine;
 };
 
+let gpuWorkerEngine: RasterEngine | undefined;
+
+/** A worker pool whose workers run WebGL2 kernels; the main-thread GPU engine where workers are unavailable. */
+export const getGpuWorkerEngine = (): RasterEngine | undefined => {
+  if (!gpuWorkerEngine) {
+    gpuWorkerEngine = workersSupported() ? createWorkerEngine(undefined, 'gpu') : getGpuEngine();
+  }
+  return gpuWorkerEngine;
+};
+
 let gpuEngine: RasterEngine | undefined | null;
 
 /** Main-thread composition with WebGL2 pixel kernels; undefined when WebGL2 is unavailable. */
