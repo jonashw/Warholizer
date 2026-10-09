@@ -12,6 +12,7 @@ import GoogleLoginPage from "./GoogleLoginPage";
 import GoogleLoginComplete from "./GoogleLoginComplete";
 import FileUploadPage from "./FileUploadPage";
 import BenchmarkPage from "./BenchmarkPage";
+import FilterGalleryPage from "./FilterGalleryPage";
 
 export const routeConfig: RouteObject[] = [
   {
@@ -26,6 +27,7 @@ export const routeConfig: RouteObject[] = [
           {href:'/google-login',label:'Google Login'},
           {href:'/pure-gallery',label:'Pure Gallery'},
           {href:'/pure-editor',label:'Pure Editor'},
+          {href:'/filter-gallery',label:'Filter Gallery'},
           {href:'/graph-viewer-demo',label:'Graph Viewer'},
           {href:'/graph-editor',label:'Graph Editor'},
           {href:'/operator-editor-demo',label:'Op Editor Demo'},
@@ -48,6 +50,10 @@ export const routeConfig: RouteObject[] = [
       {
         path: '',
         element: <App />,
+      },
+      {
+        path: 'filter-gallery',
+        element: <FilterGalleryPage/>
       },
       {
         path: 'benchmark',

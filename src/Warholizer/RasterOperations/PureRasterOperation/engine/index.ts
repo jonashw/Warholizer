@@ -3,6 +3,8 @@ import { PureRasterOperation } from "../types";
 import { ExecutionHint, operationRegistry } from "../registry";
 import { RasterEngine } from "./RasterEngine";
 import { createWorkerEngine } from "./workerEngine";
+import { createApply } from "../apply";
+import { createWebglKernels } from "../gpu/webglKernels";
 
 export type { RasterEngine } from "./RasterEngine";
 export { createWorkerEngine } from "./workerEngine";
@@ -33,15 +35,30 @@ export const getWorkerEngine = (): RasterEngine => {
   return workerEngine;
 };
 
+let gpuEngine: RasterEngine | undefined | null;
+
+/** Main-thread composition with WebGL2 pixel kernels; undefined when WebGL2 is unavailable. */
+export const getGpuEngine = (): RasterEngine | undefined => {
+  if (gpuEngine === undefined) {
+    const kernels = createWebglKernels();
+    gpuEngine = kernels ? { name: 'gpu', apply: createApply(kernels) } : null;
+  }
+  return gpuEngine ?? undefined;
+};
+
 let current: RasterEngine | undefined;
 
 /**
- * The engine used by `apply`: per-pixel operations go to workers, operations the browser already
- * accelerates stay on the main thread (see the registry's execution hints).
+ * The engine used by `apply`, routed by the registry's execution hints: per-pixel operations on
+ * the GPU (or workers without WebGL2), everything else on the main thread.
  */
 export const getEngine = (): RasterEngine => {
   if (!current) {
-    current = createRoutingEngine({ main: mainThreadEngine, worker: getWorkerEngine() });
+    current = createRoutingEngine({
+      main: mainThreadEngine,
+      worker: getWorkerEngine(),
+      gpu: getGpuEngine() ?? getWorkerEngine(),
+    });
   }
   return current;
 };

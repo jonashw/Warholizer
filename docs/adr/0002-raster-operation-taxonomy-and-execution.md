@@ -59,7 +59,7 @@ Classifying current operations by signature (input count → output count, wheth
 2. **Tech debt.** Dependency upgrades (Vite, MUI, React), replace deprecated `react-beautiful-dnd`, bring `npm run lint` back to passing. The tests from step 1 guard these changes. *Done 2026-10-08.*
 3. **Worker-backed engine interface** used by all editing models. *Done 2026-10-08.*
 4. **Operation registry** with kind; regroup the menu; rename collisions. *Done 2026-10-08.*
-5. **GPU path** for per-pixel operations; filter gallery.
+5. **GPU path** for per-pixel operations; filter gallery. *Done 2026-10-08.*
 6. **New operations**, using WASM where sequential.
 
 ## Progress notes
@@ -111,4 +111,15 @@ Classifying current operations by signature (input count → output count, wheth
 - The default engine routes by execution hint: per-pixel loop operations (`threshold`, `noise`, `halftone`, `rgbChannels`) to workers, the rest on the main thread. See the addendum in [docs/benchmarks/2026-10-08-worker-engine.md](../benchmarks/2026-10-08-worker-engine.md).
 - The icon map is now complete (`halftone`, `noise`, `rgbChannels`, `printSet` previously fell back to a generic icon). Icons stay in `OperationIcon.tsx` so the registry remains plain data, usable outside React (e.g. formula validation on the server).
 - `registry.test.ts` pins the taxonomy above, defaults, ordering, and routing.
+
+### 2026-10-08: GPU kernels and filter gallery (step 5) done
+
+- Split `apply` into shared Canvas 2D composition plus swappable **pixel kernels** (`kernels.ts`: `threshold`, `noise`, `rgbChannels`; `halftone` uses `threshold`). `createApply(kernels)` builds an engine; `cpuKernels` remain the reference implementation and fallback.
+- `gpu/webglKernels.ts`: WebGL2 fragment-shader kernels on one shared OffscreenCanvas context, straight alpha end to end, `texelFetch` for exact per-pixel sampling, PCG hash for noise. Zero-area inputs and context loss fall back to the CPU kernels per call.
+- New execution hint `gpu` for the four kernel-backed operations; the routed engine uses the GPU engine, or workers when WebGL2 is unavailable.
+- Parity tests compare GPU against CPU kernels (threshold mismatches < 0.5% of pixels, only at rounding boundaries; rgbChannels within 2 units; halftone < 1%; noise checked statistically).
+- Results: [docs/benchmarks/2026-10-08-gpu-kernels.md](../benchmarks/2026-10-08-gpu-kernels.md): 4–38× faster per-pixel operations at 2048².
+- **Filter gallery** (`/filter-gallery`): pick an image and an operation; a live grid renders the operation across one parameter's values (registry `sweeps`); clicking a tile adopts the value. Previews draw through `CanvasView` (direct canvas copy, no data URLs).
+- Fixed along the way: `byte`, `angle`, and `percentage` in `NumberTypes.ts` were accidentally generic (`<Byte>(input) => ...` declares a type parameter shadowing the type), so their return types were unchecked. Noted, not fixed: `PositiveNumber` resolves to `never`.
+- Follow-ups: run WebGL2 kernels inside workers (GPU speed without main-thread blocking); port `halftone`'s composition to a single shader; new operations (posterize, duotone, dithering, Ben-Day dots, edge detection) as kernels, using WASM for error-diffusion dithering.
 

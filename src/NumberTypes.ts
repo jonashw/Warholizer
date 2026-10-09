@@ -33,11 +33,11 @@ export type PositiveNumber = NonNegativeInteger<number>;
 const clamp = (min: number, input: number, max: number): number =>
     Math.max(min,Math.min(max, input));
 
-export const byte = <Byte>(input: number): Byte =>
+export const byte = (input: number): Byte =>
     clamp(0,input,255) as Byte;
 export const positiveNumber = <PositiveNumber>(input: number): PositiveNumber =>
     clamp(0,input,Infinity) as PositiveNumber;
-export const percentage = <Percentage>(input: number): Percentage =>
+export const percentage = (input: number): Percentage =>
     clamp(0,input,100) as Percentage;
-export const angle = <Angle>(input: number): Angle =>
+export const angle = (input: number): Angle =>
     clamp(0,input,360) as Angle;

@@ -1,5 +1,7 @@
 import { describe, expect, it } from 'vitest';
-import { OperationKind, OperationType, defaultOperations, defaultOperationsByKind, operationKinds, operationRegistry } from './registry';
+import { OperationKind, OperationType, defaultOperations, defaultOperationsByKind, operationKinds, operationRegistry, sweepsOf, withSweepValue } from './registry';
+import { apply } from './apply';
+import { BLUE, RED, solid } from './testUtil';
 import { createRoutingEngine } from './engine';
 import { RasterEngine } from './engine/RasterEngine';
 import { PureRasterOperation } from './types';
@@ -44,9 +46,25 @@ describe('operation registry', () => {
     expect(defaultOperationsByKind.flatMap(g => g.operations)).toEqual(defaultOperations);
   });
 
-  it('sends only per-pixel loop operations to workers', () => {
-    expect(types.filter(t => operationRegistry[t].execution === 'worker').sort())
+  it('sends exactly the operations with pixel kernels to the GPU', () => {
+    expect(types.filter(t => operationRegistry[t].execution === 'gpu').sort())
       .toEqual(['halftone', 'noise', 'rgbChannels', 'threshold']);
+    expect(types.filter(t => operationRegistry[t].execution === 'worker')).toEqual([]);
+  });
+});
+
+describe('gallery sweeps', () => {
+  const sweepCases = types.flatMap(t =>
+    sweepsOf(t).flatMap(sweep =>
+      sweep.values.map(value => [`${t}.${sweep.param} = ${String(value)}`, withSweepValue(operationRegistry[t].defaults, sweep.param, value)] as const)));
+
+  it('exist for most operations', () => {
+    expect(new Set(sweepCases.map(([name]) => name.split('.')[0])).size).toBeGreaterThanOrEqual(15);
+  });
+
+  it.each(sweepCases)('%s runs', async (_, op) => {
+    const outputs = await apply(op, [solid(12, 8, RED), solid(12, 8, BLUE)]);
+    outputs.forEach(o => expect(o).toBeInstanceOf(OffscreenCanvas));
   });
 });
 
@@ -61,11 +79,11 @@ describe('routing engine', () => {
 
   it('routes each operation by its execution hint', async () => {
     const log: string[] = [];
-    const engine = createRoutingEngine({ main: recording('main', log), worker: recording('worker', log) });
+    const engine = createRoutingEngine({ main: recording('main', log), worker: recording('worker', log), gpu: recording('gpu', log) });
     await engine.apply({ type: 'invert' }, []);
     await engine.apply(operationRegistry.threshold.defaults, []);
     await engine.apply(operationRegistry.halftone.defaults, []);
     await engine.apply({ type: 'noop' }, []);
-    expect(log).toEqual(['main:invert', 'worker:threshold', 'worker:halftone', 'main:noop']);
+    expect(log).toEqual(['main:invert', 'gpu:threshold', 'gpu:halftone', 'main:noop']);
   });
 });

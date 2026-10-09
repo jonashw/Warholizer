@@ -1,22 +1,6 @@
-import { Byte } from "../../../NumberTypes";
 import { Line, PaperSizeById, PureRasterOperation, SlideWrap, Tile } from "./types";
+import { PixelKernels, cpuKernels } from "./kernels";
 
-const threshold = (ctx: OffscreenCanvasRenderingContext2D, value: Byte) => {
-  const imgData = ctx.getImageData(0,0,ctx.canvas.width,ctx.canvas.height);
-  for (let i=0; i<imgData.data.length; i+=4) { // 4 is for RGBA channels
-    const currentPixelValue = rgbaValue(
-      imgData.data[i+0],
-      imgData.data[i+1],
-      imgData.data[i+2],
-      imgData.data[i+3]);
-    const thresholdValue = currentPixelValue < value ? 0 : 255;
-    imgData.data[i+0] = thresholdValue;//R
-    imgData.data[i+1] = thresholdValue;//G
-    imgData.data[i+2] = thresholdValue;//B
-    imgData.data[i+3] = 255;//A
-  }
-  ctx.putImageData(imgData, 0, 0);
-};
 
 
 const slideWrap = async (input: OffscreenCanvas, op: SlideWrap): Promise<OffscreenCanvas> => {
@@ -72,7 +56,11 @@ const line = async (inputs: OffscreenCanvas[], op: Line): Promise<OffscreenCanva
   });
 }
 
-const apply = async (op: PureRasterOperation, inputs: OffscreenCanvas[]): Promise<OffscreenCanvas[]> => {
+/**
+ * Builds `apply` around a set of pixel kernels. Composition (layout, geometry, compositing) is
+ * shared Canvas 2D code; only the per-pixel loops differ between CPU and GPU implementations.
+ */
+const createApply = (kernels: PixelKernels) => async (op: PureRasterOperation, inputs: OffscreenCanvas[]): Promise<OffscreenCanvas[]> => {
   const opType = op.type;
   switch(opType){
     case 'printSet': 
@@ -192,8 +180,7 @@ const apply = async (op: PureRasterOperation, inputs: OffscreenCanvas[]): Promis
           ctx.translate(-input.width/2,-input.height/2); //use the good parts of the dots image
           ctx.drawImage(dotsImage,0,0);
           ctx.restore();
-          threshold(ctx,1);
-        });
+        }).then(burned => kernels.threshold(burned, 1));
         if(!op.invert){
           return halftoned;
         }
@@ -257,76 +244,11 @@ const apply = async (op: PureRasterOperation, inputs: OffscreenCanvas[]): Promis
         });
       }));
     case 'threshold': 
-      return Promise.all(inputs.map(input =>
-        offscreenCanvasOperation(input.width, input.height,(ctx) => {
-          ctx.drawImage(input,0,0);
-          threshold(ctx,op.value);
-        })));
+      return Promise.all(inputs.map(input => kernels.threshold(input, op.value)));
     case 'noise':
-      return Promise.all(inputs.map(async input => {
-        const inputData = input.getContext('2d')!.getImageData(0,0,input.width,input.height);
-        const noiseImg = await offscreenCanvasOperation(input.width, input.height,(ctx) => {
-          const outputData = new ImageData(input.width, input.height, {colorSpace:inputData.colorSpace});
-          const randomByte = () => Math.floor(Math.random() * 255);
-          const mono = op.monochromatic;
-          for (let i = 0; i < inputData.data.length; i += 4) { // 4 is for RGBA channels
-            if(mono){
-              const rand = randomByte();
-              outputData.data[i + 0] = rand;
-              outputData.data[i + 1] = rand;
-              outputData.data[i + 2] = rand;
-              outputData.data[i + 3] = 255;
-            } else {
-              outputData.data[i + 0] = randomByte();
-              outputData.data[i + 1] = randomByte();
-              outputData.data[i + 2] = randomByte();
-              outputData.data[i + 3] = 255;
-            }
-          }
-          ctx.putImageData(outputData,0,0); 
-        })
-        return offscreenCanvasOperation(input.width, input.height,(ctx) => {
-          ctx.drawImage(input,0,0);
-          ctx.globalAlpha = op.amount / 100;
-          ctx.drawImage(noiseImg,0,0);
-        });
-      }));
+      return Promise.all(inputs.map(input => kernels.noise(input, op)));
     case 'rgbChannels': 
-      return Promise.all(inputs.flatMap(input => {
-        const inputData = input.getContext('2d')!.getImageData(0,0,input.width,input.height);
-        const out = {
-          r: new ImageData(input.width, input.height, {colorSpace:inputData.colorSpace}),
-          g: new ImageData(input.width, input.height, {colorSpace:inputData.colorSpace}),
-          b: new ImageData(input.width, input.height, {colorSpace:inputData.colorSpace})
-        };
-        const empty = 255;
-        const useValue = false;
-        for (let i = 0; i < inputData.data.length; i += 4) { // 4 is for RGBA channels
-          const r = inputData.data[i+0];
-          const g = inputData.data[i+1];
-          const b = inputData.data[i+2]; 
-          const a = inputData.data[i+3];
-          // R
-          out.r.data[i+0] = useValue ? rgbaValue(r,empty,empty,a) : r;
-          out.r.data[i+1] = empty;
-          out.r.data[i+2] = empty;
-          out.r.data[i+3] = a;
-          // G
-          out.g.data[i+0] = empty;
-          out.g.data[i+1] = useValue ? rgbaValue(empty,g,empty,a) : g;
-          out.g.data[i+2] = empty;
-          out.g.data[i+3] = a;
-          // B
-          out.b.data[i+0] = empty;
-          out.b.data[i+1] = empty;
-          out.b.data[i+2] = useValue ? rgbaValue(empty,empty,b,a) : b;
-          out.b.data[i+3] = a;
-        }
-        return [out.r, out.g, out.b].map(data =>
-          offscreenCanvasOperation(input.width, input.height,(ctx) => {
-            ctx.putImageData(data,0,0);
-          }));
-      }));
+      return (await Promise.all(inputs.map(input => kernels.rgbChannels(input)))).flat();
     case 'grayscale': 
       return Promise.all(inputs.map(input =>
         offscreenCanvasOperation(input.width, input.height,(ctx) => {
@@ -552,13 +474,10 @@ async function offscreenCanvasOperation(
   return c;
 }
 
-function rgbaValue(r: number, g: number, b: number, a: number) {
-  //reference: https://computergraphics.stackexchange.com/a/5114
-  //const [rPeakWavelength,gPeakWavelength,bPeakWavelength]=[600,540,450];
-  const [rCoeff,gCoeff,bCoeff]=[0.21,0.72,0.07];
-  return Math.floor((a/255) * ((r * rCoeff) + (g * gCoeff) + (b * bCoeff)));
-}
 
+
+/** Reference implementation: Canvas 2D with JavaScript pixel loops. */
+const apply = createApply(cpuKernels);
 
 const applyFlatMap = async (ops: PureRasterOperation[], inputs: OffscreenCanvas[]): Promise<OffscreenCanvas[]> => {
   return (await Promise.all(ops.flatMap(op => apply(op, inputs)))).flatMap(d => d);
@@ -574,4 +493,4 @@ const applyPipeline = async (ops: PureRasterOperation[], inputs: OffscreenCanvas
   return pipeds.flatMap(p => p);
 };
 
-export {apply, applyPipeline, applyFlatMap};
+export {apply, applyPipeline, applyFlatMap, createApply, offscreenCanvasOperation};
