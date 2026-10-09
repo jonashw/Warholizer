@@ -28,6 +28,11 @@ export type EvaluateOptions = {
   format: Format,
   /** For previews: pages larger than this (long side, px) render smaller, at a proportionally smaller scale. */
   maxPageSize?: number,
+  /**
+   * Called for each image placed on a page: `photoScale` is how many pixels the placement uses per
+   * pixel of the source photo (above 1 means upscaled), with the page's format. For print planning.
+   */
+  onPlaced?: (placement: { photo: MemberKey | undefined, photoScale: number, format: Format }) => void,
 };
 const defaultOptions: EvaluateOptions = { format: defaultFormat };
 
@@ -328,6 +333,17 @@ const evaluateLayout = async <Img>(node: CombineNode, layout: Layout, input: Cub
         sizes, fit: layout.fit, align: layout.align, headers: layout.labels === 'headers', gutter, page,
         overflow: distribution?.type === 'one-cell-per-image' ? distribution.overflow : 'spill',
       }).map(p => withReading(p, layout.reading));
+    }
+    if (options.onPlaced && page) {
+      for (const plan of plans) {
+        for (const placed of plan.images) {
+          const cell = group.cells[placed.index];
+          const [w, h] = sizes[placed.index] ?? [1, 1];
+          const drawn = placed.fit === 'cover' ? Math.max(placed.w / w, placed.h / h) : Math.min(placed.w / w, placed.h / h);
+          // Back to photo pixels: the cell's image has `scale` pixels per photo pixel; the page was drawn at `scale` too.
+          options.onPlaced({ photo: cell.coords[PHOTO], photoScale: drawn * (cell.scale ?? 1) / scale, format });
+        }
+      }
     }
     const images = await Promise.all(plans.map(plan => ops.compose(plan, group.cells.map(c => c.image))));
     return images.map((image, k): Cell<Img> => ({

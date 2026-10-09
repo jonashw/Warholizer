@@ -1,6 +1,6 @@
 import { apply } from "../Warholizer/RasterOperations/PureRasterOperation/engine";
 import { ImageOps } from "./evaluate";
-import { PagePlan, PlacedImage } from "./layoutPlan";
+import { PagePlan, PlacedImage, scalePlan } from "./layoutPlan";
 
 const labelFont = (size: number) => `600 ${size}px system-ui, sans-serif`;
 
@@ -28,8 +28,23 @@ const drawPlaced = (ctx: OffscreenCanvasRenderingContext2D, image: OffscreenCanv
   ctx.restore();
 };
 
-/** Draws a planned layout page. */
-export const drawPlan = (plan: PagePlan, images: OffscreenCanvas[]): OffscreenCanvas => {
+/**
+ * The largest canvas to allocate, in pixels. Phones run out of memory long before their browsers'
+ * nominal limits (iPhone Safari refuses canvases over about 16.7 megapixels; Android Chrome tabs
+ * are killed when memory runs out), so phones stay at 16 megapixels; desktops allow far more.
+ */
+export const canvasAreaLimit = (): number => {
+  if (typeof navigator === 'undefined') return 120_000_000;
+  const phone = /Android|iPhone|iPad|iPod/.test(navigator.userAgent)
+    || (navigator.maxTouchPoints > 0 && typeof window !== 'undefined' && Math.min(window.screen.width, window.screen.height) < 900);
+  return phone ? 16_000_000 : 120_000_000;
+};
+
+/** Draws a planned layout page, smaller if it would exceed the device's canvas limit. */
+export const drawPlan = (unlimited: PagePlan, images: OffscreenCanvas[]): OffscreenCanvas => {
+  const limit = canvasAreaLimit();
+  const area = unlimited.width * unlimited.height;
+  const plan = area > limit ? scalePlan(unlimited, Math.sqrt(limit / area)) : unlimited;
   const canvas = new OffscreenCanvas(Math.max(1, Math.round(plan.width)), Math.max(1, Math.round(plan.height)));
   const ctx = canvas.getContext('2d')!;
   if (plan.background === 'white') {

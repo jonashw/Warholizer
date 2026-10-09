@@ -13,15 +13,17 @@ import { LibrarySheet, ShareSheet } from "./CloudSheets";
 import { canvasOps } from "../canvasOps";
 import { photoCube } from "../cube";
 import { evaluate, EvaluateOptions, Trace } from "../evaluate";
-import { inferComposition, Placeholder } from "../infer";
+import { inferComposition, Placeholder, totalPixels } from "../infer";
 import { compositionText } from "../text";
 import { findNode, insertNode, moveNode, parentOf, removeNode, updateNode } from "../tree";
-import { Composition, Cube, Dimension, ExportSettings, Node, NodeId, SequenceNode, VariationDistribution } from "../types";
+import { Composition, Cube, Dimension, ExportSettings, Format, Node, NodeId, SequenceNode, VariationDistribution } from "../types";
 import { AddSheet } from "./AddSheet";
 import { defaultExportSettings, exportFiles, fileNameOf, resultAddress } from "../export/exportResults";
 import { Segmented } from "./Segmented";
 import "./Composer.css";
 import { StepSheet } from "./StepSheet";
+import { Suggestion, suggestionsFor } from "../suggestions";
+import { exportScaleOf, minimumPrintDpi, PhotoPrint, planPrint } from "../printPlan";
 import { kindLabel, nodeSummary, nodeSwatches, nodeTitle } from "./summaries";
 
 type Sheet =
@@ -42,6 +44,12 @@ type Sheet =
 type Photo = { full: OffscreenCanvas, preview: OffscreenCanvas, name: string, source?: Blob, sha256?: string };
 
 const previewSize = 512;
+/** Preview sizes to fall back to, as fractions of the usual preview. */
+const previewSteps = [1, 0.75, 0.5, 0.35, 0.25, 0.18, 0.12];
+/** Pixels a preview may hold at once: phones have far less memory for canvases. */
+const pixelBudget = () =>
+  typeof navigator !== 'undefined' && navigator.maxTouchPoints > 0 && Math.min(window.screen.width, window.screen.height) < 900
+    ? 30_000_000 : 150_000_000;
 const storageKey = 'composer:composition';
 
 const scaled = (image: OffscreenCanvas, size: number): OffscreenCanvas => {
@@ -318,27 +326,57 @@ export default function ComposerPage() {
   };
 
   // Dimensions and counts, instantly, without pixels.
-  const [inferred, setInferred] = React.useState<{ trace: Trace<Placeholder>, output: Cube<Placeholder> }>();
+  const [inferred, setInferred] = React.useState<{ trace: Trace<Placeholder>, output: Cube<Placeholder>, root: Node, photos: Photo[] }>();
   React.useEffect(() => {
     let cancelled = false;
     inferComposition(composition, photos.map(p => [p.preview.width, p.preview.height]), photos.map(p => p.preview.width / p.full.width))
-      .then(r => { if (!cancelled) setInferred(r); });
+      .then(r => { if (!cancelled) setInferred({ ...r, root: composition.root, photos }); });
     return () => { cancelled = true; };
   }, [composition, photos]);
+
+  // Keep previews within the device's memory: when the whole composition would hold more pixels
+  // than the budget, preview photos shrink (sizes still resolve truthfully through their scale).
+  const current = inferred && inferred.root === root && inferred.photos === photos ? inferred : undefined;
+  const previewFactor = React.useMemo(() => {
+    if (!current) return undefined;
+    const ratio = Math.sqrt(pixelBudget() / Math.max(1, totalPixels(current.trace)));
+    return previewSteps.find(step => step <= ratio) ?? previewSteps[previewSteps.length - 1];
+  }, [current]);
+  const renderPhotos = React.useMemo(() => previewFactor === undefined || previewFactor >= 1 ? photos
+    : photos.map(p => ({ ...p, preview: scaled(p.full, Math.max(48, Math.round(previewSize * previewFactor))) })), [photos, previewFactor]);
 
   // Images at preview size; the previous render stays on screen until the next one is ready.
   const [rendered, setRendered] = React.useState<{ root: Node, photos: Photo[], trace: Trace<OffscreenCanvas>, output: Cube<OffscreenCanvas> }>();
   React.useEffect(() => {
+    // Wait for this composition's inference: it decides the preview size before anything heavy renders.
+    if (previewFactor === undefined) return;
     let cancelled = false;
     const timer = setTimeout(() => {
       const trace: Trace<OffscreenCanvas> = new Map();
-      evaluate(root, previewCube(photos), canvasOps, trace, options)
-        .then(output => { if (!cancelled) setRendered({ root, photos, trace, output }); })
+      evaluate(root, previewCube(renderPhotos), canvasOps, trace, options)
+        .then(output => { if (!cancelled) setRendered({ root, photos: renderPhotos, trace, output }); })
         .catch(error => console.error('Composer render failed', error));
     }, 60);
     return () => { cancelled = true; clearTimeout(timer); };
-  }, [root, photos, options]);
-  const busy = !rendered || rendered.root !== root || rendered.photos !== photos;
+  }, [root, renderPhotos, options, previewFactor]);
+  const busy = !rendered || rendered.root !== root || rendered.photos !== renderPhotos;
+
+  // Suggestions and checks from the composition's structure (docs/knowledge/usage-patterns.md).
+  const [dismissed, setDismissed] = React.useState<string[]>([]);
+  const suggestions = React.useMemo(
+    () => suggestionsFor(root, inferred?.trace).filter(s => !dismissed.includes(s.id)),
+    [root, inferred, dismissed]);
+  const notesFor = (step: Node) => suggestions.filter(s => s.nodeId === step.id || findNode(step, s.nodeId) !== undefined);
+
+  // Print plan at full size: how large each photo lands on pages, for DPI warnings and lean exports.
+  const [printPlan, setPrintPlan] = React.useState<Map<string, PhotoPrint>>();
+  React.useEffect(() => {
+    let cancelled = false;
+    planPrint(composition, photos.map(p => [p.full.width, p.full.height]))
+      .then(plan => { if (!cancelled) setPrintPlan(plan); });
+    return () => { cancelled = true; };
+  }, [composition, photos]);
+  const softPhotos = [...(printPlan?.entries() ?? [])].filter(([, p]) => p.effectiveDpi < minimumPrintDpi);
 
   const inputPhotos = previewCube(photos);
   const renderedAfter = (id: NodeId | null): Cube<OffscreenCanvas> | undefined =>
@@ -380,6 +418,9 @@ export default function ComposerPage() {
         <input className="composer-title" aria-label="Composition name" value={composition.name}
           onChange={e => setCompositionState(c => { const next = { ...c, name: e.target.value }; save(next); return next; })} />
         {busy && <span className="composer-busy">rendering</span>}
+        {!busy && previewFactor !== undefined && previewFactor < 1 && (
+          <span className="composer-busy" title="This composition is large, so the preview renders smaller; exports are full size.">preview {Math.round(previewFactor * 100)}%</span>
+        )}
         <button type="button" className="composer-icon-button" onClick={undo} disabled={history.length === 0}>Undo</button>
         <button type="button" className="composer-icon-button" onClick={saveToCloud} title={saved ? `Save revision ${saved.revision + 1}` : 'Save to your library'}>Save</button>
         <button type="button" className="composer-icon-button" onClick={() => setSheet({ type: 'text' })}>More</button>
@@ -429,6 +470,12 @@ export default function ComposerPage() {
           </div>
         </div>
 
+        {softPhotos.map(([photo, p]) => (
+          <div key={photo} className="composer-note warning" role="status">
+            <span className="composer-note-title">Photo {photo} prints at {p.effectiveDpi} DPI on {p.format.name}</span>
+            <span className="composer-note-detail">Below {minimumPrintDpi} DPI prints look soft: use a larger photo, or smaller cells.</span>
+          </div>
+        ))}
         {steps.map((step, i) => (
           <React.Fragment key={step.id}>
             <Wire
@@ -438,6 +485,9 @@ export default function ComposerPage() {
               onInsert={() => openAdd(root.id, i, false)} />
             <Pill
               node={step}
+              notes={notesFor(step)}
+              onApply={s => s.apply && setRoot(s.apply(root))}
+              onDismiss={s => setDismissed(d => [...d, s.id])}
               dimensions={dimensionsInto(step.id)}
               selected={sheet?.type === 'step' && (sheet.id === step.id || parentOf(step, sheet.id) !== undefined)}
               onOpen={() => setSheet({ type: 'step', id: step.id })}
@@ -564,7 +614,7 @@ export default function ComposerPage() {
       )}
 
       {sheet?.type === 'viewer' && rendered && (
-        <Viewer cube={rendered.output} root={root} photos={photos} composition={composition} options={options}
+        <Viewer cube={rendered.output} root={root} photos={photos} composition={composition} options={options} printPlan={printPlan}
           onSettings={settings => setComposition({ ...composition, export: settings })} onClose={() => setSheet(undefined)} />
       )}
     </div>
@@ -588,11 +638,14 @@ function Wire({ cube, previous, onPeek, onInsert, last }: {
   );
 }
 
-function Pill({ node, dimensions, selected, onOpen, onChange }: {
+function Pill({ node, dimensions, selected, onOpen, onChange, notes, onApply, onDismiss }: {
   node: Node, dimensions: Dimension[], selected: boolean, onOpen: () => void, onChange: (node: Node) => void,
+  notes: Suggestion[], onApply: (s: Suggestion) => void, onDismiss: (s: Suggestion) => void,
 }) {
   const swatches = nodeSwatches(node);
+  const [open, setOpen] = React.useState<string>();
   return (
+    <div className="composer-pill-group">
     <div className={'composer-pill' + (selected ? ' selected' : '')}>
       <button type="button" className="composer-pill-main" onClick={onOpen}>
         <span className="composer-pill-kind">{kindLabel(node)}</span>
@@ -610,6 +663,17 @@ function Pill({ node, dimensions, selected, onOpen, onChange }: {
           {shortDistribution(node.distribution)}
         </button>
       )}
+    </div>
+    {notes.map(n => (
+      <div key={n.id} className={'composer-note ' + n.kind}>
+        <button type="button" className="composer-note-title" aria-expanded={open === n.id} onClick={() => setOpen(open === n.id ? undefined : n.id)}>
+          {n.kind === 'warning' ? 'Check: ' : 'Tip: '}{n.title}
+        </button>
+        {open === n.id && <span className="composer-note-detail">{n.detail}</span>}
+        {n.apply && <button type="button" className="composer-chip" onClick={() => onApply(n)}>Apply</button>}
+        <button type="button" className="composer-note-dismiss" aria-label={`Dismiss: ${n.title}`} onClick={() => onDismiss(n)}>×</button>
+      </div>
+    ))}
     </div>
   );
 }
@@ -651,10 +715,11 @@ function Peek({ cube, onClose, onCombine, onPick }: {
   );
 }
 
-function Viewer({ cube, root, photos, composition, options, onSettings, onClose }: {
+function Viewer({ cube, root, photos, composition, options, printPlan, onSettings, onClose }: {
   cube: Cube<OffscreenCanvas>, root: Node, photos: Photo[], composition: Composition, options: EvaluateOptions,
-  onSettings: (settings: ExportSettings) => void, onClose: () => void,
+  printPlan?: Map<string, PhotoPrint>, onSettings: (settings: ExportSettings) => void, onClose: () => void,
 }) {
+  const [guides, setGuides] = React.useState(true);
   const settings = composition.export ?? defaultExportSettings;
   const [busy, setBusy] = React.useState<string>();
   const exportResults = async (indexes: number[], what: string) => {
@@ -662,7 +727,13 @@ function Viewer({ cube, root, photos, composition, options, onSettings, onClose 
     try {
       // The same composition on the original photos (half size for proofs), so sizes resolve for print.
       const proof = settings.resolution === 'proof';
-      const sources = photos.map(p => proof ? scaled(p.full, Math.ceil(Math.max(p.full.width, p.full.height) / 2)) : p.full);
+      // Plan before render: when every result is a page, each photo needs only the resolution of its largest placement.
+      const allPages = cube.cells.every(c => c.frame);
+      const sources = photos.map((p, i) => {
+        const need = allPages ? exportScaleOf(printPlan?.get(`${i + 1}`)) : 1;
+        const factor = Math.min(need, proof ? 0.5 : 1);
+        return factor < 1 ? scaled(p.full, Math.ceil(Math.max(p.full.width, p.full.height) * factor)) : p.full;
+      });
       const scales = sources.map((source, i) => source.width / photos[i].full.width);
       const rendered = await evaluate(root, photoCube(sources, scales), canvasOps, undefined, { format: options.format });
       const files = await exportFiles(composition.name, rendered, indexes.filter(i => i < rendered.cells.length), settings, options.format);
@@ -694,10 +765,18 @@ function Viewer({ cube, root, photos, composition, options, onSettings, onClose 
           {busy === 'all' ? 'Rendering…' : `Export all (${fileCount} ${fileCount === 1 ? 'file' : 'files'})`}
         </button>
         <span style={{ fontSize: 12, color: '#b9bdc6' }}>Files are named by their place in the composition, e.g. {fileNameOf(resultAddress(composition.name, cube, 0), settings.fileType === 'jpeg' ? 'jpg' : settings.fileType)}</span>
+        {cube.cells.some(c => c.frame) && (
+          <label className="composer-field" style={{ color: '#b9bdc6' }}>
+            <input type="checkbox" checked={guides} onChange={e => setGuides(e.target.checked)} /> Show trim, bleed and safe-area guides (never exported)
+          </label>
+        )}
       </div>
       {cube.cells.map((c, i) => (
         <div key={i} style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
-          <CanvasView osc={c.image} />
+          <div style={{ position: 'relative' }}>
+            <CanvasView osc={c.image} />
+            {guides && c.frame && <PageGuides format={c.frame} />}
+          </div>
           <div className="composer-row" style={{ flexWrap: 'nowrap' }}>
             <span style={{ flexGrow: 1, fontSize: 12, color: '#b9bdc6' }}>{cellLabel(cube, i)}</span>
             <button type="button" className="composer-primary" style={{ height: 40 }} disabled={busy !== undefined} onClick={() => exportResults([i], `${i}`)}>
@@ -706,6 +785,23 @@ function Viewer({ cube, root, photos, composition, options, onSettings, onClose 
           </div>
         </div>
       ))}
+    </div>
+  );
+}
+
+/** Trim (solid), bleed edge (the image edge) and safe area (dashed) over a page, as percentages. */
+function PageGuides({ format }: { format: Format }) {
+  const totalW = format.width + 2 * format.bleed;
+  const totalH = format.height + 2 * format.bleed;
+  const inset = (amount: number) => ({
+    left: `${amount / totalW * 100}%`, right: `${amount / totalW * 100}%`,
+    top: `${amount / totalH * 100}%`, bottom: `${amount / totalH * 100}%`,
+  });
+  const content = format.bleed + Math.max(format.margin, format.safe);
+  return (
+    <div aria-hidden="true" style={{ position: 'absolute', inset: 0, pointerEvents: 'none' }}>
+      {format.bleed > 0 && <div className="composer-guide trim" style={inset(format.bleed)} />}
+      {content > 0 && <div className="composer-guide safe" style={inset(content)} />}
     </div>
   );
 }

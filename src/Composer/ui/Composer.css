@@ -216,3 +216,14 @@
 .composer-status { margin: 0 12px 6px; padding: 8px 12px; border-radius: 12px; background: var(--c-raised); font-size: 13px; display: flex; align-items: center; gap: 8px; }
 .composer-status span { flex-grow: 1; }
 .composer-status button { border: none; background: none; font-size: 18px; color: var(--c-muted); }
+.composer-pill-group { display: flex; flex-direction: column; gap: 4px; }
+.composer-note { display: flex; align-items: center; flex-wrap: wrap; gap: 6px; padding: 6px 10px; border-radius: 12px; font-size: 12px; background: var(--c-raised); }
+.composer-note.warning { background: #fff3d6; color: #6b4a00; }
+.composer-note.suggestion { background: var(--c-add-soft); color: var(--c-add); }
+.composer-note-title { border: none; background: none; padding: 0; font-weight: 600; text-align: left; flex-grow: 1; color: inherit; }
+.composer-note-detail { flex-basis: 100%; order: 3; color: inherit; opacity: 0.9; }
+.composer-note-dismiss { border: none; background: none; font-size: 16px; color: inherit; padding: 0 2px; }
+@media (prefers-color-scheme: dark) { .composer-note.warning { background: #3a2c08; color: #ffd97a; } }
+.composer-guide { position: absolute; }
+.composer-guide.trim { border: 1px solid rgba(214, 0, 92, 0.85); }
+.composer-guide.safe { border: 1px dashed rgba(11, 110, 79, 0.9); }

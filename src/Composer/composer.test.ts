@@ -478,3 +478,62 @@ describe('bleed, safe areas, reading direction, crosstab fits', () => {
     expect(justified.images.map(i => Math.round(i.w))).toEqual([400, 200, 100, 200]);
   });
 });
+
+describe('print planning', () => {
+  it('knows how large each photo prints, and flags soft ones', async () => {
+    const { planPrint, exportScaleOf } = await import('./printPlan');
+    // One photo per Letter page, one across: about 8 in wide at 300 DPI is 2400 px.
+    const root = sequence(combine(layout({ size: { type: 'across', n: 1 }, frame: { type: 'page', distribution: { type: 'one-cell-per-image', overflow: 'spill' } } }), []));
+    const plan = await planPrint(doc(root), [[4800, 3200], [800, 800]]);
+    expect(plan.get('1')!.photoScale).toBeCloseTo(2400 / 4800, 2);
+    expect(exportScaleOf(plan.get('1'))).toBeCloseTo(0.55, 2);
+    // The square photo is contained in a 3:2 cell: 1600 px tall from 800 px, so 2× and 150 DPI.
+    expect(plan.get('2')!.effectiveDpi).toBe(150);
+  });
+});
+
+describe('suggestions', () => {
+  const ids = async (root: Node & { kind: 'sequence' }) => {
+    const { suggestionsFor } = await import('./suggestions');
+    const { trace } = await inferComposition(doc(root), [[100, 100], [300, 100]]);
+    return suggestionsFor(root, trace);
+  };
+
+  it('sees a spread written out by hand, and converts it', async () => {
+    const v = variationsList(allPerImage, ...[15, 30, 45, 60].map(a => operationNode({ type: 'halftone', angle: angle(a), dotDiameter: 5, blurPixels: 0 })));
+    const root = sequence(v);
+    const [s] = (await ids(root)).filter(x => x.id.startsWith('spread:'));
+    const applied = s.apply!(root).children[0] as Extract<Node, { kind: 'variations' }>;
+    expect(applied.variants).toMatchObject({ type: 'spread', params: [{ type: 'count', param: 'angle', from: 15, to: 60, n: 4 }] });
+  });
+
+  it('sees repeated variants and keeps one of each, cycling', async () => {
+    const a = () => operationNode({ type: 'invert' });
+    const b = () => operationNode({ type: 'grayscale', percent: 100 });
+    const root = sequence(variationsList(inTurn, a(), b(), a(), b()));
+    const [s] = (await ids(root)).filter(x => x.id.startsWith('repeats:'));
+    expect(s.detail).toContain('same result');
+    expect((s.apply!(root).children[0] as Extract<Node, { kind: 'variations' }>).variants).toMatchObject({ type: 'list', children: [{ op: { type: 'invert' } }, { op: { type: 'grayscale' } }] });
+  });
+
+  it('warns about a geometry step after a page', async () => {
+    const root = sequence(combine(layout({ frame: { type: 'page', distribution: { type: 'one-cell-per-image', overflow: 'spill' } } }), []), operationNode({ type: 'rotate', degrees: angle(90), about: 'center' }));
+    expect((await ids(root)).filter(x => x.kind === 'warning').map(x => x.title)).toEqual(['Changes a Letter page']);
+  });
+
+  it('suggests moving a color effect before a free layout, and Justified for mixed shapes', async () => {
+    const root = sequence(combine(layout(), []), operationNode({ type: 'invert' }));
+    const found = await ids(root);
+    const move = found.find(x => x.id.startsWith('move:'))!;
+    expect(move.apply!(root).children.map(c => c.kind)).toEqual(['operation', 'combine']);
+    expect(found.some(x => x.id.startsWith('justify:'))).toBe(true);
+  });
+
+  it('collapses a Pick of one variant into that variant', async () => {
+    const v = variationsList(allPerImage, operationNode({ type: 'invert' }), operationNode({ type: 'noop' })) as Extract<Node, { kind: 'variations' }>;
+    const kept = (v.variants as { children: Node[] }).children[1];
+    const root = sequence(v, { kind: 'pick', id: 'p', dimension: v.id, members: kept.id });
+    const [s] = (await ids(root)).filter(x => x.id.startsWith('pick:'));
+    expect(s.apply!(root).children).toEqual([kept]);
+  });
+});

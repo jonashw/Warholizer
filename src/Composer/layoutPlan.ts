@@ -469,3 +469,17 @@ export const planCrosstab = (input: CrosstabInput): PagePlan[] => {
   }
   return pages;
 };
+
+/** The same plan drawn smaller, uniformly (to stay within a device's canvas limits). */
+export const scalePlan = (plan: PagePlan, factor: number): PagePlan => {
+  if (factor >= 1) return plan;
+  const r = <T extends Rect>(x: T): T => ({ ...x, x: x.x * factor, y: x.y * factor, w: x.w * factor, h: x.h * factor });
+  return {
+    ...plan,
+    width: Math.max(1, Math.floor(plan.width * factor)),
+    height: Math.max(1, Math.floor(plan.height * factor)),
+    clip: plan.clip && r(plan.clip),
+    images: plan.images.map(r),
+    texts: plan.texts.map(t => ({ ...t, x: t.x * factor, y: t.y * factor, size: Math.max(6, t.size * factor) })),
+  };
+};
