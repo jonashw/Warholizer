@@ -162,6 +162,81 @@ Variations has two forms of variants:
 - **Editor:** long-press any slider in an effect's sheet for a peek of a default spread around the current value; **Spread this** converts the step into Variations · Spread. The full sheet edits the range with two handles and a **Count | Skip by** toggle.
 - Spacing is linear in v1; geometric spacing (useful for sizes) and **Distinct** are on the roadmap.
 
+### Lengths
+
+Sizes are pixels today, so a preview (512 px) and an export (the original photo) look different. Every size-like setting becomes a **Length**:
+
+```
+type Length =
+  | Px of float
+  | Relative of percent        (* of the image's short side *)
+  | In of float | Mm of float | Pt of float   (* physical: resolved through the cell's frame DPI *)
+```
+
+- Existing documents read as `Px`, so nothing breaks.
+- Halftone takes its screen in **lines per inch** (about 45 lpi for chunky pop art, 85 for newsprint, 150 for magazines).
+- In text, the unit follows the value or the whole range: `width: 2 in`, `spread halftone screen: 30..90 lpi count: 4`, `spread layout width: 1..3 in count: 3`.
+- **Planning before rendering:** because a composition is data, inference knows each image's final size on paper ("a 2 in cell at 300 DPI is 600 px"), so photos are loaded at exactly their print resolution, and too-small photos are flagged ("photo 2 prints at 140 effective DPI").
+
+### Formats and frames
+
+- A **format** is a named frame: size, units, DPI, bleed and safe area. Paper (Letter, Legal, Tabloid, A4, A3, 4 × 6, 5 × 7, Postcard), screens named by shape (**Square** 1080 × 1080, **Portrait** 1080 × 1350, **Tall** 1080 × 1920, **Wide** 1920 × 1080, **Banner** 1500 × 500, **Link preview** 1200 × 630), products (T-shirt 12 × 16 in on transparent, mug wrap 8.5 × 3.5 in, mouse pad 9.25 × 7.75 in, stickers 2, 3 and 4 in, posters 18 × 24 and 24 × 36 in), **Match photo** and **Custom**.
+- The composition has a **default format**: Letter, portrait, 300 DPI, 0.25 in printer margins.
+- Every cube cell has a **frame**: free (just pixels) or a format. Steps can read it, inference checks it (a crop or rotate after a page is flagged), and export honors it.
+- A **Format** step sets the frame for the cells after it. **Variations of Format** make Format a dimension: one composition exports the same work for several formats at once (a "Merch pack" is a recipe, not a model term).
+
+### Layout
+
+Tile, Line, Crosstab and Sheet are one operation, **Layout** (a Combine), which places images into a grid of **layout cells** ("cells" in the UI, where cube cells are called images):
+
+```
+type Layout = {
+  placement:    Flow                                              (* cube order *)
+              | ByDimensions of rows: Dimension list * columns: Dimension list   (* crosstab; nested headers *)
+  size:         Across of int | Down of int | Width of Length | Height of Length
+  fit:          Contain | Cover | Natural | Match                  (* default Contain *)
+  align:        Start | Center | End
+  pattern:      Normal | HalfDrop | HalfBrick | Mirror | Wacky    (* Flow only *)
+  gutter:       Length
+  labels:       None | Headers | Captions
+  frame:        Free                                              (* grows with its content *)
+              | Page of LayoutDistribution                        (* the cell's format *)
+}
+```
+
+- **Fit** when an image's shape differs from its cell's: **Contain** shows the whole image with bands; **Cover** fills and crops; **Natural** keeps each image's size (rows as tall as their tallest image); **Match** sizes cells to images along the layout's axis: equal heights per row filling the width when Across (justified rows), equal widths per column when Down. Line's old "squish" is Match. **Align** places an image within a row or column it does not fill.
+- **Line** is `Across: all` (or `Down: all`); reading direction belongs to every Layout.
+- **Crosstab** is ByDimensions with Headers. Each axis takes a list of dimensions, combined in cube order (outer first) with spanning headers, like a pivot table. Positions with no image stay blank (for example after a one-variant-per-image distribution). Patterns are disabled for labeled grids. On a page, spill breaks between rows (at outer members where possible) and repeats the column headers.
+- **Tile**, **Sheet**, **Line** and **Crosstab** remain the names in the UI as entry points; switching between them keeps shared settings.
+- Laws: a Layout with a free frame has exactly one cell per image. On a page, the frame and size fix the number of cells, independent of the image count.
+
+### Distributions: Variations and Layout mirror each other
+
+Variations assigns **variants to images**; Layout assigns **images to cells**. Named with both nouns, each distribution pairs with its converse, and the two families line up:
+
+| Variations (variants, images) | Layout (images, cells) |
+|---|---|
+| `all-variants-per-image` | `all-images-per-cell` (Blend) |
+| `one-variant-per-image(order)` | `one-image-per-cell(order, edges)` (fill the page, cycling images) |
+| `one-image-per-variant(order, overflow)` | `one-cell-per-image(overflow)` (each image once) |
+
+```
+Order          = InTurn | Shuffled of seed          (* shared *)
+Edges          = WholeCopies | Bleed
+LayoutOverflow = Spill | Shrink                     (* Spill adds a Page dimension *)
+VariantOverflow = Spill | Drop | Keep               (* Spill adds a Round dimension; Keep passes leftover images through *)
+```
+
+- Mismatched counts mirror too: extra cells stay empty; extra variants go unused.
+- The shared vocabulary is meant to inspire work as well as describe it: one seed can drive both a palette assignment and a sheet's arrangement, and a composition can swap roles, laying out what another varies.
+- Status: the both-noun names are proposed (they rename today's `all-per-image` and `one-per-image`); `one-image-per-variant` is accepted.
+
+### Export and addresses
+
+- Every result has a stable **address made of its dimension members** (`warhol-duotone-grid / photo 2 / letter / page 1`), so each can be linked and served from cache. Download filenames are that address flattened (`warhol-duotone-grid_photo-2_letter_p1.pdf`); naming is not a user setting.
+- A set of results is a **slice**: a partial address in a URL (`/c/7Kq2xd/results?format=letter`) is a Pick.
+- **Export settings** say how results are written, not how they look: PNG | JPEG | PDF (one file per page, or one multi-page document), proof or final resolution, and later a color profile.
+
 ### Laws
 
 - Effects never change coordinates or order.
@@ -232,6 +307,7 @@ sequence
 |---|---|
 | **v1** | Composer route; Composition document; types, canonical JSON, read-only text view; Sequence; Variations with all three distributions; Variations as **List** or **Spread** (Count, Skip by) with Expand and long-press "Spread this"; dimension binders; Effects and Separate operations from the registry; **Tone** (manual levels, auto-levels, match histogram; group-aware via *by*); Combine: Layout (Tile, Line, Print sheet, Crosstab with labels) and Blend (Stack) with *by*; Pick; Pivot; live dimension and count inference; seeds and Reroll; the Warhol duotone grid as a sample Composition |
 | **v1.1** | Combine · Animate (images to animation frames); other group-aware effects (shared palette quantize); Dither consolidation; Blend · Mean and Median; geometric Spread spacing; caching, Pick pushdown, effect fusion |
+| **v1.2** (in order) | Length (px, relative, physical; lpi for halftone) and plan-before-render resolution; Formats, frames and the Format step; Layout (Flow and ByDimensions with nested headers, fit, align, patterns, pages with both distributions and overflow), replacing Tile, Line, Crosstab and print set in Composer; one-image-per-variant; multi-page PDF and export settings; recipes: Merch pack, shared seed, role swap |
 | **v2** | Per-cell measures and data-driven arrangement: constraint-based selection (pick where, e.g. best contrast per photo), sort by (e.g. brightness), assignment by measurement (e.g. light photos get dark palettes), **Classify** (a derived dimension from a measurement, e.g. sort photos into brightness or hue buckets for a crosstab); **Spread · Distinct** (render many values, keep the *n* most visually different, so steps land where the image visibly changes); editable text with round-tripping |
 
 ## Future directions (from treating compositions as an AST)
@@ -244,6 +320,8 @@ sequence
 6. The filter gallery as a cube view: a Spread plus a Crosstab; systematic exploration across any parameters and photos.
 7. Text form and round-tripping.
 8. Canonical forms: recipe equivalence, deduplication, structural search.
+9. Usage analysis: compositions saved to the cloud are analyzed by structure (never images, aggregate only, stated in the sign-in and sharing copy) to find patterns (duplicated variants, Pick right after Variations, Spread then Expand then edits) that inform design and power in-app suggestions.
+10. Imposition: pages in a known order arranged for folding (a mini-zine from one Letter sheet).
 
 ## Consequences
 
