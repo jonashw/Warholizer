@@ -85,11 +85,37 @@ export type SavedComposition = { id: string, name: string, revision: number, pre
 export const listCompositions = (fetcher: Fetcher) =>
   fetcher('/api/compositions').then(r => json<{ compositions: SavedComposition[] }>(r)).then(r => r.compositions);
 
-export const saveComposition = (fetcher: Fetcher, id: string | undefined, composition: Composition, inputs: string[], preview?: string) =>
+export const saveComposition = (fetcher: Fetcher, id: string | undefined, composition: Composition, inputs: string[], preview?: string, social?: string) =>
   fetcher(id ? `/api/compositions/${id}` : '/api/compositions', {
     method: id ? 'PUT' : 'POST', headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ name: composition.name, document: composition, inputs, preview }),
+    body: JSON.stringify({ name: composition.name, document: composition, inputs, preview, social }),
   }).then(r => json<SavedComposition>(r));
+
+/**
+ * The card shown when a shared link is pasted into messages and social apps: the Link preview
+ * format (1200 × 630), the result contained on dark, with the composition's name.
+ */
+export const linkCardOf = async (result: OffscreenCanvas, name: string): Promise<{ canvas: OffscreenCanvas, blob: Blob }> => {
+  const [width, height] = [1200, 630];
+  const canvas = new OffscreenCanvas(width, height);
+  const ctx = canvas.getContext('2d')!;
+  ctx.fillStyle = '#111318';
+  ctx.fillRect(0, 0, width, height);
+  const pad = 36;
+  const textBand = 92;
+  const s = Math.min((width - 2 * pad) / result.width, (height - 2 * pad - textBand) / result.height);
+  const w = result.width * s, h = result.height * s;
+  ctx.drawImage(result, (width - w) / 2, pad + (height - 2 * pad - textBand - h) / 2, w, h);
+  ctx.fillStyle = '#ffffff';
+  ctx.font = '700 40px system-ui, sans-serif';
+  ctx.textBaseline = 'alphabetic';
+  ctx.fillText(name.length > 48 ? `${name.slice(0, 47)}…` : name, pad, height - pad - 8, width - 2 * pad - 220);
+  ctx.fillStyle = '#ff4f98';
+  ctx.font = '700 28px system-ui, sans-serif';
+  ctx.textAlign = 'right';
+  ctx.fillText('Warholizer', width - pad, height - pad - 8);
+  return { canvas, blob: await canvas.convertToBlob({ type: 'image/jpeg', quality: 0.85 }) };
+};
 
 export const openComposition = (fetcher: Fetcher, id: string) =>
   fetcher(`/api/compositions/${id}`).then(r => json<SavedComposition & { document: Composition, inputs: string[] }>(r));

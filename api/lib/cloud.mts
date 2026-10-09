@@ -138,7 +138,7 @@ export const readImage = async ({ repo, store }: Context, user: User, sha256: st
 
 // Compositions ---------------------------------------------------------------------------------
 
-export type SaveRequest = { name: string, document: unknown, inputs: string[], preview?: string };
+export type SaveRequest = { name: string, document: unknown, inputs: string[], preview?: string, social?: string };
 
 const summary = (c: CompositionRow) => ({
   id: c.id, name: c.name, revision: c.revision, preview: c.preview_sha256, updatedAt: c.updated_at, createdAt: c.created_at,
@@ -152,6 +152,7 @@ const checkSave = async (repo: Repo, user: User, req: SaveRequest): Promise<stri
     if (!(await repo.inLibrary(user.id, sha))) return 'Every input must be in your library';
   }
   if (req.preview !== undefined && (!isSha256(req.preview) || !(await repo.getImage(req.preview)))) return 'Unknown preview image';
+  if (req.social !== undefined && (!isSha256(req.social) || !(await repo.getImage(req.social)))) return 'Unknown link preview image';
   return undefined;
 };
 
@@ -165,7 +166,7 @@ export const createComposition = async ({ repo }: Context, user: User, req: Save
   const now = new Date();
   const row: CompositionRow = {
     id: randomId(10), owner_id: user.id, name: req.name.slice(0, 255), revision: 1, preview_sha256: req.preview ?? null,
-    public_slug: null, share_sources: false, share_remix: true, created_at: now, updated_at: now,
+    social_sha256: req.social ?? null, public_slug: null, share_sources: false, share_remix: true, created_at: now, updated_at: now,
   };
   await repo.createComposition(row, { composition_id: row.id, revision: 1, document: req.document, inputs: req.inputs, created_at: now });
   return { status: 201, body: summary(row) };
@@ -184,7 +185,10 @@ export const saveRevision = async ({ repo }: Context, user: User, id: string, re
   if (problem) return error(400, problem);
   const now = new Date();
   const revision = c.revision + 1;
-  const patch = { revision, name: req.name.slice(0, 255), preview_sha256: req.preview ?? c.preview_sha256, updated_at: now };
+  const patch = {
+    revision, name: req.name.slice(0, 255), preview_sha256: req.preview ?? c.preview_sha256,
+    social_sha256: req.social ?? c.social_sha256, updated_at: now,
+  };
   await repo.addRevision({ composition_id: id, revision, document: req.document, inputs: req.inputs, created_at: now }, patch);
   return ok(summary({ ...c, ...patch }));
 };
@@ -236,7 +240,7 @@ export const readPublicImage = async ({ repo, store }: Context, slug: string, sh
   const c = await repo.compositionBySlug(slug);
   if (!c || !isSha256(sha256)) return error(404, 'Not found');
   const rev = await repo.revision(c.id, c.revision);
-  const allowed = c.preview_sha256 === sha256 || (c.share_sources && (rev?.inputs ?? []).includes(sha256));
+  const allowed = c.preview_sha256 === sha256 || c.social_sha256 === sha256 || (c.share_sources && (rev?.inputs ?? []).includes(sha256));
   const image = allowed ? await repo.getImage(sha256) : undefined;
   if (!image) return error(404, 'Not found');
   return serve(store, sha256, variant, image.content_type);
@@ -254,7 +258,7 @@ export const remix = async ({ repo }: Context, user: User, slug: string): Promis
   const now = new Date();
   const row: CompositionRow = {
     id: randomId(10), owner_id: user.id, name: `${c.name} (remix)`.slice(0, 255), revision: 1, preview_sha256: c.preview_sha256,
-    public_slug: null, share_sources: false, share_remix: true, created_at: now, updated_at: now,
+    social_sha256: c.social_sha256, public_slug: null, share_sources: false, share_remix: true, created_at: now, updated_at: now,
   };
   await repo.createComposition(row, { composition_id: row.id, revision: 1, document: rev?.document ?? {}, inputs, created_at: now });
   return { status: 201, body: summary(row) };

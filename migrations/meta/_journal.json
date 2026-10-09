@@ -57,6 +57,13 @@
       "when": 1791580775910,
       "tag": "0007_drop_legacy_uploads",
       "breakpoints": true
+    },
+    {
+      "idx": 8,
+      "version": "7",
+      "when": 1791580853601,
+      "tag": "0008_link_preview_card",
+      "breakpoints": true
     }
   ]
 }

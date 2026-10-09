@@ -8,7 +8,7 @@ import { defaultFormat } from "../formats";
 import { migrateComposition } from "../migrate";
 import { FormatEditor } from "./FormatEditor";
 import AuthContext from "../../AuthContext";
-import { fetchImage, jpegOf, LibraryImage, openComposition, openPublic, saveComposition, SavedComposition, SignInNeeded, uploadImage } from "../cloud/client";
+import { fetchImage, jpegOf, LibraryImage, linkCardOf, openComposition, openPublic, saveComposition, SavedComposition, SignInNeeded, uploadImage } from "../cloud/client";
 import { LibrarySheet, ShareSheet } from "./CloudSheets";
 import { canvasOps } from "../canvasOps";
 import { photoCube } from "../cube";
@@ -306,7 +306,9 @@ export default function ComposerPage() {
       }
       const first = rendered?.output.cells[0]?.image;
       const preview = first ? await uploadImage(fetcher, await jpegOf(first, 800, 0.82), first, 'preview', false) : undefined;
-      const result = await saveComposition(fetcher, saved?.id, composition, inputs, preview);
+      const card = first ? await linkCardOf(first, composition.name) : undefined;
+      const social = card ? await uploadImage(fetcher, card.blob, card.canvas, 'link preview', false) : undefined;
+      const result = await saveComposition(fetcher, saved?.id, composition, inputs, preview, social);
       setSaved(result);
       setStatus(`Saved · revision ${result.revision}`);
     } catch (e) {

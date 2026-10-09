@@ -1,0 +1,2 @@
+ALTER TABLE "compositions" ADD COLUMN "social_sha256" varchar(64);--> statement-breakpoint
+ALTER TABLE "compositions" ADD CONSTRAINT "compositions_social_sha256_images_sha256_fk" FOREIGN KEY ("social_sha256") REFERENCES "public"."images"("sha256") ON DELETE no action ON UPDATE no action;

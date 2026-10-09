@@ -1,4 +1,4 @@
-import { and, desc, eq } from 'drizzle-orm';
+import { and, desc, eq, or } from 'drizzle-orm';
 import type { User } from '../auth.mts';
 
 export type ImageRow = {
@@ -6,7 +6,7 @@ export type ImageRow = {
 };
 export type LibraryImage = ImageRow & { file_name: string, added_at: Date };
 export type CompositionRow = {
-  id: string, owner_id: string, name: string, revision: number, preview_sha256: string | null,
+  id: string, owner_id: string, name: string, revision: number, preview_sha256: string | null, social_sha256: string | null,
   public_slug: string | null, share_sources: boolean, share_remix: boolean, created_at: Date, updated_at: Date,
 };
 export type RevisionRow = { composition_id: string, revision: number, document: unknown, inputs: string[], created_at: Date };
@@ -53,7 +53,7 @@ export const memoryRepo = (): Repo & { users: Map<string, User> } => {
     compositionsOf: async o => [...compositions.values()].filter(c => c.owner_id === o),
     composition: async id => compositions.get(id),
     compositionBySlug: async slug => [...compositions.values()].find(c => c.public_slug === slug),
-    ownsPreview: async (o, s) => [...compositions.values()].some(c => c.owner_id === o && c.preview_sha256 === s),
+    ownsPreview: async (o, s) => [...compositions.values()].some(c => c.owner_id === o && (c.preview_sha256 === s || c.social_sha256 === s)),
     revision: async (id, r) => revisions.get(`${id}#${r}`),
     createComposition: async (row, rev) => { compositions.set(row.id, row); revisions.set(`${rev.composition_id}#${rev.revision}`, rev); },
     addRevision: async (rev, patch) => {
@@ -86,7 +86,7 @@ export const drizzleRepo = async (): Promise<Repo> => {
     composition: async id => (await db.select().from(t.compositions).where(eq(t.compositions.id, id)))[0],
     compositionBySlug: async slug => (await db.select().from(t.compositions).where(eq(t.compositions.public_slug, slug)))[0],
     ownsPreview: async (o, s) => (await db.select().from(t.compositions)
-      .where(and(eq(t.compositions.owner_id, o), eq(t.compositions.preview_sha256, s)))).length > 0,
+      .where(and(eq(t.compositions.owner_id, o), or(eq(t.compositions.preview_sha256, s), eq(t.compositions.social_sha256, s))))).length > 0,
     revision: async (id, r) => (await db.select().from(t.composition_revisions)
       .where(and(eq(t.composition_revisions.composition_id, id), eq(t.composition_revisions.revision, r))))[0] as RevisionRow | undefined,
     createComposition: async (row, rev) => {

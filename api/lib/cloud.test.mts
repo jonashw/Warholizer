@@ -106,3 +106,27 @@ describe('public links', () => {
     expect((await openPublic(ctx, slug)).status).toBe(404);
   });
 });
+
+describe('link previews', () => {
+  it('injects escaped title and Open Graph tags into the page', async () => {
+    const { withPreview } = await import('./sharePage.mts');
+    const html = '<html><head><title>Warholizer</title></head><body></body></html>';
+    const out = withPreview(html, { title: 'Duotones <"&">', description: 'd', url: 'https://w/c/x', image: 'https://w/i.jpg', imageWidth: 1200, imageHeight: 630 });
+    expect(out).toContain('<title>Duotones &lt;&quot;&amp;&quot;&gt; · Warholizer</title>');
+    expect(out).toContain('<meta property="og:image" content="https://w/i.jpg" />');
+    expect(out).toContain('<meta property="og:image:width" content="1200" />');
+    expect(out).toContain('<meta name="twitter:card" content="summary_large_image" />');
+    expect(out.indexOf('og:title')).toBeLessThan(out.indexOf('</head>'));
+  });
+
+  it('serves the link card on public links', async () => {
+    const ctx = setup();
+    const photo = await upload(ctx, ada, bytes('photo'));
+    const card = await sha256Hex(bytes('card'));
+    await putBytes(ctx, card, 'original', bytes('card'), 'image/jpeg');
+    await commitImage(ctx, ada, card, { fileName: 'card', contentType: 'image/jpeg', library: false });
+    const id = body(await createComposition(ctx, ada, { name: 'Grid', document: { v: 1 }, inputs: [photo], social: card })).id as string;
+    const slug = (body(await share(ctx, ada, id, { public: true })).share as { slug: string }).slug;
+    expect((await readPublicImage(ctx, slug, card, 'original')).status).toBe(200);
+  });
+});

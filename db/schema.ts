@@ -53,6 +53,8 @@ export const compositions = pgTable('compositions', {
     name: p.varchar({ length: 255 }).notNull(),
     revision: p.integer().notNull(),
     preview_sha256: p.varchar({ length: 64 }).references(() => images.sha256),
+    /** A 1200 × 630 card for link previews (Open Graph), made from the preview when saving. */
+    social_sha256: p.varchar({ length: 64 }).references(() => images.sha256),
     /** Set while a public link is on. */
     public_slug: p.varchar({ length: 32 }).unique(),
     share_sources: p.boolean().notNull().default(false),
