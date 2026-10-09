@@ -542,11 +542,13 @@ const tile = async (inputs: OffscreenCanvas[], op: Tile): Promise<OffscreenCanva
 async function offscreenCanvasOperation(
   width: number,
   height: number,
-  action: (ctx: OffscreenCanvasRenderingContext2D) => void
+  action: (ctx: OffscreenCanvasRenderingContext2D) => void | Promise<void>
 ): Promise<OffscreenCanvas> {
   const c = new OffscreenCanvas(width,height);
   const ctx = c.getContext('2d')!;
-  action(ctx);
+  // Await async actions (e.g. printSet builds its pattern asynchronously); otherwise the
+  // canvas would be returned before it is drawn.
+  await action(ctx);
   return c;
 }
 

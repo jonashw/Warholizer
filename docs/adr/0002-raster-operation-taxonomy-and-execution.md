@@ -57,7 +57,7 @@ Classifying current operations by signature (input count → output count, wheth
 
 1. **Testing.** Unit tests for `apply.ts` (Vitest browser mode, real Chromium) plus a benchmark page. *Done 2026-10-08; see below.*
 2. **Tech debt.** Dependency upgrades (Vite, MUI, React), replace deprecated `react-beautiful-dnd`, bring `npm run lint` back to passing. The tests from step 1 guard these changes. *Done 2026-10-08.*
-3. **Worker-backed engine interface** used by all editing models.
+3. **Worker-backed engine interface** used by all editing models. *Done 2026-10-08.*
 4. **Operation registry** with kind; regroup the menu; rename collisions.
 5. **GPU path** for per-pixel operations; filter gallery.
 6. **New operations**, using WASM where sequential.
@@ -93,3 +93,13 @@ Classifying current operations by signature (input count → output count, wheth
 - Auth fixes: invalid token payloads were never rejected (`instanceof String` on a primitive), and malformed tokens returned 500 with a stack trace instead of 401.
 - Deferred: TypeScript 7 (typescript-eslint supports < 6.1); `npm audit` reports 4 moderate findings, all via `drizzle-kit`'s bundled esbuild (development-time only).
 - Open security question, not changed: `/api/users` is unauthenticated and returns all users' names, emails, and sign-in history.
+
+### 2026-10-08: worker-backed engine (step 3) done
+
+- `PureRasterOperation/engine/`: a `RasterEngine` interface with a main-thread implementation and a worker-pool implementation (up to 4 module workers; each request goes to the least busy one). `PureRasterOperations.apply` (and `applyPipeline`, `applyFlatMap`) now dispatch through the current engine, so applicators, graphs, galleries, and editors all use workers without changes. Falls back to the main thread where workers or `OffscreenCanvas` are unavailable.
+- Engine seam is single-operation `apply`: graph and iterative editors display every intermediate result, so intermediates must return to the main thread regardless.
+- Protocol: images cross as transferable `ImageBitmap`s; outputs that are inputs passed through (`noop`, `multiply`, ...) are returned by reference, preserving canvas identity; zero-area images are sent by size; worker errors and crashes reject the pending requests.
+- Parity tests (`engine.test.ts`) compare worker output to the main-thread reference for every sample operation. They exposed a latent bug: `printSet` drew asynchronously but `apply` resolved before drawing finished (fixed in `offscreenCanvasOperation`; regression test added).
+- Results: [docs/benchmarks/2026-10-08-worker-engine.md](../benchmarks/2026-10-08-worker-engine.md). Heavy per-pixel operations no longer freeze the UI and galleries run in parallel; cheap operations pay a transfer cost. Step 4's registry should carry an execution hint so cheap operations stay on the main thread.
+- Not covered: the original Warholizer editor (`Warholizer.tsx`) mostly uses its own `ImageUtil` pipeline (threshold, quantize, tiling) and the legacy `RasterOperations` types, not `PureRasterOperation`. Consolidating it onto this engine is future work.
+

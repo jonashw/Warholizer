@@ -1,6 +1,6 @@
 import { defineConfig, mergeConfig } from 'vitest/config'
 import { playwright } from '@vitest/browser-playwright'
-import viteConfig from './vite.config'
+import viteConfig from './vite.config.ts'
 
 // The raster engine depends on real Canvas 2D (OffscreenCanvas, filters,
 // compositing), so tests run in a real headless Chromium, not jsdom.

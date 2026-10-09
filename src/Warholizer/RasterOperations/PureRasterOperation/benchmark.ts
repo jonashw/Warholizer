@@ -1,13 +1,24 @@
-import { apply } from "./apply";
 import { PureRasterOperation } from "./types";
+import { RasterEngine } from "./engine";
 
 export type BenchmarkResult = {
+  engine: string,
   op: PureRasterOperation["type"],
   inputSize: string,
   medianMs: number,
   minMs: number,
   maxMs: number,
   runs: number
+};
+
+export type GalleryBenchmarkResult = {
+  engine: string,
+  op: PureRasterOperation["type"],
+  inputSize: string,
+  previews: number,
+  wallMs: number,
+  /** Longest gap between main-thread timer ticks while rendering: how long the UI froze. */
+  maxStallMs: number
 };
 
 /** Copy of `source` scaled so its longest side is `longestSide` pixels. */
@@ -34,18 +45,20 @@ const flush = (outputs: OffscreenCanvas[]) => {
 };
 
 export const benchmarkOperation = async (
+  engine: RasterEngine,
   op: PureRasterOperation,
   input: OffscreenCanvas,
   runs: number
 ): Promise<BenchmarkResult> => {
-  flush(await apply(op, [input])); // warm-up
+  flush(await engine.apply(op, [input])); // warm-up
   const times: number[] = [];
   for (let i = 0; i < runs; i++) {
     const t0 = performance.now();
-    flush(await apply(op, [input]));
+    flush(await engine.apply(op, [input]));
     times.push(performance.now() - t0);
   }
   return {
+    engine: engine.name,
     op: op.type,
     inputSize: `${input.width}×${input.height}`,
     medianMs: median(times),
@@ -53,4 +66,28 @@ export const benchmarkOperation = async (
     maxMs: Math.max(...times),
     runs
   };
+};
+
+/** Renders `previews` copies of one operation concurrently, as a filter gallery would. */
+export const benchmarkGallery = async (
+  engine: RasterEngine,
+  op: PureRasterOperation,
+  input: OffscreenCanvas,
+  previews: number
+): Promise<GalleryBenchmarkResult> => {
+  flush(await engine.apply(op, [input])); // warm-up
+  let maxStallMs = 0;
+  let last = performance.now();
+  const ticker = setInterval(() => {
+    const now = performance.now();
+    maxStallMs = Math.max(maxStallMs, now - last);
+    last = now;
+  }, 1);
+  const t0 = performance.now();
+  const outputs = await Promise.all(Array.from({ length: previews }, () => engine.apply(op, [input])));
+  outputs.forEach(flush);
+  const wallMs = performance.now() - t0;
+  clearInterval(ticker);
+  maxStallMs = Math.max(maxStallMs, performance.now() - last);
+  return { engine: engine.name, op: op.type, inputSize: `${input.width}×${input.height}`, previews, wallMs, maxStallMs };
 };

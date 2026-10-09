@@ -282,6 +282,14 @@ describe('layout operations (n→1 or 1→larger)', () => {
     expect(await one({ type: 'grid', rows: 0, cols: 2 }, input)).toBe(input);
   });
 
+  // Regression: printSet draws asynchronously; apply must not resolve before drawing finishes.
+  it.each(['normal', 'half-drop', 'half-brick', 'mirror', 'wacky'] as const)(
+    'printSet (%s) is fully drawn when apply resolves', async (tilingPattern) => {
+      const out = await one({ type: 'printSet', paperSize: 'letter', orientation: 'portrait', tilingPattern, rowLength: positiveNumber(3) }, solid(10, 10, RED));
+      // Read synchronously, before any other task can run.
+      allPixels(out).forEach(p => expectColor(p, RED));
+    });
+
   it('printSet matches paper aspect ratio', async () => {
     const out = await one({ type: 'printSet', paperSize: 'letter', orientation: 'portrait', tilingPattern: 'normal', rowLength: positiveNumber(3) }, solid(10, 10, RED));
     expect(out.width).toBe(30);
