@@ -118,8 +118,12 @@ export type Layout = {
   pattern: Pattern,
   gutter: Size,
   labels: 'none' | 'captions' | 'headers',
+  /** Which way order runs: left to right or right to left; top to bottom or bottom to top. */
+  reading: Reading,
   frame: LayoutFrame,
 };
+
+export type Reading = { horizontal: 'ltr' | 'rtl', vertical: 'ttb' | 'btt' };
 
 export type Placement =
   | { type: 'flow' }

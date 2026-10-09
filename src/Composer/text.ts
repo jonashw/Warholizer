@@ -81,6 +81,7 @@ const layoutText = (l: Layout): string => {
   if (l.pattern !== 'normal') parts.push(`pattern: ${l.pattern}`);
   if (l.gutter !== 0) parts.push(`gutter: ${typeof l.gutter === 'number' ? `${l.gutter}px` : value(l.gutter)}`);
   if (l.labels !== 'none') parts.push(`labels: ${l.labels}`);
+  if (l.reading.horizontal !== 'ltr' || l.reading.vertical !== 'ttb') parts.push(`reading: ${l.reading.horizontal} ${l.reading.vertical}`);
   if (l.frame.type === 'page') parts.push(`page: ${layoutDistributionText(l.frame.distribution)}`);
   return parts.join(' ');
 };

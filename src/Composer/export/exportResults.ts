@@ -21,14 +21,15 @@ export const resultAddress = <Img>(name: string, cube: Cube<Img>, index: number)
 
 export const fileNameOf = (address: string[], extension: string) => `${address.join('_')}.${extension}`;
 
-/** A result's physical size in points: its page format, or its pixels at the composition's DPI. */
-export const pointsOf = (cell: Cell<OffscreenCanvas>, format: Format = defaultFormat): [number, number] => {
+/** A result's physical size in points: its page format (with bleed), or its pixels at the composition's DPI. */
+export const pointsOf = (cell: Cell<OffscreenCanvas>, format: Format = defaultFormat): [number, number, number] => {
   const frame = cell.frame;
   if (frame) {
     const perInch = frame.unit === 'in' ? 1 : frame.unit === 'mm' ? 1 / 25.4 : 1 / frame.dpi;
-    return [frame.width * perInch * 72, frame.height * perInch * 72];
+    const bleed = frame.bleed * perInch * 72;
+    return [frame.width * perInch * 72 + 2 * bleed, frame.height * perInch * 72 + 2 * bleed, bleed];
   }
-  return [cell.image.width / format.dpi * 72, cell.image.height / format.dpi * 72];
+  return [cell.image.width / format.dpi * 72, cell.image.height / format.dpi * 72, 0];
 };
 
 /** JPEG has no transparency: flatten onto white. */
@@ -52,8 +53,8 @@ export const exportFiles = async (
 ): Promise<ExportFile[]> => {
   const page = async (i: number): Promise<PdfPage> => {
     const cell = cube.cells[i];
-    const [widthPt, heightPt] = pointsOf(cell, format);
-    return { jpeg: await jpegOf(cell.image), pixelWidth: cell.image.width, pixelHeight: cell.image.height, widthPt, heightPt };
+    const [widthPt, heightPt, bleedPt] = pointsOf(cell, format);
+    return { jpeg: await jpegOf(cell.image), pixelWidth: cell.image.width, pixelHeight: cell.image.height, widthPt, heightPt, bleedPt };
   };
   const pdfBlob = (pages: PdfPage[]) => new Blob([buildPdf(pages) as BlobPart], { type: 'application/pdf' });
   switch (settings.fileType) {

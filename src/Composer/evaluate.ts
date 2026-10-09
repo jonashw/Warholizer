@@ -1,6 +1,6 @@
 import { resolveLength, resolveLengths } from "../Warholizer/RasterOperations/PureRasterOperation/length";
-import { defaultFormat, formatToPixels, pagePixels } from "./formats";
-import { PageBox, PagePlan, planCrosstab, planFlow } from "./layoutPlan";
+import { defaultFormat, formatToPixels, pageBoxOf, pagePixels } from "./formats";
+import { PageBox, PagePlan, planCrosstab, planFlow, withReading } from "./layoutPlan";
 import { isGroupAware } from "../Warholizer/RasterOperations/PureRasterOperation/registry";
 import { PureRasterOperation } from "../Warholizer/RasterOperations/PureRasterOperation/types";
 import { dealShuffled, groupCells, normalize, unionDimensions, uniqueName } from "./cube";
@@ -301,16 +301,13 @@ const evaluateLayout = async <Img>(node: CombineNode, layout: Layout, input: Cub
   const results = await Promise.all(groups.map(async group => {
     const first = group.cells[0];
     const format = first?.frame ?? options.format;
-    const full = pagePixels(format, first?.scale ?? 1);
+    const full = pagePixels(format, first?.scale ?? 1).map(v => v + 2 * formatToPixels(format, format.bleed, first?.scale ?? 1));
     const scale = (first?.scale ?? 1) * (frame.type === 'page' && options.maxPageSize ? Math.min(1, options.maxPageSize / Math.max(...full)) : 1);
     const sizes = group.cells.map(c => ops.size ? ops.size(c.image) : [1, 1] as [number, number]);
     const context = { dpi: format.dpi, scale, shortSide: Math.min(...(sizes[0] ?? [0, 0])) };
     const gutter = resolveLength(layout.gutter, context);
     const cellLength = layout.size.type === 'width' || layout.size.type === 'height' ? resolveLength(layout.size.size, context) : undefined;
-    const [width, height] = pagePixels(format, scale);
-    const page: PageBox | undefined = frame.type === 'page'
-      ? { width, height, margin: formatToPixels(format, format.margin, scale), background: format.background }
-      : undefined;
+    const page: PageBox | undefined = frame.type === 'page' ? pageBoxOf(format, scale) : undefined;
     let plans: PagePlan[];
     if (placement.type === 'flow') {
       const captions = group.cells.map(c => unplaced.map(d => label(c, d)).join(' · '));
@@ -330,7 +327,7 @@ const evaluateLayout = async <Img>(node: CombineNode, layout: Layout, input: Cub
         },
         sizes, fit: layout.fit, align: layout.align, headers: layout.labels === 'headers', gutter, page,
         overflow: distribution?.type === 'one-cell-per-image' ? distribution.overflow : 'spill',
-      });
+      }).map(p => withReading(p, layout.reading));
     }
     const images = await Promise.all(plans.map(plan => ops.compose(plan, group.cells.map(c => c.image))));
     return images.map((image, k): Cell<Img> => ({

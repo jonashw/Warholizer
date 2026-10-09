@@ -429,15 +429,26 @@ function LayoutEditor({ method, onChange, inputDimensions }: { method: Layout, o
         <span className="composer-section-label">Fit</span>
         <Segmented label="Fit" value={method.fit} onChange={fit => set({ fit })}
           options={[{ value: 'contain', label: 'Contain' }, { value: 'cover', label: 'Cover' },
-            { value: 'natural', label: 'Natural', disabled: byDimensions }, { value: 'justified', label: 'Justified', disabled: byDimensions }]} />
+            { value: 'natural', label: 'Natural' }, { value: 'justified', label: 'Justified' }]} />
         <span className="composer-hint">
           {method.fit === 'contain' ? 'The whole image, with bands where shapes differ.'
             : method.fit === 'cover' ? 'Fills each cell, cropping edges (Align picks what stays).'
             : method.fit === 'natural' ? 'Each image keeps its size; lines are as tall as their tallest image.'
+            : byDimensions ? 'Every image in a row has the same height; columns stay aligned.'
             : 'Equal heights per row, each row filling the width (equal widths per column when Down).'}
         </span>
         <Segmented label="Align" value={method.align} onChange={align => set({ align })}
           options={[{ value: 'start', label: 'Start' }, { value: 'center', label: 'Center' }, { value: 'end', label: 'End' }]} />
+        <div className="composer-row" style={{ flexWrap: 'nowrap' }}>
+          <div style={{ flexGrow: 1 }}>
+            <Segmented label="Horizontal reading" value={method.reading.horizontal} onChange={horizontal => set({ reading: { ...method.reading, horizontal } })}
+              options={[{ value: 'ltr', label: 'Left → right' }, { value: 'rtl', label: 'Right → left' }]} />
+          </div>
+          <div style={{ flexGrow: 1 }}>
+            <Segmented label="Vertical reading" value={method.reading.vertical} onChange={vertical => set({ reading: { ...method.reading, vertical } })}
+              options={[{ value: 'ttb', label: 'Top ↓' }, { value: 'btt', label: 'Bottom ↑' }]} />
+          </div>
+        </div>
         <div className="composer-row">
           <span className="composer-setting-label">Gutter</span>
           <LengthInput label="Gutter" value={method.gutter} onChange={gutter => set({ gutter })} />

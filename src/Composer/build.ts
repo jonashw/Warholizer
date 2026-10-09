@@ -26,7 +26,7 @@ export const combine = (method: CombineMethod, by?: DimensionId[]): Node => ({ k
 /** A Layout with everything at its default: a free tile, three across. */
 export const layout = (changes: Partial<Layout> = {}): Layout => ({
   type: 'layout', placement: { type: 'flow' }, size: { type: 'across', n: 3 }, fit: 'contain', align: 'center',
-  pattern: 'normal', gutter: 0, labels: 'none', frame: { type: 'free' }, ...changes,
+  pattern: 'normal', gutter: 0, labels: 'none', reading: { horizontal: 'ltr', vertical: 'ttb' }, frame: { type: 'free' }, ...changes,
 });
 
 /** The entry points the editor offers for Layout. */

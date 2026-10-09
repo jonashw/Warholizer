@@ -1,5 +1,5 @@
 import { dealShuffled } from "./cube";
-import { Align, Fit, Layout, LayoutDistribution, LayoutSize, Pattern } from "./types";
+import { Align, Fit, Layout, LayoutDistribution, LayoutSize, Pattern, Reading } from "./types";
 
 /**
  * Layout geometry (ADR 0003, Layout), without pixels: where each image goes on each page. The
@@ -23,8 +23,8 @@ export type PagePlan = {
   texts: PlacedText[],
 };
 
-/** A page in pixels: its size, margins and paper color. */
-export type PageBox = { width: number, height: number, margin: number, background: 'white' | 'transparent' };
+/** A page in pixels: its size (bleed included), where content stays inside (margin), and paper color. */
+export type PageBox = { width: number, height: number, margin: number, bleed?: number, background: 'white' | 'transparent' };
 
 export type FlowInput = {
   sizes: [number, number][],
@@ -52,8 +52,34 @@ const transposePattern = (p: Pattern): Pattern => p === 'half-drop' ? 'half-bric
 const swap = <T extends Rect & { flipX?: boolean, flipY?: boolean }>(r: T): T =>
   ({ ...r, x: r.y, y: r.x, w: r.h, h: r.w, ...(r.flipX !== undefined ? { flipX: r.flipY, flipY: r.flipX } : {}) });
 
+/** Reading right to left or bottom to top mirrors positions (images keep their orientation). */
+export const withReading = (page: PagePlan, reading: Reading): PagePlan => {
+  const rtl = reading.horizontal === 'rtl';
+  const btt = reading.vertical === 'btt';
+  if (!rtl && !btt) return page;
+  const mirror = <T extends Rect>(r: T): T => ({
+    ...r,
+    x: rtl ? page.width - r.x - r.w : r.x,
+    y: btt ? page.height - r.y - r.h : r.y,
+  });
+  return {
+    ...page,
+    clip: page.clip && mirror(page.clip),
+    images: page.images.map(mirror),
+    texts: page.texts.map(t => ({
+      ...t,
+      x: rtl ? page.width - t.x : t.x,
+      y: btt ? page.height - t.y : t.y,
+      align: rtl && t.align !== 'center' ? (t.align === 'left' ? 'right' : 'left') : t.align,
+    })),
+  };
+};
+
 /** Plans a flow layout: cube order into rows (Across) or columns (Down), onto one free canvas or pages. */
-export const planFlow = (input: FlowInput): PagePlan[] => {
+export const planFlow = (input: FlowInput): PagePlan[] =>
+  planFlowForward(input).map(p => withReading(p, input.layout.reading));
+
+const planFlowForward = (input: FlowInput): PagePlan[] => {
   const { layout } = input;
   if (input.sizes.length === 0) return [];
   if (layout.size.type === 'down') {
@@ -214,8 +240,10 @@ const planAcross = (input: FlowInput): PagePlan[] => {
     // Fill the page, cycling the images.
     const { per, cw, ch } = cellsFor();
     const bleed = distribution.edges === 'bleed';
-    const rows = bleed ? Math.ceil(content.h / (ch + g)) + 1 : rowsThatFit(ch);
-    const cols = bleed ? Math.ceil(content.w / (cw + g)) + 1 : per;
+    // Bleeding fills the whole page, out past the trim to the bleed edge.
+    const area = bleed ? { x: 0, y: 0, w: page.width, h: page.height } : content;
+    const rows = bleed ? Math.ceil(area.h / (ch + g)) + 1 : rowsThatFit(ch);
+    const cols = bleed ? Math.ceil(area.w / (cw + g)) + 1 : per;
     const positions: [number, number][] = [];
     // Bleeding patterns start a row and column early so offset rows and columns reach the edge.
     const first = bleed && pattern !== 'normal' ? -1 : 0;
@@ -229,7 +257,10 @@ const planAcross = (input: FlowInput): PagePlan[] => {
     const order = distribution.order;
     const dealt = order.type === 'shuffled' ? dealShuffled(positions.length, count, order.seed) : positions.map((_, k) => k % count);
     const slots = positions.map(([r, c], k) => gridSlot(r, c, cw, ch, dealt[k]));
-    return [onPage(slots, bleed ? content : undefined)];
+    if (bleed) {
+      return [{ width: page.width, height: page.height, background: page.background, clip: area, images: place(slots, 0, 0), texts: [] }];
+    }
+    return [onPage(slots)];
   }
 
   // Each image once: spill onto more pages, or shrink to fit one.
@@ -308,15 +339,34 @@ const runs = (keys: string[][], level: number): { start: number, length: number,
   return out;
 };
 
-/** Plans a crosstab: positions from dimensions, with nested spanning headers; spill splits by rows. */
+/**
+ * Plans a crosstab: positions from dimensions, with nested spanning headers; on a page, spill
+ * splits by rows (repeating headers) or everything shrinks to one page. Contain and Cover use
+ * uniform cells; Natural sizes each column and row to its largest image; Justified gives every
+ * image in a row the same height. Columns stay aligned either way.
+ */
 export const planCrosstab = (input: CrosstabInput): PagePlan[] => {
-  const { rows, columns, sizes, gutter: g, headers, page } = input;
+  const { rows, columns, sizes, gutter: g, headers, page, fit } = input;
   if (rows.length === 0 || columns.length === 0) return [];
-  const present = sizes.length ? sizes : [[1, 1] as [number, number]];
-  let cw = Math.max(...present.map(s => s[0]));
-  let ch = Math.max(...present.map(s => s[1]));
   const rowLevels = rows[0].length;
   const columnLevels = columns[0].length;
+  const present = sizes.length ? sizes : [[1, 1] as [number, number]];
+  const uniformW = Math.max(...present.map(s => s[0]));
+  const uniformH = Math.max(...present.map(s => s[1]));
+
+  // Each image's size in its cell, before any page scaling.
+  const natural = fit === 'natural' || fit === 'justified';
+  const sizeAt = (r: number, c: number): [number, number] | undefined => {
+    const index = input.at(r, c);
+    if (index === undefined) return undefined;
+    const [w, h] = sizes[index];
+    if (fit === 'justified') return [w * uniformH / Math.max(1, h), uniformH];
+    return [w, h];
+  };
+  const columnW = columns.map((_, c) => natural
+    ? Math.max(1, ...rows.map((__, r) => sizeAt(r, c)?.[0] ?? 0)) : uniformW);
+  const rowH = rows.map((_, r) => natural
+    ? Math.max(1, ...columns.map((__, c) => sizeAt(r, c)?.[1] ?? 0)) : uniformH);
 
   const headerSizes = (font: number) => {
     const pad = Math.max(2, Math.round(font / 4));
@@ -326,40 +376,58 @@ export const planCrosstab = (input: CrosstabInput): PagePlan[] => {
     return { pad, levelW, levelH, left: levelW.reduce((a, b) => a + b, 0), top: levelH * columnLevels };
   };
 
-  const layoutWith = (cellW: number, cellH: number, rowRange: [number, number], fontSize?: number): PagePlan => {
-    const font = fontSize ?? Math.max(10, Math.round(Math.min(cellW, cellH) * 0.08));
+  /** Rows `rowRange` at scale `f`, labels at `font`. */
+  const layoutWith = (f: number, rowRange: [number, number], font: number): PagePlan => {
     const { pad, levelW, levelH, left, top } = headerSizes(font);
     const [r0, r1] = rowRange;
-    const visibleRows = rows.slice(r0, r1);
-    const gridW = left + columns.length * (cellW + g) - g;
-    const gridH = top + visibleRows.length * (cellH + g) - g;
+    const xs: number[] = [];
+    columnW.reduce((x, w, c) => { xs[c] = x; return x + w * f + g; }, left);
+    const ys: number[] = [];
+    rowH.slice(r0, r1).reduce((y, h, k) => { ys[k] = y; return y + h * f + g; }, top);
+    const gridW = left + columnW.reduce((a, w) => a + w * f, 0) + g * (columns.length - 1);
+    const gridH = top + rowH.slice(r0, r1).reduce((a, h) => a + h * f, 0) + g * (r1 - r0 - 1);
     const ox = page ? page.margin + alignOffset(input.align, Math.max(0, page.width - 2 * page.margin - gridW)) : 0;
     const oy = page ? page.margin : 0;
     const images: PlacedImage[] = [];
-    visibleRows.forEach((_, vr) => columns.forEach((__, c) => {
-      const index = input.at(r0 + vr, c);
-      if (index === undefined) return;
-      images.push({
-        index, x: ox + left + c * (cellW + g), y: oy + top + vr * (cellH + g), w: cellW, h: cellH,
-        fit: input.fit === 'cover' ? 'cover' : 'contain', align: input.align, flipX: false, flipY: false,
+    for (let r = r0; r < r1; r++) {
+      columns.forEach((_, c) => {
+        const index = input.at(r, c);
+        if (index === undefined) return;
+        const cell = { x: ox + xs[c], y: oy + ys[r - r0], w: columnW[c] * f, h: rowH[r] * f };
+        if (!natural) {
+          images.push({ index, ...cell, fit: fit === 'cover' ? 'cover' : 'contain', align: input.align, flipX: false, flipY: false });
+          return;
+        }
+        const [w, h] = sizeAt(r, c)!;
+        images.push({
+          index, fit: 'fill', align: input.align, flipX: false, flipY: false,
+          x: cell.x + alignOffset(input.align, cell.w - w * f), y: cell.y + alignOffset(input.align, cell.h - h * f), w: w * f, h: h * f,
+        });
       });
-    }));
+    }
     const texts: PlacedText[] = [];
     if (headers) {
       for (let l = 0; l < columnLevels; l++) {
-        runs(columns, l).forEach(run => texts.push({
-          text: run.label, size: font, align: 'center',
-          x: ox + left + run.start * (cellW + g) + (run.length * (cellW + g) - g) / 2,
-          y: oy + l * levelH + levelH / 2,
-        }));
+        runs(columns, l).forEach(run => {
+          const last = run.start + run.length - 1;
+          texts.push({
+            text: run.label, size: font, align: 'center',
+            x: ox + (xs[run.start] + xs[last] + columnW[last] * f) / 2,
+            y: oy + l * levelH + levelH / 2,
+          });
+        });
       }
       let x = ox;
+      const visible = rows.slice(r0, r1);
       for (let l = 0; l < rowLevels; l++) {
-        runs(visibleRows, l).forEach(run => texts.push({
-          text: run.label, size: font, align: 'right',
-          x: x + levelW[l] - pad,
-          y: oy + top + run.start * (cellH + g) + (run.length * (cellH + g) - g) / 2,
-        }));
+        runs(visible, l).forEach(run => {
+          const last = run.start + run.length - 1;
+          texts.push({
+            text: run.label, size: font, align: 'right',
+            x: x + levelW[l] - pad,
+            y: oy + (ys[run.start] + ys[last] + rowH[r0 + last] * f) / 2,
+          });
+        });
         x += levelW[l];
       }
     }
@@ -371,7 +439,9 @@ export const planCrosstab = (input: CrosstabInput): PagePlan[] => {
     };
   };
 
-  if (!page) return [layoutWith(cw, ch, [0, rows.length])];
+  if (!page) {
+    return [layoutWith(1, [0, rows.length], Math.max(10, Math.round(Math.min(uniformW, uniformH) * 0.08)))];
+  }
 
   // On a page: labels sized to the page; columns fill the width; rows spill onto more pages
   // (repeating headers) or shrink to fit one.
@@ -379,16 +449,23 @@ export const planCrosstab = (input: CrosstabInput): PagePlan[] => {
   const contentH = page.height - 2 * page.margin;
   const font = Math.max(10, Math.round(Math.min(contentW, contentH) * 0.018));
   const { left, top } = headerSizes(font);
-  const f = Math.max(0.01, (contentW - left - g * (columns.length - 1)) / (columns.length * cw));
-  cw *= f; ch *= f;
-  const perPage = Math.max(1, Math.floor((contentH - top + g) / (ch + g)));
-  if (input.overflow === 'shrink' && rows.length > perPage) {
-    const s = Math.max(0.01, (contentH - top - g * (rows.length - 1)) / (rows.length * ch));
-    return [layoutWith(cw * s, ch * s, [0, rows.length], font)];
+  const f = Math.max(0.01, (contentW - left - g * (columns.length - 1)) / columnW.reduce((a, b) => a + b, 0));
+  const totalH = rowH.reduce((a, h) => a + h * f, 0) + g * (rows.length - 1);
+  if (input.overflow === 'shrink' && top + totalH > contentH) {
+    const s = Math.max(0.01, (contentH - top - g * (rows.length - 1)) / rowH.reduce((a, h) => a + h * f, 0));
+    return [layoutWith(f * s, [0, rows.length], font)];
   }
   const pages: PagePlan[] = [];
-  for (let start = 0; start < rows.length; start += perPage) {
-    pages.push(layoutWith(cw, ch, [start, Math.min(rows.length, start + perPage)], font));
+  let start = 0;
+  while (start < rows.length) {
+    let end = start;
+    let used = top;
+    while (end < rows.length && (end === start || used + rowH[end] * f <= contentH)) {
+      used += rowH[end] * f + g;
+      end++;
+    }
+    pages.push(layoutWith(f, [start, end], font));
+    start = end;
   }
   return pages;
 };

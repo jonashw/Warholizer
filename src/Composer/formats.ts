@@ -51,6 +51,22 @@ export const formatToPixels = (format: Format, value: number, scale = 1) => valu
 export const pagePixels = (format: Format, scale = 1): [number, number] =>
   [Math.max(1, Math.round(formatToPixels(format, format.width, scale))), Math.max(1, Math.round(formatToPixels(format, format.height, scale)))];
 
+/**
+ * The page to lay out on, in pixels: the trim plus bleed on every side. Content stays inside the
+ * margin or safe area (whichever is larger); only bleeding layouts reach the outer edge.
+ */
+export const pageBoxOf = (format: Format, scale = 1) => {
+  const bleed = formatToPixels(format, format.bleed, scale);
+  const [w, h] = pagePixels(format, scale);
+  return {
+    width: Math.round(w + 2 * bleed),
+    height: Math.round(h + 2 * bleed),
+    bleed,
+    margin: bleed + formatToPixels(format, Math.max(format.margin, format.safe), scale),
+    background: format.background,
+  };
+};
+
 export const isLandscape = (format: Format) => format.width > format.height;
 
 /** The same format turned: portrait ↔ landscape. */

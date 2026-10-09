@@ -407,7 +407,7 @@ describe('export', () => {
       combine(layout({ frame: { type: 'page', distribution: { type: 'one-cell-per-image', overflow: 'spill' } } }), [PHOTO]));
     const out = await evaluate(root, photoCube([solid(100, 100, RED), solid(100, 100, BLUE)]), canvasOps);
     expect(fileNameOf(resultAddress('Warhol duotone grid', out, 1), 'pdf')).toBe('warhol-duotone-grid_photo-1_page-2.pdf');
-    expect(pointsOf(out.cells[0]).map(Math.round)).toEqual([612, 792]);
+    expect(pointsOf(out.cells[0]).map(Math.round)).toEqual([612, 792, 0]);
   });
 });
 
@@ -425,5 +425,56 @@ describe('recipes', () => {
     const swap = (await inferComposition(byId['role-swap'], squares(3))).output;
     expect(swap.dimensions.map(d => d.name)).toEqual(['Gradient map']);
     expect(swap.cells).toHaveLength(6);
+  });
+});
+
+describe('bleed, safe areas, reading direction, crosstab fits', () => {
+  it('a page with bleed grows on every side; content keeps inside margin and safe area', async () => {
+    const { pageBoxOf } = await import('./formats');
+    const box = pageBoxOf({ ...defaultFormat, bleed: 0.125, safe: 0.5 });
+    expect([box.width, box.height]).toEqual([2625, 3375]);
+    expect(box.margin).toBeCloseTo(37.5 + 150);
+    const plans = planFlow({ sizes: squares(3), layout: layout({ frame: { type: 'page', distribution: { type: 'one-cell-per-image', overflow: 'spill' } } }), gutter: 0, page: box });
+    expect(Math.min(...plans[0].images.map(i => i.x))).toBeCloseTo(187.5);
+  });
+
+  it('bleeding fills out past the trim to the bleed edge', () => {
+    const page = { width: 2625, height: 3375, margin: 112.5, bleed: 37.5, background: 'white' as const };
+    const [plan] = planFlow({ sizes: squares(2), layout: layout({ size: { type: 'width', size: 300 }, frame: { type: 'page', distribution: { type: 'one-image-per-cell', order: { type: 'in-turn' }, edges: 'bleed' } } }), cellLength: 300, gutter: 0, page });
+    expect(plan.clip).toEqual({ x: 0, y: 0, w: 2625, h: 3375 });
+    expect(Math.min(...plan.images.map(i => i.x))).toBe(0);
+  });
+
+  it('PDF pages with bleed carry a TrimBox for cutting', async () => {
+    const { buildPdf } = await import('./export/pdf');
+    const jpeg = new Uint8Array(await (await solid(4, 4, RED).convertToBlob({ type: 'image/jpeg' })).arrayBuffer());
+    const pdf = new TextDecoder('latin1').decode(buildPdf([{ jpeg, pixelWidth: 4, pixelHeight: 4, widthPt: 630, heightPt: 810, bleedPt: 9 }]));
+    expect(pdf).toContain('/TrimBox [9 9 621 801]');
+  });
+
+  it('reading right to left and bottom to top mirrors positions', () => {
+    const [rtl] = planFlow({ sizes: squares(3), layout: layout({ reading: { horizontal: 'rtl', vertical: 'ttb' } }), gutter: 0 });
+    expect(rtl.images.map(i => i.x)).toEqual([200, 100, 0]);
+    const [btt] = planFlow({ sizes: squares(4), layout: layout({ size: { type: 'across', n: 2 }, reading: { horizontal: 'ltr', vertical: 'btt' } }), gutter: 0 });
+    expect(btt.images.map(i => i.y)).toEqual([100, 100, 0, 0]);
+  });
+
+  it('migrated Lines keep their direction', () => {
+    const old = { version: 1, name: 'old', root: { kind: 'sequence', id: 'r', children: [
+      { kind: 'combine', id: 'c', method: { type: 'line', direction: 'left', squish: false } },
+    ] } } as unknown as Composition;
+    const [line] = migrateComposition(old).root.children as Extract<Node, { kind: 'combine' }>[];
+    expect(line.method).toMatchObject({ reading: { horizontal: 'rtl', vertical: 'ttb' }, fit: 'natural' });
+  });
+
+  it('crosstab Natural sizes columns and rows to their images; Justified evens each row\'s height', () => {
+    const sizes: [number, number][] = [[200, 100], [100, 100], [100, 200], [50, 50]];
+    const input = { rows: [['a'], ['b']], columns: [['x'], ['y']], at: (r: number, c: number) => r * 2 + c, sizes,
+      align: 'start' as const, headers: false, gutter: 0, overflow: 'spill' as const };
+    const [natural] = planCrosstab({ ...input, fit: 'natural' });
+    expect(natural.images.map(i => [i.x, i.y, i.w, i.h])).toEqual([[0, 0, 200, 100], [200, 0, 100, 100], [0, 100, 100, 200], [200, 100, 50, 50]]);
+    const [justified] = planCrosstab({ ...input, fit: 'justified' });
+    expect(justified.images.map(i => i.h)).toEqual([200, 200, 200, 200]);
+    expect(justified.images.map(i => Math.round(i.w))).toEqual([400, 200, 100, 200]);
   });
 });

@@ -199,6 +199,7 @@ type Layout = {
   pattern:      Normal | HalfDrop | HalfBrick | Mirror | Wacky    (* Flow only *)
   gutter:       Length
   labels:       None | Headers | Captions
+  reading:      (LeftToRight | RightToLeft) * (TopToBottom | BottomToTop)   (* mirrors positions; images keep orientation *)
   frame:        Free                                              (* grows with its content *)
               | Page of LayoutDistribution                        (* the cell's format *)
 }
@@ -206,9 +207,10 @@ type Layout = {
 
 - **Fit** when an image's shape differs from its cell's: **Contain** shows the whole image with bands; **Cover** fills and crops; **Natural** keeps each image's size (rows as tall as their tallest image); **Justified** matches sizes along the layout's axis, so cells adapt to images instead of images shrinking into cells: Across, every image in a row is scaled to the same height (aspect ratios kept) and the row is scaled to fill the width exactly, so rows differ in height (the justified rows of photo galleries); Down, the same with columns of equal width filling the height. Line's old "squish" is Justified (working name: Match). The last row of a justified layout is usually short: Align places it.
 - **Align** (Start | Center | End) applies to every fit, like CSS `object-position` and `align-items`: where an image sits when it does not fill its space (Contain's bands, Natural's short images on a row, Justified's last row), and for Cover, which part of the image survives the crop.
-- **Line** is `Across: all` (or `Down: all`); reading direction belongs to every Layout.
-- **Crosstab** is ByDimensions with Headers. Each axis takes a list of dimensions, combined in cube order (outer first) with spanning headers, like a pivot table. Positions with no image stay blank (for example after a one-variant-per-image distribution). Patterns are disabled for labeled grids. On a page, spill breaks between rows (at outer members where possible) and repeats the column headers.
+- **Line** is `Across: all` (or `Down: all`); reading direction belongs to every Layout (a Line that ran left is `reading: rtl`).
+- **Crosstab** is ByDimensions with Headers. Each axis takes a list of dimensions, combined in cube order (outer first) with spanning headers, like a pivot table. Positions with no image stay blank (for example after a one-variant-per-image distribution). Patterns are disabled for labeled grids. Contain and Cover use uniform cells; Natural sizes each column and row to its largest image; Justified gives every image in a row the same height; columns stay aligned either way. On a page, spill breaks between rows (at outer members where possible) and repeats the column headers.
 - **Tile**, **Sheet**, **Line** and **Crosstab** remain the names in the UI as entry points; switching between them keeps shared settings.
+- **Bleed and safe area:** a page is the trim plus bleed on every side. Content stays inside the larger of margin and safe area; only `one-image-per-cell(…, bleed)` fills out to the bleed edge. PDFs carry a TrimBox and BleedBox.
 - On pages, images with different formats never share a page: without an explicit *by*, a Layout keeps any dimension that decides the format (so Variations of Format give one set of pages per format).
 - Laws: a Layout with a free frame has exactly one cell per image. On a page, the frame and size fix the number of cells, independent of the image count.
 
@@ -231,7 +233,7 @@ VariantOverflow = Spill | Drop | Keep               (* Spill adds a Round dimens
 
 - Mismatched counts mirror too: extra cells stay empty; extra variants go unused.
 - The shared vocabulary is meant to inspire work as well as describe it: one seed can drive both a palette assignment and a sheet's arrangement, and a composition can swap roles, laying out what another varies.
-- Status: the both-noun names are proposed (they rename today's `all-per-image` and `one-per-image`); `one-image-per-variant` is accepted.
+- Status: `one-image-per-variant` is built. The editor shows the both-noun names; the stored names `all-per-image` and `one-per-image` are unchanged until a rename is decided.
 
 ### Export and addresses
 

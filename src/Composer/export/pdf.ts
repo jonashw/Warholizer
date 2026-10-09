@@ -1,5 +1,9 @@
 /** One page of a PDF: a JPEG image filling a page of the given size in points (1/72 in). */
-export type PdfPage = { jpeg: Uint8Array, pixelWidth: number, pixelHeight: number, widthPt: number, heightPt: number };
+export type PdfPage = {
+  jpeg: Uint8Array, pixelWidth: number, pixelHeight: number, widthPt: number, heightPt: number,
+  /** Bleed on each side, in points: the page is the trim plus bleed, and gets a TrimBox for cutting. */
+  bleedPt?: number,
+};
 
 const encoder = new TextEncoder();
 
@@ -32,8 +36,12 @@ export const buildPdf = (pages: PdfPage[]): Uint8Array => {
   pages.forEach((page, i) => {
     const id = pageId(i);
     const content = `q ${n(page.widthPt)} 0 0 ${n(page.heightPt)} 0 0 cm /Im0 Do Q`;
+    const b = page.bleedPt ?? 0;
+    const boxes = b > 0
+      ? `/BleedBox [0 0 ${n(page.widthPt)} ${n(page.heightPt)}] /TrimBox [${n(b)} ${n(b)} ${n(page.widthPt - b)} ${n(page.heightPt - b)}] `
+      : '';
     object(id, () => write(
-      `<< /Type /Page /Parent 2 0 R /MediaBox [0 0 ${n(page.widthPt)} ${n(page.heightPt)}] ` +
+      `<< /Type /Page /Parent 2 0 R /MediaBox [0 0 ${n(page.widthPt)} ${n(page.heightPt)}] ${boxes}` +
       `/Resources << /XObject << /Im0 ${id + 1} 0 R >> >> /Contents ${id + 2} 0 R >>`));
     object(id + 1, () => {
       write(`<< /Type /XObject /Subtype /Image /Width ${page.pixelWidth} /Height ${page.pixelHeight} ` +
