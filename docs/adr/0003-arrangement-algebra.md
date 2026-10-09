@@ -194,7 +194,7 @@ type Layout = {
   placement:    Flow                                              (* cube order *)
               | ByDimensions of rows: Dimension list * columns: Dimension list   (* crosstab; nested headers *)
   size:         Across of int | Down of int | Width of Length | Height of Length
-  fit:          Contain | Cover | Natural | Match                  (* default Contain *)
+  fit:          Contain | Cover | Natural | Justified              (* default Contain *)
   align:        Start | Center | End
   pattern:      Normal | HalfDrop | HalfBrick | Mirror | Wacky    (* Flow only *)
   gutter:       Length
@@ -204,7 +204,8 @@ type Layout = {
 }
 ```
 
-- **Fit** when an image's shape differs from its cell's: **Contain** shows the whole image with bands; **Cover** fills and crops; **Natural** keeps each image's size (rows as tall as their tallest image); **Match** sizes cells to images along the layout's axis: equal heights per row filling the width when Across (justified rows), equal widths per column when Down. Line's old "squish" is Match. **Align** places an image within a row or column it does not fill.
+- **Fit** when an image's shape differs from its cell's: **Contain** shows the whole image with bands; **Cover** fills and crops; **Natural** keeps each image's size (rows as tall as their tallest image); **Justified** matches sizes along the layout's axis, so cells adapt to images instead of images shrinking into cells: Across, every image in a row is scaled to the same height (aspect ratios kept) and the row is scaled to fill the width exactly, so rows differ in height (the justified rows of photo galleries); Down, the same with columns of equal width filling the height. Line's old "squish" is Justified (working name: Match). The last row of a justified layout is usually short: Align places it.
+- **Align** (Start | Center | End) applies to every fit, like CSS `object-position` and `align-items`: where an image sits when it does not fill its space (Contain's bands, Natural's short images on a row, Justified's last row), and for Cover, which part of the image survives the crop.
 - **Line** is `Across: all` (or `Down: all`); reading direction belongs to every Layout.
 - **Crosstab** is ByDimensions with Headers. Each axis takes a list of dimensions, combined in cube order (outer first) with spanning headers, like a pivot table. Positions with no image stay blank (for example after a one-variant-per-image distribution). Patterns are disabled for labeled grids. On a page, spill breaks between rows (at outer members where possible) and repeats the column headers.
 - **Tile**, **Sheet**, **Line** and **Crosstab** remain the names in the UI as entry points; switching between them keeps shared settings.
@@ -320,7 +321,7 @@ sequence
 6. The filter gallery as a cube view: a Spread plus a Crosstab; systematic exploration across any parameters and photos.
 7. Text form and round-tripping.
 8. Canonical forms: recipe equivalence, deduplication, structural search.
-9. Usage analysis: compositions saved to the cloud are analyzed by structure (never images, aggregate only, stated in the sign-in and sharing copy) to find patterns (duplicated variants, Pick right after Variations, Spread then Expand then edits) that inform design and power in-app suggestions.
+9. Usage analysis: compositions saved to the cloud are analyzed by structure (never images, aggregate only, stated in the sign-in and sharing copy) to find patterns (duplicated variants, Pick right after Variations, Spread then Expand then edits) that inform design and power in-app suggestions. Catalog: [docs/knowledge/usage-patterns.md](../knowledge/usage-patterns.md); principle: [docs/principles.md](../principles.md).
 10. Imposition: pages in a known order arranged for folding (a mini-zine from one Letter sheet).
 
 ## Consequences
