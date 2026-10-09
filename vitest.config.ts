@@ -1,4 +1,5 @@
 import { defineConfig, mergeConfig } from 'vitest/config'
+import { playwright } from '@vitest/browser-playwright'
 import viteConfig from './vite.config'
 
 // The raster engine depends on real Canvas 2D (OffscreenCanvas, filters,
@@ -8,7 +9,7 @@ export default mergeConfig(viteConfig, defineConfig({
     include: ['src/**/*.test.ts'],
     browser: {
       enabled: true,
-      provider: 'playwright',
+      provider: playwright(),
       headless: true,
       screenshotFailures: false,
       instances: [{ browser: 'chromium' }],
