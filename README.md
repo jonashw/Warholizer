@@ -25,3 +25,10 @@ Application components:
 <br>```./generate-certs.sh```
 3. Start your dev server:
 <br>```netlify dev```
+
+### Tests and benchmarks
+
+- `npm test` runs the raster engine tests in headless Chromium (Vitest browser mode). First time only: `npx playwright install chromium`.
+- `npm run test:watch` runs them in watch mode.
+- `/benchmark` (in the running app) times every operation at several image sizes. See [docs/benchmarks](docs/benchmarks).
+- Architecture decisions live in [docs/adr](docs/adr).

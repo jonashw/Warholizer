@@ -32,8 +32,8 @@ Classifying current operations by signature (input count → output count, wheth
 2. **Resolve naming collisions.** Rename operations whose names collide with other concepts (starting with `multiply` → e.g. `copies`/`repeat`), with a serialization migration so saved formulas keep working (see ADR 0001, versioned formulas).
 3. **Execute off the main thread.** Move `apply`/`applyPipeline` into a Web Worker using transferable `OffscreenCanvas`/`ImageBitmap`. All editing models call the same worker-backed engine interface.
 4. **Choose the execution backend by kind:**
-   - **Tone** chains are fused into a single GPU fragment-shader pass (WebGL2 now, WebGPU when practical). This is the largest expected win and the enabler for live filter galleries.
-   - **Filter** operations also map to GPU shaders (separable blur, halftone).
+   - **JavaScript per-pixel loops** (`getImageData`/`putImageData`) move to GPU fragment shaders (WebGL2 now, WebGPU when practical). The baseline shows these are the bottleneck: `noise`, `rgbChannels`, `threshold`, and `halftone`.
+   - **Tone** chains are fused into a single shader pass where practical. Operations already built on `ctx.filter` or compositing (`blur`, `grayscale`, `invert`, `rotateHue`, `fill`) are GPU-accelerated by the browser and stay as they are unless fusion requires otherwise.
    - **Inherently sequential algorithms** (error-diffusion dithering) use WebAssembly.
    - **Geometry, cardinality, layout** stay on Canvas 2D; they are cheap and composition-oriented.
    - Canvas 2D remains the reference implementation and fallback.
@@ -55,8 +55,22 @@ Classifying current operations by signature (input count → output count, wheth
 
 ## Implementation order
 
-1. Benchmark page plus unit tests for `apply.ts`.
-2. Worker-backed engine interface used by all editing models.
-3. Operation registry with kind; regroup the menu; rename collisions.
-4. GPU path for tone/filter ops; filter gallery.
-5. New operations, using WASM where sequential.
+1. **Testing.** Unit tests for `apply.ts` (Vitest browser mode, real Chromium) plus a benchmark page. *Done 2026-10-08; see below.*
+2. **Tech debt.** Dependency upgrades (Vite, MUI, React), replace deprecated `react-beautiful-dnd`, bring `npm run lint` back to passing. The tests from step 1 guard these changes.
+3. **Worker-backed engine interface** used by all editing models.
+4. **Operation registry** with kind; regroup the menu; rename collisions.
+5. **GPU path** for per-pixel operations; filter gallery.
+6. **New operations**, using WASM where sequential.
+
+## Progress notes
+
+### 2026-10-08: tests and baseline
+
+- `npm test` runs `src/**/*.test.ts` in headless Chromium via Vitest browser mode. `apply.test.ts` covers every operation, grouped by kind.
+- Baseline numbers: [docs/benchmarks/2026-10-08-baseline.md](../benchmarks/2026-10-08-baseline.md). The `/benchmark` route reproduces them.
+- Known bugs found, recorded as `it.fails` tests (they will start "failing" once fixed, prompting removal of `.fails`):
+  - `rotate` about `center` uses `width/2` for the y origin; 180° on non-square images renders off-canvas.
+  - `rotate` 90°/270° on non-square images is squashed and clipped (AABB scaling applied to quarter turns).
+  - `grid` guard checks `cols` twice instead of `rows`.
+- Observed inconsistency (tested as current behavior, not yet classified as a bug): `slideWrap` shifts right along x but up along y.
+- `noise` is non-deterministic (`Math.random`), which blocks exact tests and reproducible formulas. Consider a seed parameter.

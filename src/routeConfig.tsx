@@ -11,6 +11,7 @@ import { ImmersiveEditorDemo } from "./ImmersiveEditorDemo";
 import GoogleLoginPage from "./GoogleLoginPage";
 import GoogleLoginComplete from "./GoogleLoginComplete";
 import FileUploadPage from "./FileUploadPage";
+import BenchmarkPage from "./BenchmarkPage";
 
 export const routeConfig: RouteObject[] = [
   {
@@ -47,6 +48,10 @@ export const routeConfig: RouteObject[] = [
       {
         path: '',
         element: <App />,
+      },
+      {
+        path: 'benchmark',
+        element: <BenchmarkPage/>
       },
       {
         path: 'file-upload',
