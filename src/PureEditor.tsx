@@ -10,9 +10,16 @@ import { loadSampleImages, sampleImageUrls } from './sampleImageUrls';
 export default function PureEditor() {
     const [inputImages, setInputImages] = React.useState<ImageRecord[]>();
     const [applicators, setApplicators] = React.useState([applicatorAsRecord(defaultApplicator)]);
-    const [outputImages, setOutputImages] = React.useState<ImageRecord[]>([]);
+    const [result, setResult] = React.useState<{
+        inputImages: ImageRecord[],
+        applicators: typeof applicators,
+        outputImages: ImageRecord[]
+    }>();
+    const outputImages =
+        result && result.inputImages === inputImages && result.applicators === applicators
+        ? result.outputImages
+        : [];
 
-    const newId = () => crypto.randomUUID().toString();
 
     React.useEffect(() => {
         loadSampleImages([
@@ -25,17 +32,22 @@ export default function PureEditor() {
     },[]);
 
     React.useEffect(() => {
-        setOutputImages([]);
         if(!inputImages){
             return;
         }
         if(inputImages.length === 0){
             return;
         }
+        let cancelled = false;
         const inputOffscreenCanvases = inputImages.map(i => i.osc);
         PureRasterApplicators.applyAll(applicators, inputOffscreenCanvases)
-            .then(oscs => oscs.map(osc => ({osc, id: newId()})))
-            .then(setOutputImages);
+            .then(oscs => oscs.map(osc => ({osc, id: crypto.randomUUID().toString()})))
+            .then(outputImages => {
+                if(!cancelled){
+                    setResult({inputImages, applicators, outputImages});
+                }
+            });
+        return () => { cancelled = true; };
     },[inputImages,applicators]);
 
     return (

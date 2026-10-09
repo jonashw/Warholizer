@@ -1,5 +1,5 @@
 import type { Config } from "@netlify/functions"
-import { OAuth2Client } from 'google-auth-library';
+import { LoginTicket, OAuth2Client } from 'google-auth-library';
 import { db } from "../db";
 import { user_signins, users } from "../db/schema";
 
@@ -13,7 +13,7 @@ export type User = {
     picture: string
 };
 
-const tryGetUserFromTicket = (ticket: any): User|string => {
+const tryGetUserFromTicket = (ticket: LoginTicket): User|string => {
     const payload = ticket.getPayload();
     if(!payload) {
         return 'Invalid token payload';
@@ -39,7 +39,7 @@ const tryGetUserFromTicket = (ticket: any): User|string => {
     return user;
 };
 
-export async function withAuthenticatedGoogleUser(req: Request, next: (user: any) => Promise<Response>) {
+export async function withAuthenticatedGoogleUser(req: Request, next: (user: User) => Promise<Response>) {
     const authHeader = req.headers.get('Authorization');
     if (!authHeader?.startsWith('Bearer ')) {
         return new Response(JSON.stringify({ error: 'Missing or invalid Authorization header' }), { headers: { 'Content-Type': 'application/json' }, status: 401 });
@@ -51,8 +51,9 @@ export async function withAuthenticatedGoogleUser(req: Request, next: (user: any
         // Or, if multiple clients access the backend:
         //[WEB_CLIENT_ID_1, WEB_CLIENT_ID_2, WEB_CLIENT_ID_3]
     });
-    var user = tryGetUserFromTicket(ticket);
-    if (user instanceof String) {
+    const user = tryGetUserFromTicket(ticket);
+    // tryGetUserFromTicket returns a primitive string on failure, so `instanceof String` never matched.
+    if (typeof user === 'string') {
         return new Response(JSON.stringify({ error: user }), { headers: { 'Content-Type': 'application/json' }, status: 401 });
     }
     return next(user);
@@ -70,7 +71,7 @@ export default async (req: Request) => {
         // Or, if multiple clients access the backend:
         //[WEB_CLIENT_ID_1, WEB_CLIENT_ID_2, WEB_CLIENT_ID_3]
     });
-    var user = tryGetUserFromTicket(ticket);
+    const user = tryGetUserFromTicket(ticket);
     if(typeof user === "string") {
         console.log(user);
         return new Response(JSON.stringify({error: user}),{headers: {'Content-Type': 'application/json'}, status: 401});

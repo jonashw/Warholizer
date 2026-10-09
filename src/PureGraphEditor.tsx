@@ -99,17 +99,9 @@ export function PureGraphEditor({
       }
     }
   }
-  const activeNodeId = React.useMemo(
-    () => nodeTouchMode.type === 'SelectNodes' ? nodeTouchMode.selectedNodeIds[0] : undefined,
-    [nodeTouchMode]);
-
-  const activeNodeIds = React.useMemo(
-    () => nodeTouchMode.type === 'SelectNodes' ? nodeTouchMode.selectedNodeIds : nodeTouchMode.sourceNodeIds,
-    [nodeTouchMode]);
-
-  const activeNode = React.useMemo(
-    () => graph.nodes.find(n => n.id === activeNodeId),
-    [activeNodeId, graph]);
+  const activeNodeId = nodeTouchMode.type === 'SelectNodes' ? nodeTouchMode.selectedNodeIds[0] : undefined;
+  const activeNodeIds = nodeTouchMode.type === 'SelectNodes' ? nodeTouchMode.selectedNodeIds : nodeTouchMode.sourceNodeIds;
+  const activeNode = graph.nodes.find(n => n.id === activeNodeId);
 
 
   React.useEffect(() => {

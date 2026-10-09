@@ -1,3 +1,6 @@
+// The *Input exports below are components produced by the AbstractNumberInput factory, which
+// react-refresh cannot recognize statically.
+/* eslint-disable react-refresh/only-export-components */
 import { Angle, Byte, Percentage, PositiveNumber, angle, byte, percentage, positiveNumber } from "../../../NumberTypes";
 import { BlendingMode, BlendingModes, Dimension, Direction, PaperSizeId, PaperSizes, PureRasterOperation, RotationOrigin, RotationOrigins, TilingPatterns, TilingPattern} from "./types";
 import { ButtonRadiosInput } from "../../../FormComponents/ButtonRadiosInput";

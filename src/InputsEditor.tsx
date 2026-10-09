@@ -53,7 +53,9 @@ export function InputsEditor({
     // The paste listener is registered once, so route it through a ref to the latest
     // prepareInputUrls; otherwise it would append to the initial (stale) inputs.
     const prepareInputUrlsRef = React.useRef(prepareInputUrls);
-    prepareInputUrlsRef.current = prepareInputUrls;
+    React.useLayoutEffect(() => {
+        prepareInputUrlsRef.current = prepareInputUrls;
+    });
     React.useEffect(() => {
         onFilePaste(async (data: ArrayBuffer | string) => {
             prepareInputUrlsRef.current([data.toString()]);

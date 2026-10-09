@@ -1,7 +1,5 @@
 import { Config, Context } from "@netlify/functions";
-import { withAuthenticatedGoogleUser } from "./auth.mts";
-import {db,sql} from "../db";
-import { uploads } from "../db/schema";
+import {sql} from "../db";
 
 export default async (req: Request, context: Context): Promise<Response> => {
     //return withAuthenticatedGoogleUser(req, async (user) => {

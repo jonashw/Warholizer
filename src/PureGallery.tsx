@@ -81,12 +81,16 @@ const effects: Effect[] = [
 
 export default function PureGallery() {
     const [inputImages, setInputImages] = React.useState<{id:number,osc:OffscreenCanvas}[]>([]);
-    const [outputImages,setOutputImages] = React.useState<({id:number,img:ImageOutput}|undefined)[]>(effects.map(_ => undefined));
+    type Outputs = ({id:number,img:ImageOutput}|undefined)[];
+    const [result, setResult] = React.useState<{inputImages: typeof inputImages, outputImages: Outputs}>();
+    const outputImages: Outputs =
+        result && result.inputImages === inputImages
+        ? result.outputImages
+        : effects.map(_ => undefined);
 
     const unixNow = () => new Date().valueOf();
 
-    const prepareInputImage = React.useCallback(async (oscPromise: Promise<OffscreenCanvas>) => {
-        const osc = await oscPromise;
+    const prepareInputImage = React.useCallback(async (osc: OffscreenCanvas) => {
         const op: PureRasterOperation = {
             type:'scaleToFit',
             w: positiveNumber(500),
@@ -103,26 +107,22 @@ export default function PureGallery() {
     }, []);
 
     React.useEffect(() => {
-        prepareInputImage(ImageUtil.loadOffscreen("/warhol.jpg"))
+        ImageUtil.loadOffscreen("/warhol.jpg").then(prepareInputImage);
         onFilePaste(async (data: ArrayBuffer | string) => {
-            prepareInputImage(ImageUtil.loadOffscreen(data.toString()));
+            ImageUtil.loadOffscreen(data.toString()).then(prepareInputImage);
         });
     },[prepareInputImage]);
 
     const addFile = async (file: File) => {
         const url = await fileToDataUrl(file);
-        prepareInputImage(ImageUtil.loadOffscreen(url.toString()));
+        ImageUtil.loadOffscreen(url.toString()).then(prepareInputImage);
     };
 
     React.useEffect(() => {
-        console.log('inputImages changed',inputImages);
         if(!inputImages.length){
-            setOutputImages(effects.map(_ => undefined));
-            console.log('inputZero has no value. no op');
             return;
         }
-        console.log('refreshing...')
-        setOutputImages(effects.map(_ => undefined));
+        let cancelled = false;
         const effect = async () => {
             const outputs: ({img:ImageOutput, id: number}|undefined)[] = 
                 effects.map(_ => undefined); //placeholders for unfinished effects
@@ -139,10 +139,14 @@ export default function PureGallery() {
                 };
                 outputs[i] = {img: o, id: unixNow()};
                 i++;
-                setOutputImages([...outputs]);
+                if(cancelled){
+                    return;
+                }
+                setResult({inputImages, outputImages: [...outputs]});
             }
         }
         effect();
+        return () => { cancelled = true; };
     }, [inputImages]);
 
     return (

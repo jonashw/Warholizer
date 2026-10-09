@@ -80,15 +80,6 @@ const HSLuvColorPicker = () => {
         document.body.style.background = color;
     }, [color]);
 
-    React.useEffect(() => {
-        if(!color){
-            return;
-        }
-        const [h,s,l] = hexToHsluv(color);
-        setH(Math.floor(h));
-        setS(Math.floor(s));
-        setL(Math.floor(l));
-    }, [color]);
 
     const handleCanvasCursor = (e:React.MouseEvent) => {
         if(!canvasRef.current){
@@ -102,8 +93,11 @@ const HSLuvColorPicker = () => {
             : mode === "S" ? hsluvColorSpace[x][s][L-y-1]
             : mode === "L" ? hsluvColorSpace[x][S-y-1][l]
             : (() => {throw Error("Unexpectected color mode: " + mode )})();
-        console.log(x,y,color);
         setColor(color);
+        const [hh,ss,ll] = hexToHsluv(color);
+        setH(Math.floor(hh));
+        setS(Math.floor(ss));
+        setL(Math.floor(ll));
     };
 
     const sliders: [

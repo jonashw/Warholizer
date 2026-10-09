@@ -36,6 +36,7 @@ const Warholizer = ({
   initialRowSize: number;
   initialThresholdIsInEffect: boolean | undefined;
 }) => {
+  const [sampleTilingPatternImages,setSampleTilingPatternImages] = React.useState<ImagePayload[]>([]);
   React.useEffect(() => {
     const effect = async() => {
       const img = ImageUtil.textOffscreen('R','sansserif',100);
@@ -50,7 +51,6 @@ const Warholizer = ({
     effect();
   },[]);
 
-  const [sampleTilingPatternImages,setSampleTilingPatternImages] = React.useState<ImagePayload[]>([]);
   const [bgColorPalette,setBgColorPalette] = React.useState(colors);
   const [fontPreviewText, setFontPreviewText] = React.useState<string>('');
   const defaultCrop: Crop = React.useMemo(() => ({x:0,y:0,width:0,height:0,unit:'px' }),[]);
@@ -110,9 +110,12 @@ const Warholizer = ({
     });
   }, []);
 
-  React.useEffect(() => {
+  // Reset derived state when its source changes (during render, not in an effect).
+  const [cropSource, setCropSource] = React.useState(originalImg);
+  if(cropSource !== originalImg){
+    setCropSource(originalImg);
     setCrop(defaultCrop);
-  },[originalImg,defaultCrop]);
+  }
 
   React.useEffect(() => {
     const effect = async () => {
@@ -157,10 +160,12 @@ const Warholizer = ({
     effect();
   }, [quantizationDepth,croppedImg,replacementColors]);
 
-  React.useEffect(() => {
+  const [replacementSource, setReplacementSource] = React.useState({croppedImg, quantizationDepth});
+  if(replacementSource.croppedImg !== croppedImg || replacementSource.quantizationDepth !== quantizationDepth){
+    setReplacementSource({croppedImg, quantizationDepth});
     setReplacementColors([]);
     setReplacementCSSColors([]);
-  },[croppedImg, quantizationDepth]);
+  }
   
   React.useEffect(() => {
     console.log('originalImg changed');

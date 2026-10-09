@@ -16,23 +16,25 @@ export const OffscreenCanvasImage = ({
     style?: React.CSSProperties;
     onClick?: () => void
 }) => {
-    const [payload, setPayload] = React.useState<ImagePayload>();
+    const [convertedPayload, setConvertedPayload] = React.useState<ImagePayload>();
     const [modalVisible, setModalVisible] = React.useState(false);
     const [loaded,setLoaded] = React.useState(false);
+    const cachedPayload = 'id' in oc ? cache[oc.id] : undefined;
+    // While a new image converts, keep showing the previous one (as before).
+    const payload = cachedPayload ?? convertedPayload;
     React.useEffect(() => {
-        if('id' in oc){
-            if(oc.id in cache){
-                setPayload(cache[oc.id]);
-            } else {
-                ImageUtil.offscreenCanvasToPayload(oc.osc).then(payload => {
-                    setPayload(payload);
-                    cache[oc.id] = payload;
-                });
-            }
-        } else {
-            ImageUtil.offscreenCanvasToPayload(oc).then(setPayload);
+        if(cachedPayload){
+            return;
         }
-    }, [oc]);
+        if('id' in oc){
+            ImageUtil.offscreenCanvasToPayload(oc.osc).then(payload => {
+                setConvertedPayload(payload);
+                cache[oc.id] = payload;
+            });
+        } else {
+            ImageUtil.offscreenCanvasToPayload(oc).then(setConvertedPayload);
+        }
+    }, [oc, cachedPayload]);
     return <>
         <img
             alt="img"

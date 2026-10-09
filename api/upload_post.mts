@@ -1,9 +1,8 @@
 import { Config } from "@netlify/functions";
 import { withAuthenticatedGoogleUser } from "./auth.mts";
-import {db,sql} from "../db";
-import { uploads } from "../db/schema";
+import {sql} from "../db";
 
-const json = (o: any) => 
+const json = (o: unknown) => 
     new Response(JSON.stringify(o), { headers: { 'Content-Type': 'application/json' } });
 
 export default async (req: Request) => 

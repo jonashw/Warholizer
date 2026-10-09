@@ -1,4 +1,3 @@
-import React from "react";
 import { ImagePayload } from "./ImageUtil";
 import { Paper } from "./Paper";
 import useWindowSize from "./useWindowSize";
@@ -22,30 +21,18 @@ const ImageGrid = ({
     wholeTilesOnly: boolean,
     tilingPattern: TilingPattern
   }) => {
-    const [WH,setWH] = React.useState({w:0,h:0});
-    const [scale,setScale] = React.useState(.6);
     const windowSize = useWindowSize();
-
-    React.useEffect(() => {
+    const WH = (() => {
       if(!windowSize){
-        return;
+        return {w:0,h:0};
       }
       const ar = (img.width)/(img.height);
       const w = (paper.width/rowSize);
-      const h = w/ar;
-      setWH({w,h});
-      setScale(
-        Math.min(
-        windowSize.height/(paper.height+50),
-        windowSize.width/(paper.height+50)));
-    }, [
-      img,
-      getBackgroundColor,
-      windowSize,
-
-      rowSize,
-      paper
-    ]);
+      return {w, h: w/ar};
+    })();
+    const scale = !windowSize ? .6 : Math.min(
+      windowSize.height/(paper.height+50),
+      windowSize.width/(paper.height+50));
 
     const infinityAsZero = (n: number): number => n === Infinity ? 0 : n;
     const {w,h} = WH;
@@ -91,8 +78,10 @@ const ImageGrid = ({
                   }
                 `;
               default:
-                o as never;
-                throw new Error('unexpected case of operation');
+                {
+                  const _exhaustive: never = o;
+                  throw new Error(`unexpected case of operation: ${JSON.stringify(_exhaustive)}`);
+                }
               
             }
           }).join('\n')}

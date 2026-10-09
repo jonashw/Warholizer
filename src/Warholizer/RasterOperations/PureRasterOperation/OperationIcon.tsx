@@ -14,30 +14,28 @@ import {
     FormatColorFill,
     Splitscreen
 } from "@mui/icons-material";
+import type { SvgIconComponent } from "@mui/icons-material";
 
-const operationIconElement = (op: PureRasterOperation) => {
-    switch(op.type){
-        case 'rotate': return Rotate90DegreesCw;
-        case 'grid': return GridView;
-        case 'line': return LinearScale;
-        case "invert": return InvertColors;
-        case "threshold": return FilterBAndW;
-        case "rotateHue": return Palette;
-        case "multiply": return DynamicFeed;
-        case "slideWrap": return Start;
-        case "grayscale": return Contrast;
-        case "blur": return BlurOn;
-        case "tile": return WrapText;
-        case "scale": return PhotoSizeSelectLarge;
-        case "scaleToFit": return FitScreen;
-        case "stack": return Layers;
-        case "crop": return Crop;
-        case "noop": return Adjust;
-        case "void": return HighlightOff;
-        case "split": return Splitscreen;
-        case "fill": return FormatColorFill;
-        default: return Functions;
-    }
+const operationIcons: Partial<Record<PureRasterOperation['type'], SvgIconComponent>> = {
+    rotate: Rotate90DegreesCw,
+    grid: GridView,
+    line: LinearScale,
+    invert: InvertColors,
+    threshold: FilterBAndW,
+    rotateHue: Palette,
+    multiply: DynamicFeed,
+    slideWrap: Start,
+    grayscale: Contrast,
+    blur: BlurOn,
+    tile: WrapText,
+    scale: PhotoSizeSelectLarge,
+    scaleToFit: FitScreen,
+    stack: Layers,
+    crop: Crop,
+    noop: Adjust,
+    void: HighlightOff,
+    split: Splitscreen,
+    fill: FormatColorFill,
 };
 
 export const OperationIcon = ({
@@ -46,7 +44,7 @@ export const OperationIcon = ({
     op: PureRasterOperation;
     className: string | undefined;
 }) => {
-    const Icon = operationIconElement(op);
+    const Icon = operationIcons[op.type] ?? Functions;
     const transform = iconTransform(op);
     const transforms = 
     [
