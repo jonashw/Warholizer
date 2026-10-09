@@ -1,6 +1,5 @@
 import React from "react";
 import { CanvasView } from "../../CanvasView";
-import fileToDataUrl from "../../fileToDataUrl";
 import { loadSampleImages, sampleImageUrls } from "../../sampleImageUrls";
 import ImageUtil from "../../Warholizer/ImageUtil";
 import { combine, emptyComposition, layout, newSeed, warholDuotoneGrid } from "../build";
@@ -8,6 +7,9 @@ import { composerRecipes } from "../recipes";
 import { defaultFormat } from "../formats";
 import { migrateComposition } from "../migrate";
 import { FormatEditor } from "./FormatEditor";
+import AuthContext from "../../AuthContext";
+import { fetchImage, jpegOf, LibraryImage, openComposition, openPublic, saveComposition, SavedComposition, SignInNeeded, uploadImage } from "../cloud/client";
+import { LibrarySheet, ShareSheet } from "./CloudSheets";
 import { canvasOps } from "../canvasOps";
 import { photoCube } from "../cube";
 import { evaluate, EvaluateOptions, Trace } from "../evaluate";
@@ -29,9 +31,15 @@ type Sheet =
   | { type: 'peek', after: NodeId | null }
   | { type: 'text' }
   | { type: 'format' }
+  | { type: 'library' }
+  | { type: 'share' }
   | { type: 'viewer' };
 
-type Photo = { full: OffscreenCanvas, preview: OffscreenCanvas };
+/**
+ * An input photo. `source` keeps the original bytes (uploaded exactly as given); `sha256` is set
+ * once the photo is in the cloud library.
+ */
+type Photo = { full: OffscreenCanvas, preview: OffscreenCanvas, name: string, source?: Blob, sha256?: string };
 
 const previewSize = 512;
 const storageKey = 'composer:composition';
@@ -43,7 +51,8 @@ const scaled = (image: OffscreenCanvas, size: number): OffscreenCanvas => {
   c.getContext('2d')!.drawImage(image, 0, 0, c.width, c.height);
   return c;
 };
-const asPhoto = (full: OffscreenCanvas): Photo => ({ full, preview: scaled(full, previewSize) });
+const asPhoto = (full: OffscreenCanvas, name = 'photo', source?: Blob, sha256?: string): Photo =>
+  ({ full, preview: scaled(full, previewSize), name, source, sha256 });
 /** Photos at preview size, each with its scale so sizes resolve as in the full-size export. */
 const previewCube = (photos: Photo[]) => photoCube(photos.map(p => p.preview), photos.map(p => p.preview.width / p.full.width));
 
@@ -57,27 +66,48 @@ const imageFromBlob = async (blob: Blob): Promise<OffscreenCanvas> => {
   }
 };
 
+const photoFromBlob = async (blob: Blob, name: string, sha256?: string): Promise<Photo> =>
+  asPhoto(await imageFromBlob(blob), name, blob, sha256);
+
 /** Photos the service worker stored from a share, removed once taken. */
-const takeSharedPhotos = async (): Promise<OffscreenCanvas[]> => {
+const takeSharedPhotos = async (): Promise<Photo[]> => {
   if (!('caches' in window)) return [];
   const cache = await caches.open('warholizer-shared');
   const requests = await cache.keys();
-  const images = await Promise.all(requests.map(async request => {
+  const photos = await Promise.all(requests.map(async request => {
     const response = await cache.match(request);
     await cache.delete(request);
-    return response ? imageFromBlob(await response.blob()) : undefined;
+    return response ? photoFromBlob(await response.blob(), 'shared photo') : undefined;
   }));
-  return images.filter((i): i is OffscreenCanvas => i !== undefined);
+  return photos.filter((p): p is Photo => p !== undefined);
 };
 
 /** Images on the clipboard (after a tap: browsers ask or allow it for a user gesture). */
-const pasteFromClipboard = async (): Promise<OffscreenCanvas[]> => {
+const pasteFromClipboard = async (): Promise<Photo[]> => {
   const items = await navigator.clipboard.read();
   const blobs = await Promise.all(items.flatMap(item => {
     const type = item.types.find(t => t.startsWith('image/'));
     return type ? [item.getType(type)] : [];
   }));
-  return Promise.all(blobs.map(imageFromBlob));
+  return Promise.all(blobs.map(b => photoFromBlob(b, 'pasted photo')));
+};
+
+const cloudKey = 'composer:saved';
+const loadSavedSummary = (): SavedComposition | undefined => {
+  try {
+    const s = localStorage.getItem(cloudKey);
+    return s ? JSON.parse(s) as SavedComposition : undefined;
+  } catch {
+    return undefined;
+  }
+};
+const rememberSaved = (saved: SavedComposition | undefined) => {
+  try {
+    if (saved) localStorage.setItem(cloudKey, JSON.stringify(saved));
+    else localStorage.removeItem(cloudKey);
+  } catch {
+    // Only a convenience.
+  }
 };
 
 const canPaste = typeof navigator !== 'undefined' && typeof navigator.clipboard?.read === 'function';
@@ -137,6 +167,13 @@ export default function ComposerPage() {
   const [history, setHistory] = React.useState<Composition[]>([]);
   const [photos, setPhotos] = React.useState<Photo[]>([]);
   const [sheet, setSheet] = React.useState<Sheet>();
+  const auth = AuthContext.useAuth();
+  const fetcher = auth.authenticatedFetch;
+  const signedIn = auth.state !== null;
+  /** The cloud copy this composition was opened from or saved to. */
+  const [saved, setSavedState] = React.useState<SavedComposition | undefined>(loadSavedSummary);
+  const setSaved = (s: SavedComposition | undefined) => { setSavedState(s); rememberSaved(s); };
+  const [status, setStatus] = React.useState<string>();
   const root = composition.root;
   const format = composition.format ?? defaultFormat;
   // Previews render pages at most 1200 px on the long side; exports at full size.
@@ -163,26 +200,122 @@ export default function ComposerPage() {
   }, []);
 
   React.useEffect(() => {
-    // Photos shared from another app arrive through the service worker; they replace the samples.
-    const shared = new URLSearchParams(window.location.search).has('shared');
-    if (shared) {
-      takeSharedPhotos().then(images => {
-        window.history.replaceState(null, '', '/composer');
-        if (images.length) setPhotos(images.map(asPhoto));
-      });
+    const params = new URLSearchParams(window.location.search);
+    const clean = () => window.history.replaceState(null, '', '/composer');
+    const samples = () => loadSampleImages([sampleImageUrls.warhol, sampleImageUrls.banana, sampleImageUrls.soupCan])
+      .then(images => setPhotos(images.map((image, i) => asPhoto(image, ['Warhol', 'Banana', 'Soup can'][i]))));
+    if (params.has('shared')) {
+      // Photos shared from another app arrive through the service worker; they replace the samples.
+      takeSharedPhotos().then(shared => { clean(); if (shared.length) setPhotos(shared); else samples(); });
+    } else if (params.get('open')) {
+      const id = params.get('open')!;
+      clean();
+      openCloud(id).catch(() => samples());
+    } else if (params.get('try')) {
+      // Try a shared composition with your own photos: its steps, these photos, nothing saved.
+      const slug = params.get('try')!;
+      clean();
+      samples();
+      openPublic(slug).then(shared => {
+        setComposition(migrateComposition(shared.document));
+        setSaved(undefined);
+        setStatus('Trying a shared composition: tap + to use your own photos.');
+      }).catch(e => setStatus(String(e.message ?? e)));
     } else {
-      loadSampleImages([sampleImageUrls.warhol, sampleImageUrls.banana, sampleImageUrls.soupCan])
-        .then(images => setPhotos(images.map(asPhoto)));
+      samples();
     }
     const onPaste = (event: ClipboardEvent) => {
       const file = [...(event.clipboardData?.items ?? [])].find(i => i.kind === 'file')?.getAsFile();
-      if (file) {
-        fileToDataUrl(file).then(url => ImageUtil.loadOffscreen(url.toString())).then(image => setPhotos(p => [...p, asPhoto(image)]));
-      }
+      if (file) photoFromBlob(file, file.name || 'pasted photo').then(photo => setPhotos(p => [...p, photo]));
     };
     window.addEventListener('paste', onPaste);
     return () => window.removeEventListener('paste', onPaste);
+    // Runs once, on arrival.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+
+  /** Signed in, new photos go to the library in the background, original bytes as given. */
+  React.useEffect(() => {
+    if (!signedIn) return;
+    const pending = photos.filter(p => p.source && !p.sha256);
+    if (pending.length === 0) return;
+    let cancelled = false;
+    (async () => {
+      for (const photo of pending) {
+        if (cancelled) return;
+        try {
+          const sha256 = await uploadImage(fetcher, photo.source!, photo.full, photo.name);
+          setPhotos(ps => ps.map(p => p === photo ? { ...p, sha256 } : p));
+        } catch (e) {
+          if (e instanceof SignInNeeded) auth.logout();
+          return;
+        }
+      }
+    })();
+    return () => { cancelled = true; };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [photos, signedIn]);
+
+  const handleCloudError = (e: unknown) => {
+    if (e instanceof SignInNeeded) {
+      auth.logout();
+      setStatus('Sign in again to continue.');
+      setSheet({ type: 'library' });
+    } else {
+      setStatus(String((e as Error).message ?? e));
+    }
+  };
+
+  async function openCloud(id: string) {
+    setStatus('Opening…');
+    try {
+      const opened = await openComposition(fetcher, id);
+      const blobs = await Promise.all(opened.inputs.map(sha => fetchImage(fetcher, sha, 'original')));
+      const loaded = await Promise.all(blobs.map((b, i) => photoFromBlob(b, `photo ${i + 1}`, opened.inputs[i])));
+      setComposition(migrateComposition(opened.document));
+      setPhotos(loaded);
+      setSaved(opened);
+      setStatus(undefined);
+      setSheet(undefined);
+    } catch (e) {
+      handleCloudError(e);
+      throw e;
+    }
+  }
+
+  const saveToCloud = async () => {
+    if (!signedIn) { setSheet({ type: 'library' }); return; }
+    setStatus('Saving…');
+    try {
+      // Every input in the library (samples are stored as PNG), then a small preview of the first result.
+      const inputs: string[] = [];
+      for (const photo of photos) {
+        const source = photo.source ?? await photo.full.convertToBlob({ type: 'image/png' });
+        const sha256 = photo.sha256 ?? await uploadImage(fetcher, source, photo.full, photo.name);
+        inputs.push(sha256);
+        if (!photo.sha256) setPhotos(ps => ps.map(p => p === photo ? { ...p, sha256, source } : p));
+      }
+      const first = rendered?.output.cells[0]?.image;
+      const preview = first ? await uploadImage(fetcher, await jpegOf(first, 800, 0.82), first, 'preview', false) : undefined;
+      const result = await saveComposition(fetcher, saved?.id, composition, inputs, preview);
+      setSaved(result);
+      setStatus(`Saved · revision ${result.revision}`);
+    } catch (e) {
+      handleCloudError(e);
+    }
+  };
+
+  const useLibraryImages = async (images: LibraryImage[], mode: 'replace' | 'add') => {
+    setStatus('Loading photos…');
+    try {
+      const loaded = await Promise.all(images.map(async i => photoFromBlob(await fetchImage(fetcher, i.sha256, 'original'), i.fileName, i.sha256)));
+      setPhotos(ps => mode === 'replace' ? loaded : [...ps, ...loaded]);
+      setStatus(undefined);
+      setSheet(undefined);
+    } catch (e) {
+      handleCloudError(e);
+    }
+  };
 
   // Dimensions and counts, instantly, without pixels.
   const [inferred, setInferred] = React.useState<{ trace: Trace<Placeholder>, output: Cube<Placeholder> }>();
@@ -247,10 +380,20 @@ export default function ComposerPage() {
         <input className="composer-title" aria-label="Composition name" value={composition.name}
           onChange={e => setCompositionState(c => { const next = { ...c, name: e.target.value }; save(next); return next; })} />
         {busy && <span className="composer-busy">rendering</span>}
-        <button type="button" className="composer-icon-button" onClick={() => setSheet({ type: 'format' })} title="The composition's format">{format.name}</button>
         <button type="button" className="composer-icon-button" onClick={undo} disabled={history.length === 0}>Undo</button>
+        <button type="button" className="composer-icon-button" onClick={saveToCloud} title={saved ? `Save revision ${saved.revision + 1}` : 'Save to your library'}>Save</button>
         <button type="button" className="composer-icon-button" onClick={() => setSheet({ type: 'text' })}>More</button>
+        <button type="button" className="composer-avatar" onClick={() => setSheet({ type: 'library' })}
+          aria-label={auth.state ? `Library of ${auth.state.user.name}` : 'Sign in and library'}>
+          {auth.state ? auth.state.user.name.charAt(0).toUpperCase() : '☁'}
+        </button>
       </div>
+      {status && (
+        <div className="composer-status" role="status">
+          <span>{status}</span>
+          <button type="button" aria-label="Dismiss" onClick={() => setStatus(undefined)}>×</button>
+        </div>
+      )}
 
       <div className={'composer-flow' + (sheet && sheet.type !== 'viewer' ? ' compressed' : '')}>
         <div className="composer-strip">
@@ -266,8 +409,8 @@ export default function ComposerPage() {
               <button type="button" className="composer-add-photo" style={{ width: 'auto', padding: '0 10px', fontSize: 13, fontWeight: 600 }}
                 onClick={async () => {
                   try {
-                    const images = await pasteFromClipboard();
-                    if (images.length) setPhotos(ps => [...ps, ...images.map(asPhoto)]);
+                    const pasted = await pasteFromClipboard();
+                    if (pasted.length) setPhotos(ps => [...ps, ...pasted]);
                     else window.alert('No image on the clipboard.');
                   } catch {
                     window.alert('Could not read the clipboard. Allow clipboard access, or long-press and paste.');
@@ -278,8 +421,8 @@ export default function ComposerPage() {
               +
               <input type="file" accept="image/*" multiple hidden onChange={async e => {
                 const files = [...(e.target.files ?? [])];
-                const images = await Promise.all(files.map(f => fileToDataUrl(f).then(url => ImageUtil.loadOffscreen(url.toString()))));
-                setPhotos(ps => [...ps, ...images.map(asPhoto)]);
+                const added = await Promise.all(files.map(f => photoFromBlob(f, f.name || 'photo')));
+                setPhotos(ps => [...ps, ...added]);
                 e.target.value = '';
               }} />
             </label>
@@ -371,6 +514,13 @@ export default function ComposerPage() {
                   setSheet({ type: 'step', id: node.id });
                 }} />
             )}
+            {sheet.type === 'library' && (
+              <LibrarySheet currentId={saved?.id} onClose={() => setSheet(undefined)} onSave={saveToCloud}
+                onOpen={id => { openCloud(id).catch(() => undefined); }} onUseImages={useLibraryImages} />
+            )}
+            {sheet.type === 'share' && saved && (
+              <ShareSheet saved={saved} onChange={setSaved} onClose={() => setSheet(undefined)} />
+            )}
             {sheet.type === 'format' && (
               <>
                 <div className="composer-handle" />
@@ -389,17 +539,24 @@ export default function ComposerPage() {
                   <button type="button" className="composer-icon-button" onClick={() => navigator.clipboard?.writeText(JSON.stringify(composition, null, 2))}>Copy JSON</button>
                   <button type="button" className="composer-icon-button" onClick={() => setSheet(undefined)}>Done</button>
                 </div>
+                <div className="composer-row">
+                  <button type="button" className="composer-secondary" onClick={() => setSheet({ type: 'format' })}>Format: {format.name}</button>
+                  <button type="button" className="composer-secondary" onClick={() => saved ? setSheet({ type: 'share' }) : saveToCloud().then(() => setSheet({ type: 'share' }))}>
+                    {saved ? 'Share' : 'Save and share'}
+                  </button>
+                  <button type="button" className="composer-secondary" onClick={() => setSheet({ type: 'library' })}>Library</button>
+                </div>
                 <pre className="composer-text">{compositionText(composition)}</pre>
                 <span className="composer-section-label">Start from a recipe</span>
                 <div className="composer-recipes">
                   {composerRecipes.map(r => (
-                    <button key={r.id} type="button" className="composer-recipe" onClick={() => { setComposition(r.build()); setSheet(undefined); }}>
+                    <button key={r.id} type="button" className="composer-recipe" onClick={() => { setComposition(r.build()); setSaved(undefined); setSheet(undefined); }}>
                       <strong>{r.name}</strong>
                       <span>{r.description}</span>
                     </button>
                   ))}
                 </div>
-                <button type="button" className="composer-secondary composer-danger" onClick={() => { setComposition(emptyComposition()); setSheet(undefined); }}>Start empty</button>
+                <button type="button" className="composer-secondary composer-danger" onClick={() => { setComposition(emptyComposition()); setSaved(undefined); setSheet(undefined); }}>Start empty</button>
               </>
             )}
           </div>

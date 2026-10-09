@@ -14,12 +14,18 @@ import FileUploadPage from "./FileUploadPage";
 import BenchmarkPage from "./BenchmarkPage";
 import FilterGalleryPage from "./FilterGalleryPage";
 import ComposerPage from "./Composer/ui/ComposerPage";
+import PublicPage from "./Composer/ui/PublicPage";
 
 export const routeConfig: RouteObject[] = [
   // Full screen (phone first), outside the demo navigation.
   {
     path: '/composer',
     element: <ComposerPage/>
+  },
+  // A shared composition's public link (ADR 0001).
+  {
+    path: '/c/:slug',
+    element: <PublicPage/>
   },
   {
     path:'/',

@@ -13,6 +13,16 @@ type AuthProvider = {
     logout: () => void,
 }
 
+/** Google ID tokens last an hour; an expired one would only earn 401s. */
+const tokenExpired = (token: string): boolean => {
+    try {
+        const payload = JSON.parse(atob(token.split('.')[1].replace(/-/g, '+').replace(/_/g, '/')));
+        return typeof payload.exp !== 'number' || payload.exp * 1000 < Date.now() + 60_000;
+    } catch {
+        return true;
+    }
+};
+
 const tryGetStoredState = (): AuthState|null => {
     const stored = localStorage.getItem(storageKey);
     if(!stored) {
@@ -20,7 +30,7 @@ const tryGetStoredState = (): AuthState|null => {
     }
     try {
         const state = JSON.parse(stored) as AuthState;
-        if(!state.token || !state.user || typeof state.user !== 'object') {
+        if(!state.token || !state.user || typeof state.user !== 'object' || tokenExpired(state.token)) {
             console.warn('Invalid stored auth found. Removing...', state);
             localStorage.removeItem(storageKey);
             return null;
