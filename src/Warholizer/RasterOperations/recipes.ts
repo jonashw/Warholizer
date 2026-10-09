@@ -1,5 +1,5 @@
 import { byte } from "../../NumberTypes";
-import { PureRasterApplicator } from "./PureRasterApplicator";
+import { ArrangementStepTemplate, PureRasterApplicator, PureRasterApplicatorGroup } from "./PureRasterApplicator";
 import { PureRasterOperation } from "./PureRasterOperation";
 
 /**
@@ -27,16 +27,14 @@ export type Recipe = {
   hint?: string,
   /** Knobs that rebuild the arrangement; their values are passed to `build`. */
   settings?: RecipeSetting[],
-  /** Run the arrangement on each input separately (e.g. one grid per photo). */
-  perInput?: boolean,
-  build: (settings: RecipeSettings) => PureRasterApplicator[]
+  build: (settings: RecipeSettings) => ArrangementStepTemplate[]
 };
 
 export const defaultRecipeSettings = (recipe: Recipe): RecipeSettings =>
   Object.fromEntries((recipe.settings ?? []).map(s => [s.key, s.default]));
 
-/** The recipe's applicators for the given settings (defaults for any not given). */
-export const recipeApplicators = (recipe: Recipe, settings: RecipeSettings = {}): PureRasterApplicator[] =>
+/** The recipe's steps for the given settings (defaults for any not given). */
+export const recipeSteps = (recipe: Recipe, settings: RecipeSettings = {}): ArrangementStepTemplate[] =>
   recipe.build({ ...defaultRecipeSettings(recipe), ...settings });
 
 /**
@@ -54,6 +52,8 @@ export const darknessToLevels = (darkness: number): { black: number, gamma: numb
 
 const pipe = (...ops: PureRasterOperation[]): PureRasterApplicator => ({ type: 'pipe', ops, enabled: true });
 const flatMap = (...ops: PureRasterOperation[]): PureRasterApplicator => ({ type: 'flatMap', ops, enabled: true });
+/** Runs the applicators on each input image separately. */
+const forEachImage = (...applicators: PureRasterApplicator[]): PureRasterApplicatorGroup => ({ type: 'group', mode: 'each', enabled: true, applicators });
 
 /** Shadow → background pairs sampled from docs/references/warhol-duotone-grid-giraffe.jpg. */
 const warholDuotones: [string, string][] = [
@@ -71,19 +71,19 @@ export const recipes: Recipe[] = [
     name: 'Warhol duotone grid',
     description: 'Six duotones of the photo in a 3 × 2 grid, after docs/references/warhol-duotone-grid-giraffe.jpg.',
     hint: 'Works best with a high-contrast subject on a light background; raise subject darkness for light subjects.',
-    perInput: true,
     settings: [
       { key: 'darkness', label: 'Subject darkness', description: 'Higher maps more of the subject to the shadow color.', min: 0, max: 100, step: 5, default: 50 },
       { key: 'columns', label: 'Columns', min: 1, max: 6, step: 1, default: 3 },
     ],
-    build: ({ darkness, columns }) => [
+    // One grid per photo.
+    build: ({ darkness, columns }) => [forEachImage(
       // Flatten near-white (JPEG noise) so each background becomes a perfectly flat color;
       // black point and gamma set how much of the subject reads as shadow.
       pipe({ type: 'levels', black: byte(darknessToLevels(darkness).black), white: byte(245), gamma: darknessToLevels(darkness).gamma }),
       // One output per duotone.
       flatMap(...warholDuotones.map(([shadow, background]): PureRasterOperation => ({ type: 'gradientMap', stops: [shadow, background] }))),
       pipe({ type: 'tile', primaryDimension: 'x', lineLength: columns }),
-    ],
+    )],
   },
   {
     id: 'comic-print',

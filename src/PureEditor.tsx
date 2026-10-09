@@ -9,7 +9,7 @@ import { loadSampleImages, sampleImageUrls } from './sampleImageUrls';
 
 export default function PureEditor() {
     const [inputImages, setInputImages] = React.useState<ImageRecord[]>();
-    const [arrangement, setArrangement] = React.useState<Arrangement>({ applicators: [applicatorAsRecord(defaultApplicator)], perInput: false });
+    const [arrangement, setArrangement] = React.useState<Arrangement>({ steps: [applicatorAsRecord(defaultApplicator)] });
     const [result, setResult] = React.useState<{
         inputImages: ImageRecord[],
         arrangement: Arrangement,
@@ -40,7 +40,7 @@ export default function PureEditor() {
         }
         let cancelled = false;
         const inputOffscreenCanvases = inputImages.map(i => i.osc);
-        PureRasterApplicators.applyArrangement(arrangement, inputOffscreenCanvases)
+        PureRasterApplicators.applyArrangement(arrangement.steps, inputOffscreenCanvases)
             .then(oscs => oscs.map(osc => ({osc, id: crypto.randomUUID().toString()})))
             .then(outputImages => {
                 if(!cancelled){

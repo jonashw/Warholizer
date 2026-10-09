@@ -150,3 +150,9 @@ Classifying current operations by signature (input count → output count, wheth
 - New default `style: 'smooth'` (`halftone.ts`, CPU reference + WebGL2 kernel `amHalftone`): rotated screen of cells (`dotDiameter` = cell size); each cell's tone is averaged over a 4 × 4 sample grid; spot functions per `shape` (round, ellipse, line, diamond) with a per-shape tone table so ink coverage matches darkness (tested within 5%); analytic anti-aliasing (`fwidth` on the GPU, finite differences on the CPU); optional output `scale` (1–4×) for crisp print-resolution dots.
 - Color halftone uses it, with `shape` and `scale`. Comparison (top left classic; top right smooth round ×2; bottom left line screen ×2; bottom right color halftone ×2): [2026-10-09-halftone-compare.png](../benchmarks/2026-10-09-halftone-compare.png). Smooth runs in 6–24 ms at 824² on the GPU versus 180 ms for classic.
 
+### 2026-10-09: applicator groups (one level)
+
+- An arrangement is a list of steps: ordinary applicators or **groups**. A group holds ordinary applicators only (one level, enforced by the types) and has a mode: `each` runs its applicators on every input image separately and concatenates the results in image order; `all` runs them on all inputs together.
+- Replaces the short-lived "Each input separately" switch, which was a top-level-only form of the same idea. Groups can wrap part of a pipeline, e.g. one grid per photo, then a final tile of all grids.
+- Pure Editor: group cards (mode, enabled, ungroup, remove, add applicator), "Add Group", "Group all"; drag and drop of operations works across groups. The Warhol duotone grid recipe builds a `for each image` group.
+

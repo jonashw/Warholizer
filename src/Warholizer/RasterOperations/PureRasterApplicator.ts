@@ -140,31 +140,108 @@ const inputsForOp = async (app: PureRasterApplicator, index: number, inputs: Off
   }
 };
 
+/** How a group applies its applicators: to each input image separately, or to all inputs together. */
+export type GroupMode = 'each' | 'all';
+
 /**
- * Everything the Pure Editor arranges: the applicators, and whether to run them on each input
- * image separately (outputs concatenated in input order) or on all inputs together.
+ * A group of applicators, one level deep (groups never contain groups). In `each` mode the
+ * group's pipeline runs on every input image separately and the outputs are concatenated in
+ * input order: e.g. one grid per photo.
  */
-export type Arrangement = {
-  applicators: PureRasterApplicatorRecord[],
-  perInput: boolean
+export type PureRasterApplicatorGroup = {
+  type: 'group',
+  mode: GroupMode,
+  enabled: boolean,
+  applicators: PureRasterApplicator[]
 };
 
-const applyArrangement = async ({ applicators, perInput }: Arrangement, inputs: OffscreenCanvas[]): Promise<OffscreenCanvas[]> =>
-  !perInput
-  ? applyAll(applicators, inputs)
-  : (await Promise.all(inputs.map(input => applyAll(applicators, [input])))).flat();
+export type PureRasterApplicatorGroupRecord = {
+  type: 'group',
+  id: string,
+  mode: GroupMode,
+  enabled: boolean,
+  applicators: PureRasterApplicatorRecord[]
+};
 
-/** Like applyAllIteratively; per input, each step's inputs and outputs are concatenated across inputs. */
-const applyArrangementIteratively = async ({ applicators, perInput }: Arrangement, inputs: OffscreenCanvas[]): Promise<IterativeApplication[]> => {
-  if (!perInput) {
-    return applyAllIteratively(applicators, inputs);
-  }
-  const perImage = await Promise.all(inputs.map(input => applyAllIteratively(applicators, [input])));
-  return applicators.map((_, step) => ({
-    applied: perImage[0]?.[step]?.applied ?? applicators.slice(0, step + 1),
-    inputs: perImage.flatMap(iterations => iterations[step].inputs),
-    outputs: perImage.flatMap(iterations => iterations[step].outputs),
+/** A top-level step of an arrangement: an applicator or a group of applicators. */
+export type ArrangementStep = PureRasterApplicatorRecord | PureRasterApplicatorGroupRecord;
+export type ArrangementStepTemplate = PureRasterApplicator | PureRasterApplicatorGroup;
+
+/** Everything the Pure Editor arranges. */
+export type Arrangement = { steps: ArrangementStep[] };
+
+export const isGroup = (step: ArrangementStep | ArrangementStepTemplate): step is PureRasterApplicatorGroupRecord | PureRasterApplicatorGroup =>
+  step.type === 'group';
+
+export const stepAsRecord = (step: ArrangementStepTemplate): ArrangementStep =>
+  isGroup(step)
+  ? { type: 'group', id: crypto.randomUUID(), mode: step.mode, enabled: step.enabled, applicators: step.applicators.map(applicatorAsRecord) }
+  : applicatorAsRecord(step);
+
+/** Every applicator in the arrangement, inside groups included. */
+export const allApplicators = (steps: ArrangementStep[]): PureRasterApplicatorRecord[] =>
+  steps.flatMap(step => isGroup(step) ? step.applicators : [step]);
+
+/** Replaces the applicator with the given id, wherever it is. */
+export const updateApplicator = (steps: ArrangementStep[], id: string, update: (a: PureRasterApplicatorRecord) => PureRasterApplicatorRecord): ArrangementStep[] =>
+  steps.map(step => isGroup(step)
+    ? { ...step, applicators: step.applicators.map(a => a.id === id ? update(a) : a) }
+    : step.id === id ? update(step) : step);
+
+const applyGroup = async (group: PureRasterApplicatorGroup, inputs: OffscreenCanvas[]): Promise<OffscreenCanvas[]> =>
+  !group.enabled
+  ? inputs
+  : group.mode === 'all'
+  ? applyAll(group.applicators, inputs)
+  : (await Promise.all(inputs.map(input => applyAll(group.applicators, [input])))).flat();
+
+const applyStep = (step: ArrangementStep | ArrangementStepTemplate, inputs: OffscreenCanvas[]): Promise<OffscreenCanvas[]> =>
+  isGroup(step) ? applyGroup(step, inputs) : applyAll([step], inputs);
+
+const applyArrangement = (steps: (ArrangementStep | ArrangementStepTemplate)[], inputs: OffscreenCanvas[]): Promise<OffscreenCanvas[]> =>
+  steps.reduce(async (prev, step) => applyStep(step, await prev), Promise.resolve(inputs));
+
+/** What flowed into and out of one applicator, for previews and visual editors. */
+export type ApplicatorIteration = { applicator: PureRasterApplicatorRecord, inputs: OffscreenCanvas[], outputs: OffscreenCanvas[] };
+
+/** What flowed into and out of one step; groups also report their applicators (concatenated across images in `each` mode). */
+export type StepIteration = {
+  step: ArrangementStep,
+  inputs: OffscreenCanvas[],
+  outputs: OffscreenCanvas[],
+  children?: ApplicatorIteration[]
+};
+
+const toChildIterations = (applicators: PureRasterApplicatorRecord[], runs: IterativeApplication[][]): ApplicatorIteration[] =>
+  applicators.map((applicator, i) => ({
+    applicator,
+    inputs: runs.flatMap(run => run[i]?.inputs ?? []),
+    outputs: runs.flatMap(run => run[i]?.outputs ?? []),
   }));
+
+const applyArrangementIteratively = async (arrangement: Arrangement, inputs: OffscreenCanvas[]): Promise<StepIteration[]> => {
+  const iterations: StepIteration[] = [];
+  let current = inputs;
+  for (const step of arrangement.steps) {
+    if (!isGroup(step)) {
+      const outputs = await applyAll([step], current);
+      iterations.push({ step, inputs: current, outputs });
+      current = outputs;
+      continue;
+    }
+    const runs = !step.enabled
+      ? []
+      : step.mode === 'all'
+      ? [await applyAllIteratively(step.applicators, current)]
+      : await Promise.all(current.map(input => applyAllIteratively(step.applicators, [input])));
+    const children = step.enabled
+      ? toChildIterations(step.applicators, runs)
+      : step.applicators.map(applicator => ({ applicator, inputs: current, outputs: current }));
+    const outputs = step.enabled ? await applyGroup(step, current) : current;
+    iterations.push({ step, inputs: current, outputs, children });
+    current = outputs;
+  }
+  return iterations;
 };
 
 export const PureRasterApplicators = {apply,types,applyAll,applyAllIteratively,map,inputsForOp,applyArrangement,applyArrangementIteratively};

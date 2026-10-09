@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
-import { darknessToLevels, recipeApplicators, recipes } from './recipes';
-import { PureRasterApplicators, applicatorAsRecord } from './PureRasterApplicator';
+import { darknessToLevels, recipeSteps, recipes } from './recipes';
+import { PureRasterApplicators, allApplicators, isGroup, stepAsRecord } from './PureRasterApplicator';
 import { allPixels, pixel, size, solid } from './PureRasterOperation/testUtil';
 import { operationRegistry } from './PureRasterOperation';
 
@@ -17,21 +17,21 @@ describe('recipes', () => {
   it('have unique ids and only registered operations', () => {
     expect(new Set(recipes.map(r => r.id)).size).toBe(recipes.length);
     for (const r of recipes) {
-      for (const op of recipeApplicators(r).flatMap(a => a.ops)) {
+      for (const op of allApplicators(recipeSteps(r).map(stepAsRecord)).flatMap(a => a.ops)) {
         expect(operationRegistry[op.type], `${r.id}: ${op.type}`).toBeDefined();
       }
     }
   });
 
   it.each(recipes.map(r => [r.name, r] as const))('%s runs', async (_, recipe) => {
-    const outputs = await PureRasterApplicators.applyAll(recipeApplicators(recipe).map(applicatorAsRecord), [subjectOnWhite(40, 30)]);
+    const outputs = await PureRasterApplicators.applyArrangement(recipeSteps(recipe), [subjectOnWhite(40, 30)]);
     expect(outputs.length).toBeGreaterThan(0);
     outputs.forEach(o => expect(o.width * o.height).toBeGreaterThan(0));
   });
 
   it('Warhol duotone grid makes a 3 × 2 grid of duotones with flat backgrounds', async () => {
     const recipe = recipes.find(r => r.id === 'warhol-duotone-grid')!;
-    const [grid, ...rest] = await PureRasterApplicators.applyAll(recipeApplicators(recipe), [subjectOnWhite(40, 30)]);
+    const [grid, ...rest] = await PureRasterApplicators.applyArrangement(recipeSteps(recipe), [subjectOnWhite(40, 30)]);
     expect(rest).toHaveLength(0);
     expect(size(grid)).toEqual([120, 60]);
     // Background corners of the six tiles are the six (distinct) light stops.
@@ -52,7 +52,7 @@ describe('recipes', () => {
       }
     }
     const grid = recipes.find(r => r.id === 'warhol-duotone-grid')!;
-    const ops = recipeApplicators(grid, { darkness: 80, columns: 2 }).flatMap(a => a.ops);
+    const ops = allApplicators(recipeSteps(grid, { darkness: 80, columns: 2 }).map(stepAsRecord)).flatMap(a => a.ops);
     expect(ops[0]).toMatchObject({ type: 'levels', ...darknessToLevels(80) });
     expect(ops[ops.length - 1]).toMatchObject({ type: 'tile', lineLength: 2 });
   });
@@ -69,20 +69,13 @@ describe('recipes', () => {
     expect(darknessToLevels(100).black).toBeLessThan(245); // stays below the white point
   });
 
-  it('per input, the grid recipe makes one grid per photo', async () => {
+  it('the grid recipe is one "for each image" group, so several photos give one grid each', async () => {
     const recipe = recipes.find(r => r.id === 'warhol-duotone-grid')!;
-    const arrangement = { applicators: recipeApplicators(recipe).map(applicatorAsRecord), perInput: true };
+    const steps = recipeSteps(recipe);
+    expect(steps).toHaveLength(1);
+    expect(isGroup(steps[0]) && steps[0].mode).toBe('each');
     const inputs = [subjectOnWhite(40, 30), subjectOnWhite(20, 10)];
-    const grids = await PureRasterApplicators.applyArrangement(arrangement, inputs);
+    const grids = await PureRasterApplicators.applyArrangement(steps, inputs);
     expect(grids.map(size)).toEqual([[120, 60], [60, 20]]);
-    const together = await PureRasterApplicators.applyArrangement({ ...arrangement, perInput: false }, inputs);
-    expect(together).toHaveLength(1);
-  });
-
-  it('per-input iterations concatenate each step across inputs', async () => {
-    const recipe = recipes.find(r => r.id === 'warhol-duotone-grid')!;
-    const arrangement = { applicators: recipeApplicators(recipe).map(applicatorAsRecord), perInput: true };
-    const iterations = await PureRasterApplicators.applyArrangementIteratively(arrangement, [subjectOnWhite(40, 30), subjectOnWhite(20, 10)]);
-    expect(iterations.map(it => [it.inputs.length, it.outputs.length])).toEqual([[2, 2], [2, 12], [12, 2]]);
   });
 });
