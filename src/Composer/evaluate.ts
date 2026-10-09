@@ -17,8 +17,8 @@ export type ImageOps<Img> = {
   crosstab: (grid: (Img | undefined)[][], rowLabels: string[], columnLabels: string[], labels: boolean) => Promise<Img>,
 };
 
-/** The cube after each node, by node id. */
-export type Trace<Img> = Map<NodeId, Cube<Img>>;
+/** The cubes into and out of each node, by node id. */
+export type Trace<Img> = Map<NodeId, { input: Cube<Img>, output: Cube<Img> }>;
 
 export const evaluate = async <Img>(
   node: Node,
@@ -27,7 +27,7 @@ export const evaluate = async <Img>(
   trace?: Trace<Img>,
 ): Promise<Cube<Img>> => {
   const output = await evaluateNode(node, input, ops, trace);
-  trace?.set(node.id, output);
+  trace?.set(node.id, { input, output });
   return output;
 };
 

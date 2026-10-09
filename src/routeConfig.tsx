@@ -13,8 +13,14 @@ import GoogleLoginComplete from "./GoogleLoginComplete";
 import FileUploadPage from "./FileUploadPage";
 import BenchmarkPage from "./BenchmarkPage";
 import FilterGalleryPage from "./FilterGalleryPage";
+import ComposerPage from "./Composer/ui/ComposerPage";
 
 export const routeConfig: RouteObject[] = [
+  // Full screen (phone first), outside the demo navigation.
+  {
+    path: '/composer',
+    element: <ComposerPage/>
+  },
   {
     path:'/',
     element: (
@@ -27,6 +33,7 @@ export const routeConfig: RouteObject[] = [
           {href:'/google-login',label:'Google Login'},
           {href:'/pure-gallery',label:'Pure Gallery'},
           {href:'/pure-editor',label:'Pure Editor'},
+          {href:'/composer',label:'Composer'},
           {href:'/filter-gallery',label:'Filter Gallery'},
           {href:'/graph-viewer-demo',label:'Graph Viewer'},
           {href:'/graph-editor',label:'Graph Editor'},

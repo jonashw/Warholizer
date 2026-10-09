@@ -1,0 +1,436 @@
+import React from "react";
+import { CanvasView } from "../../CanvasView";
+import { PureRasterOperationInlineEditor } from "../../Warholizer/RasterOperations/PureRasterOperation/PureRasterOperationInlineEditor";
+import { BlendingModes, Direction, PureRasterOperation } from "../../Warholizer/RasterOperations/PureRasterOperation/types";
+import { allPerImage, newId, newSeed, operationNode, variationsSpread } from "../build";
+import { canvasOps } from "../canvasOps";
+import { variantsOf } from "../evaluate";
+import { nodeLabel } from "../labels";
+import { defaultSpread, formatParamValue, numericParamOf, numericParamsOf, paramLabel, spreadValuesFor } from "../spread";
+import {
+  CombineMethod, CombineNode, Dimension, Node, OperationNode, PickNode, PivotNode, Spread, VariationDistribution, VariationsNode, combineKindOf,
+} from "../types";
+import { kindLabel, nodeTitle } from "./summaries";
+
+export type StepSheetProps = {
+  node: Node,
+  /** Dimensions arriving at this step (inferred, so always available). */
+  inputDimensions: Dimension[],
+  /** The first image arriving at this step, once rendered; used for previews. */
+  sampleInput?: OffscreenCanvas,
+  /** All rendered images arriving at this step, for visual editors (crop, palettes). */
+  inputs?: () => Promise<OffscreenCanvas[]>,
+  onChange: (node: Node) => void,
+  onDelete: () => void,
+  onMove: (delta: -1 | 1) => void,
+  onOpen: (id: string) => void,
+  onAddVariant: (variationsId: string) => void,
+  onClose: () => void,
+};
+
+export function Segmented<T extends string>({ value, options, onChange, label }: {
+  value: T, options: { value: T, label: string, disabled?: boolean }[], onChange: (v: T) => void, label: string,
+}) {
+  return (
+    <div className="composer-segmented" role="group" aria-label={label}>
+      {options.map(o => (
+        <button key={o.value} type="button" aria-pressed={o.value === value} disabled={o.disabled} onClick={() => onChange(o.value)}>
+          {o.label}
+        </button>
+      ))}
+    </div>
+  );
+}
+
+export function StepSheet(props: StepSheetProps) {
+  const { node, onDelete, onMove, onClose } = props;
+  return (
+    <>
+      <div className="composer-handle" />
+      <div className="composer-sheet-header">
+        <div className="composer-sheet-title">
+          <strong>{nodeTitle(node)}</strong>
+          <span>{kindLabel(node)}</span>
+        </div>
+        <button type="button" className="composer-icon-button" aria-label="Move earlier" onClick={() => onMove(-1)}>↑</button>
+        <button type="button" className="composer-icon-button" aria-label="Move later" onClick={() => onMove(1)}>↓</button>
+        <button type="button" className="composer-icon-button composer-danger" onClick={onDelete}>Delete</button>
+        <button type="button" className="composer-icon-button" onClick={onClose}>Done</button>
+      </div>
+      <StepEditor {...props} />
+    </>
+  );
+}
+
+function StepEditor(props: StepSheetProps) {
+  const { node } = props;
+  switch (node.kind) {
+    case 'operation': return <OperationEditor {...props} node={node} />;
+    case 'variations': return <VariationsEditor {...props} node={node} />;
+    case 'combine': return <CombineEditor {...props} node={node} />;
+    case 'pick': return <PickEditor {...props} node={node} />;
+    case 'pivot': return <PivotEditor {...props} node={node} />;
+    case 'sequence': return (
+      <div className="composer-row">
+        {node.children.map(c => <button key={c.id} type="button" className="composer-chip" onClick={() => props.onOpen(c.id)}>{nodeLabel(c)}</button>)}
+      </div>
+    );
+  }
+}
+
+const withoutId = ({ id: _id, ...op }: PureRasterOperation & { id: string }): PureRasterOperation => {
+  void _id;
+  return op as PureRasterOperation;
+};
+
+function OpSettings({ op, id, onChange, inputs }: { op: PureRasterOperation, id: string, onChange: (op: PureRasterOperation) => void, inputs?: () => Promise<OffscreenCanvas[]> }) {
+  return (
+    <div className="composer-op-settings">
+      <PureRasterOperationInlineEditor value={{ ...op, id }} onChange={r => onChange(withoutId(r))} inputs={inputs} />
+    </div>
+  );
+}
+
+function OperationEditor(props: StepSheetProps & { node: OperationNode }) {
+  const { node, onChange, sampleInput, inputs } = props;
+  const params = numericParamsOf(node.op.type);
+  const [spreading, setSpreading] = React.useState<string>();
+  const param = params.find(p => p.param === spreading);
+  return (
+    <>
+      <OpSettings op={node.op} id={node.id} inputs={inputs} onChange={op => onChange({ ...node, op })} />
+      {params.length > 0 && (
+        <div className="composer-card">
+          <span className="composer-section-label">Spread a setting</span>
+          <div className="composer-row">
+            {params.map(p => (
+              <button key={p.param} type="button" className={'composer-chip' + (p.param === spreading ? ' on' : '')}
+                aria-pressed={p.param === spreading} onClick={() => setSpreading(p.param === spreading ? undefined : p.param)}>
+                {paramLabel(p.param)}
+              </button>
+            ))}
+          </div>
+          {param && (
+            <SpreadPeek
+              key={param.param}
+              op={node.op}
+              spread={defaultSpread(node.op.type, param.param)}
+              sampleInput={sampleInput}
+              onSpread={spread => onChange({ ...variationsSpread(allPerImage, node.op, spread), id: node.id })}
+            />
+          )}
+        </div>
+      )}
+    </>
+  );
+}
+
+/** Live previews of a spread on one image: what "Spread this" would make. */
+function SpreadPeek({ op, spread, sampleInput, onSpread }: {
+  op: PureRasterOperation, spread: Spread, sampleInput?: OffscreenCanvas, onSpread: (spread: Spread) => void,
+}) {
+  const values = spreadValuesFor(op, spread);
+  const [images, setImages] = React.useState<{ key: string, images: OffscreenCanvas[] }>();
+  const key = JSON.stringify([op, spread]);
+  React.useEffect(() => {
+    if (!sampleInput) return;
+    let cancelled = false;
+    Promise.all(values.map(v => canvasOps.apply({ ...op, [spread.param]: v } as PureRasterOperation, [sampleInput]).then(r => r[0])))
+      .then(result => { if (!cancelled) setImages({ key, images: result }); });
+    return () => { cancelled = true; };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [key, sampleInput]);
+  const current = images?.key === key ? images.images : undefined;
+  return (
+    <>
+      <div className="composer-grid" style={{ gridTemplateColumns: `repeat(${Math.min(5, values.length)}, minmax(0, 1fr))` }}>
+        {values.map((v, i) => (
+          <div key={v}>
+            {current?.[i] ? <CanvasView osc={current[i]} /> : <div className="composer-tile-blank" style={{ aspectRatio: 1, borderRadius: 8, background: 'var(--c-surface)' }} />}
+            <div className="composer-grid-label">{formatParamValue(spread.param, v)}</div>
+          </div>
+        ))}
+      </div>
+      <button type="button" className="composer-primary" onClick={() => onSpread(spread)}>Spread this</button>
+    </>
+  );
+}
+
+function DistributionEditor({ value, onChange }: { value: VariationDistribution, onChange: (d: VariationDistribution) => void }) {
+  return (
+    <div className="composer-card">
+      <span className="composer-section-label">Distribution</span>
+      <Segmented label="Distribution" value={value.type} onChange={type => onChange(
+        type === 'all-per-image' ? { type } : { type, order: { type: 'in-turn' } })}
+        options={[{ value: 'all-per-image', label: 'All per image' }, { value: 'one-per-image', label: 'One per image' }]} />
+      {value.type === 'one-per-image' && (
+        <div className="composer-row">
+          <div style={{ flexGrow: 1 }}>
+            <Segmented label="Order" value={value.order.type} onChange={order => onChange({
+              type: 'one-per-image', order: order === 'in-turn' ? { type: order } : { type: order, seed: newSeed() },
+            })} options={[{ value: 'in-turn', label: 'In turn' }, { value: 'shuffled', label: 'Shuffled' }]} />
+          </div>
+          {value.order.type === 'shuffled' && (
+            <button type="button" className="composer-secondary" onClick={() => onChange({ type: 'one-per-image', order: { type: 'shuffled', seed: newSeed() } })}>Reroll</button>
+          )}
+        </div>
+      )}
+    </div>
+  );
+}
+
+/** The operation a list could be spread over: its first operation child, if that operation has numeric settings. */
+const spreadableOp = (node: VariationsNode): PureRasterOperation | undefined => {
+  if (node.variants.type === 'spread') return node.variants.op;
+  const first = node.variants.children.find((c): c is OperationNode => c.kind === 'operation');
+  return first && numericParamsOf(first.op.type).length > 0 ? first.op : undefined;
+};
+
+/** Expand: a spread becomes the list of operations it generates. */
+const expand = (node: VariationsNode): VariationsNode => ({
+  ...node,
+  variants: { type: 'list', children: variantsOf(node, []).variants.map(v => ({ ...v.node, id: newId() })) },
+});
+
+function VariationsEditor(props: StepSheetProps & { node: VariationsNode }) {
+  const { node, onChange, onOpen, onAddVariant, inputs } = props;
+  const op = spreadableOp(node);
+  return (
+    <>
+      <Segmented label="Variants" value={node.variants.type} onChange={type => {
+        if (type === 'list') {
+          onChange(expand(node));
+        } else if (op) {
+          onChange({ ...node, variants: { type: 'spread', op, params: [defaultSpread(op.type, numericParamsOf(op.type)[0].param)] } });
+        }
+      }} options={[{ value: 'list', label: 'List' }, { value: 'spread', label: 'Spread', disabled: !op }]} />
+      <label className="composer-field">
+        Dimension name
+        <input className="composer-select" style={{ flexGrow: 1 }} placeholder="automatic" value={node.bind ?? ''}
+          onChange={e => onChange({ ...node, bind: e.target.value || undefined })} />
+      </label>
+      {node.variants.type === 'list' ? (
+        <div className="composer-card">
+          <span className="composer-section-label">Variants</span>
+          {node.variants.children.map((child, i) => (
+            <div key={child.id} className="composer-row" style={{ flexWrap: 'nowrap' }}>
+              <span className="mono" style={{ color: 'var(--c-muted)', width: 18 }}>{i + 1}</span>
+              <button type="button" className="composer-pill-main" onClick={() => onOpen(child.id)}>
+                <span className="composer-pill-name">{nodeLabel(child)}</span>
+              </button>
+              <button type="button" className="composer-icon-button composer-danger" aria-label={`Remove ${nodeLabel(child)}`}
+                onClick={() => onChange({ ...node, variants: { type: 'list', children: node.variants.type === 'list' ? node.variants.children.filter(c => c.id !== child.id) : [] } })}>
+                Remove
+              </button>
+            </div>
+          ))}
+          <button type="button" className="composer-chip add" style={{ alignSelf: 'flex-start' }} onClick={() => onAddVariant(node.id)}>+ Add a variant</button>
+        </div>
+      ) : (
+        <SpreadEditor node={node as VariationsNode & { variants: { type: 'spread' } }} onChange={onChange} inputs={inputs} />
+      )}
+      <DistributionEditor value={node.distribution} onChange={distribution => onChange({ ...node, distribution })} />
+    </>
+  );
+}
+
+function SpreadEditor({ node, onChange, inputs }: { node: VariationsNode & { variants: { type: 'spread' } }, onChange: (n: Node) => void, inputs?: () => Promise<OffscreenCanvas[]> }) {
+  const { op, params } = node.variants;
+  const available = numericParamsOf(op.type);
+  const setParams = (next: Spread[]) => onChange({ ...node, variants: { ...node.variants, params: next } });
+  const setParam = (i: number, s: Spread) => setParams(params.map((p, j) => j === i ? s : p));
+  const unused = available.filter(p => !params.some(s => s.param === p.param));
+  return (
+    <>
+      {params.map((spread, i) => {
+        const values = spreadValuesFor(op, spread);
+        const integral = numericParamOf(op.type, spread.param)?.integral ?? false;
+        const step = integral ? 1 : 0.1;
+        return (
+          <div key={spread.param} className="composer-card">
+            <div className="composer-row">
+              <select className="composer-select" aria-label="Setting to spread" value={spread.param}
+                onChange={e => setParam(i, { ...defaultSpread(op.type, e.target.value), bind: spread.bind })}>
+                {available.filter(p => p.param === spread.param || !params.some(s => s.param === p.param)).map(p =>
+                  <option key={p.param} value={p.param}>{paramLabel(p.param)}</option>)}
+              </select>
+              <span style={{ marginLeft: 'auto', fontSize: 12, color: 'var(--c-add)' }}>{values.length} members</span>
+              {params.length > 1 && (
+                <button type="button" className="composer-icon-button composer-danger" onClick={() => setParams(params.filter((_, j) => j !== i))}>Remove</button>
+              )}
+            </div>
+            <div className="composer-row">
+              <label className="composer-field">from <input type="number" step={step} value={spread.from} onChange={e => setParam(i, { ...spread, from: Number(e.target.value) })} /></label>
+              <label className="composer-field">to <input type="number" step={step} value={spread.to} onChange={e => setParam(i, { ...spread, to: Number(e.target.value) })} /></label>
+            </div>
+            <div className="composer-row" style={{ flexWrap: 'nowrap' }}>
+              <div style={{ flexGrow: 1 }}>
+                <Segmented label="Divide the range" value={spread.type} onChange={type => setParam(i, type === 'count'
+                  ? { type, param: spread.param, from: spread.from, to: spread.to, n: Math.max(2, values.length), bind: spread.bind }
+                  : { type, param: spread.param, from: spread.from, to: spread.to, by: Math.max(step, values.length > 1 ? Math.abs(values[1] - values[0]) : 1), bind: spread.bind })}
+                  options={[{ value: 'count', label: 'Count' }, { value: 'skip-by', label: 'Skip by' }]} />
+              </div>
+              <label className="composer-field">
+                <input aria-label={spread.type === 'count' ? 'Count' : 'Skip by'} type="number" min={spread.type === 'count' ? 1 : step} step={spread.type === 'count' ? 1 : step}
+                  value={spread.type === 'count' ? spread.n : spread.by}
+                  onChange={e => setParam(i, spread.type === 'count' ? { ...spread, n: Number(e.target.value) } : { ...spread, by: Number(e.target.value) })} />
+              </label>
+            </div>
+            <div className="mono" style={{ fontSize: 12, color: 'var(--c-muted)' }}>{values.map(v => formatParamValue(spread.param, v)).join(' · ')}</div>
+          </div>
+        );
+      })}
+      <div className="composer-row">
+        {unused.length > 0 && (
+          <button type="button" className="composer-chip dashed" onClick={() => setParams([...params, defaultSpread(op.type, unused[0].param)])}>+ Spread another setting</button>
+        )}
+        <button type="button" className="composer-chip" onClick={() => onChange(expand(node))}>Expand to a list</button>
+      </div>
+      <details>
+        <summary className="composer-section-label">Other {nodeLabel(operationNode(op))} settings</summary>
+        <OpSettings op={op} id={node.id} inputs={inputs} onChange={next => onChange({ ...node, variants: { ...node.variants, op: next } })} />
+      </details>
+    </>
+  );
+}
+
+const layoutDefaults: Record<'tile' | 'line' | 'crosstab', (dims: Dimension[]) => CombineMethod> = {
+  tile: () => ({ type: 'tile', primaryDimension: 'x', lineLength: 3 }),
+  line: () => ({ type: 'line', direction: 'right', squish: false }),
+  crosstab: dims => ({
+    type: 'crosstab',
+    rows: dims[Math.max(0, dims.length - 2)]?.id ?? 'photo',
+    columns: dims[dims.length - 1]?.id ?? 'photo',
+    labels: true,
+  }),
+};
+
+function DimensionSelect({ label, value, dimensions, onChange }: { label: string, value: string, dimensions: Dimension[], onChange: (id: string) => void }) {
+  return (
+    <label className="composer-field">
+      {label}
+      <select value={value} onChange={e => onChange(e.target.value)}>
+        {dimensions.map(d => <option key={d.id} value={d.id}>{d.name}</option>)}
+        {!dimensions.some(d => d.id === value) && <option value={value}>(missing)</option>}
+      </select>
+    </label>
+  );
+}
+
+function CombineEditor({ node, onChange, inputDimensions }: StepSheetProps & { node: CombineNode }) {
+  const { method } = node;
+  const kind = combineKindOf(method);
+  const setMethod = (m: CombineMethod) => onChange({ ...node, method: m });
+  const by = node.by;
+  return (
+    <>
+      <Segmented label="Combine kind" value={kind} onChange={k => setMethod(k === 'blend'
+        ? { type: 'stack', blendingMode: 'multiply' } : layoutDefaults.tile(inputDimensions))}
+        options={[{ value: 'layout', label: 'Layout' }, { value: 'blend', label: 'Blend' }, ]} />
+      {kind === 'layout' && (
+        <div className="composer-row">
+          {(['tile', 'line', 'crosstab'] as const).map(t => (
+            <button key={t} type="button" className={'composer-chip' + (method.type === t ? ' on' : '')} aria-pressed={method.type === t}
+              onClick={() => method.type !== t && setMethod(layoutDefaults[t](inputDimensions))}>
+              {t === 'tile' ? 'Tile' : t === 'line' ? 'Line' : 'Crosstab'}
+            </button>
+          ))}
+        </div>
+      )}
+      <div className="composer-card">
+        {method.type === 'tile' && (
+          <div className="composer-row">
+            <label className="composer-field">{method.primaryDimension === 'x' ? 'Columns' : 'Rows'}
+              <input type="number" min={1} value={method.lineLength} onChange={e => setMethod({ ...method, lineLength: Math.max(1, Number(e.target.value)) })} />
+            </label>
+            <Segmented label="Fill direction" value={method.primaryDimension} onChange={d => setMethod({ ...method, primaryDimension: d })}
+              options={[{ value: 'x', label: 'Across' }, { value: 'y', label: 'Down' }]} />
+          </div>
+        )}
+        {method.type === 'line' && (
+          <label className="composer-field">Direction
+            <select value={method.direction} onChange={e => setMethod({ ...method, direction: e.target.value as Direction })}>
+              {(['right', 'left', 'down', 'up'] as Direction[]).map(d => <option key={d} value={d}>{d}</option>)}
+            </select>
+          </label>
+        )}
+        {method.type === 'stack' && (
+          <label className="composer-field">Blend mode
+            <select value={method.blendingMode} onChange={e => setMethod({ ...method, blendingMode: e.target.value as typeof method.blendingMode })}>
+              {BlendingModes.map(m => <option key={m} value={m}>{m}</option>)}
+            </select>
+          </label>
+        )}
+        {method.type === 'crosstab' && (
+          <>
+            <DimensionSelect label="Rows" value={method.rows} dimensions={inputDimensions} onChange={rows => setMethod({ ...method, rows })} />
+            <DimensionSelect label="Columns" value={method.columns} dimensions={inputDimensions} onChange={columns => setMethod({ ...method, columns })} />
+            <label className="composer-field"><input type="checkbox" checked={method.labels} onChange={e => setMethod({ ...method, labels: e.target.checked })} /> Labels</label>
+          </>
+        )}
+      </div>
+      <div className="composer-card">
+        <span className="composer-section-label">By: one result per</span>
+        <div className="composer-row">
+          <button type="button" className={'composer-chip' + (by === undefined ? ' on' : '')} aria-pressed={by === undefined}
+            onClick={() => onChange({ ...node, by: undefined })}>Auto</button>
+          {inputDimensions.map(d => {
+            const on = by?.includes(d.id) ?? false;
+            return (
+              <button key={d.id} type="button" className={'composer-chip' + (on ? ' on' : '')} aria-pressed={on}
+                onClick={() => onChange({ ...node, by: on ? (by ?? []).filter(id => id !== d.id) : [...(by ?? []), d.id] })}>
+                {d.name}
+              </button>
+            );
+          })}
+        </div>
+        <span style={{ fontSize: 12, color: 'var(--c-muted)' }}>Auto: everything except the newest dimension{method.type === 'crosstab' ? ' (except rows and columns for a crosstab)' : ''}. None selected: one result for everything.</span>
+      </div>
+    </>
+  );
+}
+
+function PickEditor({ node, onChange, inputDimensions }: StepSheetProps & { node: PickNode }) {
+  const dimension = inputDimensions.find(d => d.id === node.dimension);
+  const selected = Array.isArray(node.members) ? node.members : [node.members];
+  const several = Array.isArray(node.members);
+  return (
+    <>
+      <DimensionSelect label="From" value={node.dimension} dimensions={inputDimensions}
+        onChange={id => onChange({ ...node, dimension: id, members: inputDimensions.find(d => d.id === id)?.members[0]?.key ?? '' })} />
+      <Segmented label="How many" value={several ? 'several' : 'one'} onChange={v => onChange({ ...node, members: v === 'several' ? selected : (selected[0] ?? '') })}
+        options={[{ value: 'one', label: 'One (removes the dimension)' }, { value: 'several', label: 'Several (keeps it)' }]} />
+      <div className="composer-row">
+        {(dimension?.members ?? []).map(m => {
+          const on = selected.includes(m.key);
+          return (
+            <button key={m.key} type="button" className={'composer-chip' + (on ? ' on' : '')} aria-pressed={on}
+              onClick={() => onChange({ ...node, members: several ? (on ? selected.filter(k => k !== m.key) : [...selected, m.key]) : m.key })}>
+              {m.label}
+            </button>
+          );
+        })}
+      </div>
+    </>
+  );
+}
+
+function PivotEditor({ node, onChange, inputDimensions }: StepSheetProps & { node: PivotNode }) {
+  const ordered = [
+    ...node.order.flatMap(id => inputDimensions.filter(d => d.id === id)),
+    ...inputDimensions.filter(d => !node.order.includes(d.id)),
+  ];
+  return (
+    <div className="composer-card">
+      <span className="composer-section-label">Order (tap to move first)</span>
+      <div className="composer-row">
+        {ordered.map((d, i) => (
+          <button key={d.id} type="button" className={'composer-chip' + (i === 0 ? ' on' : '')}
+            onClick={() => onChange({ ...node, order: [d.id, ...ordered.filter(o => o.id !== d.id).map(o => o.id)] })}>
+            {i + 1}. {d.name}
+          </button>
+        ))}
+      </div>
+    </div>
+  );
+}

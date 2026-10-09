@@ -40,10 +40,10 @@ describe('composition shapes', () => {
     const composition = warholDuotoneGrid();
     const { output, trace } = await inferComposition(composition, 3);
     const [levels, variations, tile] = composition.root.children;
-    expect(trace.get(levels.id)!.cells).toHaveLength(3);
-    expect(trace.get(variations.id)!.cells).toHaveLength(18);
-    expect(trace.get(variations.id)!.dimensions.map(d => d.name)).toEqual(['Photo', 'Gradient map']);
-    expect(trace.get(tile.id)!.cells).toHaveLength(3);
+    expect(trace.get(levels.id)!.output.cells).toHaveLength(3);
+    expect(trace.get(variations.id)!.output.cells).toHaveLength(18);
+    expect(trace.get(variations.id)!.output.dimensions.map(d => d.name)).toEqual(['Photo', 'Gradient map']);
+    expect(trace.get(tile.id)!.output.cells).toHaveLength(3);
     expect(output.dimensions.map(d => d.id)).toEqual([PHOTO]);
   });
 
@@ -67,7 +67,7 @@ describe('composition shapes', () => {
       variationsList(inTurn, ...angles),
       combine({ type: 'stack', blendingMode: 'multiply' }, [PHOTO]));
     const { trace, output } = await inferComposition(doc(root), 2);
-    expect(labels(trace.get(root.children[1].id)!)).toEqual(['1/R/15°', '1/G/75°', '1/B/0°', '2/R/15°', '2/G/75°', '2/B/0°']);
+    expect(labels(trace.get(root.children[1].id)!.output)).toEqual(['1/R/15°', '1/G/75°', '1/B/0°', '2/R/15°', '2/G/75°', '2/B/0°']);
     expect(output.cells).toHaveLength(2);
   });
 
