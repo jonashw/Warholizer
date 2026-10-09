@@ -80,7 +80,7 @@ export const removeImage = (fetcher: Fetcher, sha256: string) =>
   fetcher(`/api/images/${sha256}`, { method: 'DELETE' }).then(r => json(r));
 
 export type ShareState = { public: boolean, slug: string | null, includeSources: boolean, allowRemix: boolean };
-export type SavedComposition = { id: string, name: string, revision: number, preview: string | null, updatedAt: string, share: ShareState };
+export type SavedComposition = { id: string, name: string, revision: number, preview: string | null, card?: string | null, updatedAt: string, share: ShareState };
 
 export const listCompositions = (fetcher: Fetcher) =>
   fetcher('/api/compositions').then(r => json<{ compositions: SavedComposition[] }>(r)).then(r => r.compositions);

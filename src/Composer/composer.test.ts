@@ -669,3 +669,34 @@ describe('dither consolidation', () => {
       .toEqual({ type: 'dither', method: { type: 'ordered', matrixSize: 8, pixelSize: 2 }, levels: 3, monochrome: false });
   });
 });
+
+describe('effect fusion', () => {
+  it('fuses consecutive tone steps into one pass with the same result', async () => {
+    const steps = [
+      operationNode({ type: 'levels', black: 20 as never, white: 230 as never, gamma: 1.3 }),
+      operationNode({ type: 'invert' }),
+      operationNode({ type: 'posterize', levels: 5 }),
+    ];
+    const root = sequence(...steps);
+    const input = () => photoCube([bands(8, 1, [[0, 30, 60, 255], [90, 120, 150, 255], [180, 210, 240, 255], [255, 128, 7, 255]])]);
+    let curves = 0, applies = 0;
+    const counting = {
+      ...canvasOps,
+      apply: async (op: PureRasterOperation, inputs: OffscreenCanvas[]) => { applies++; return canvasOps.apply(op, inputs); },
+      curve: async (image: OffscreenCanvas, c: Uint8Array) => { curves++; return canvasOps.curve!(image, c); },
+    };
+    const fused = await evaluate(root, input(), counting);
+    expect([curves, applies]).toEqual([1, 0]);
+    const stepwise = await evaluate(root, input(), canvasOps, new Map());
+    for (let x = 0; x < 8; x++) {
+      expect(colorDistance(pixel(fused.cells[0].image, x, 0), pixel(stepwise.cells[0].image, x, 0))).toBeLessThanOrEqual(1);
+    }
+  });
+
+  it('does not fuse grouped steps, or across other steps', async () => {
+    const { fusible } = await import('./fusion');
+    expect(fusible(operationNode({ type: 'invert' }))).toBe(true);
+    expect(fusible({ kind: 'operation', id: 't', op: { type: 'tone', method: { type: 'auto', clip: 1 } } })).toBe(false);
+    expect(fusible(operationNode({ type: 'blur', pixels: 2 }))).toBe(false);
+  });
+});

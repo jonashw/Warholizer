@@ -72,6 +72,8 @@ export function LibrarySheet({ currentId, onOpen, onUseImages, onSave, onClose }
   const [compositions, setCompositions] = React.useState<SavedComposition[]>();
   const [images, setImages] = React.useState<LibraryImage[]>();
   const [selected, setSelected] = React.useState<string[]>([]);
+  const [query, setQuery] = React.useState('');
+  const [order, setOrder] = React.useState<'recent' | 'name'>('recent');
   const [problem, setProblem] = React.useState<string>();
   const [version, setVersion] = React.useState(0);
   const refresh = React.useCallback(() => setVersion(v => v + 1), []);
@@ -105,6 +107,11 @@ export function LibrarySheet({ currentId, onOpen, onUseImages, onSave, onClose }
   }
 
   const chosen = (images ?? []).filter(i => selected.includes(i.sha256));
+  const q = query.trim().toLowerCase();
+  const shownCompositions = (compositions ?? [])
+    .filter(c => !q || c.name.toLowerCase().includes(q))
+    .sort((a, b) => order === 'name' ? a.name.localeCompare(b.name) : b.updatedAt.localeCompare(a.updatedAt));
+  const shownImages = (images ?? []).filter(i => !q || i.fileName.toLowerCase().includes(q));
   return (
     <>
       <div className="composer-handle" />
@@ -116,16 +123,24 @@ export function LibrarySheet({ currentId, onOpen, onUseImages, onSave, onClose }
       <Segmented label="Library" value={tab} onChange={setTab}
         options={[{ value: 'compositions', label: 'Compositions' }, { value: 'images', label: 'Images' }]} />
       {problem && <span className="composer-hint" style={{ color: 'var(--c-danger)' }}>{problem}</span>}
+      <div className="composer-row" style={{ flexWrap: 'nowrap' }}>
+        <input type="search" className="composer-select" style={{ flexGrow: 1 }} aria-label={`Search ${tab}`}
+          placeholder={tab === 'compositions' ? 'Search compositions' : 'Search images by name'} value={query} onChange={e => setQuery(e.target.value)} />
+        {tab === 'compositions' && (
+          <Segmented label="Sort" value={order} onChange={setOrder} options={[{ value: 'recent', label: 'Recent' }, { value: 'name', label: 'A–Z' }]} />
+        )}
+      </div>
       {tab === 'compositions' ? (
         <>
           <button type="button" className="composer-primary" onClick={onSave}>{currentId ? 'Save this composition' : 'Save this composition to the library'}</button>
           {!compositions && <span className="composer-hint">Loading…</span>}
           {compositions?.length === 0 && <span className="composer-hint">Nothing saved yet.</span>}
+          {compositions && compositions.length > 0 && shownCompositions.length === 0 && <span className="composer-hint">No composition matches "{query}".</span>}
           <div className="composer-library-grid">
-            {compositions?.map(c => (
+            {shownCompositions.map(c => (
               <div key={c.id} className={'composer-library-card' + (c.id === currentId ? ' current' : '')}>
                 <button type="button" className="composer-library-open" onClick={() => onOpen(c.id)}>
-                  {c.preview ? <Thumbnail fetcher={fetcher} sha256={c.preview} hasThumbnail /> : <div className="composer-library-image" />}
+                  {c.card || c.preview ? <Thumbnail fetcher={fetcher} sha256={(c.card ?? c.preview)!} hasThumbnail /> : <div className="composer-library-image" />}
                   <strong>{c.name}</strong>
                   <span>{new Date(c.updatedAt).toLocaleString()} · revision {c.revision}</span>
                   {c.share.public && <span className="composer-public-badge">Public link on</span>}
@@ -144,7 +159,7 @@ export function LibrarySheet({ currentId, onOpen, onUseImages, onSave, onClose }
         <>
           <span className="composer-hint">{images ? `${images.length} images` : 'Loading…'} · originals kept exactly as uploaded</span>
           <div className="composer-library-images">
-            {images?.map(i => {
+            {shownImages.map(i => {
               const on = selected.includes(i.sha256);
               return (
                 <button key={i.sha256} type="button" className={'composer-library-tile' + (on ? ' on' : '')} aria-pressed={on} title={i.fileName}

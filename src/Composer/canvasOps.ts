@@ -120,4 +120,15 @@ export const canvasOps: ImageOps<OffscreenCanvas> = {
   compose: async (plan, images) => drawPlan(plan, images),
   average: async (images, kind) => averageImages(images, kind),
   frames: async images => framesOf(images),
+  curve: async (image, curve) => {
+    const out = new OffscreenCanvas(image.width, image.height);
+    if (image.width === 0 || image.height === 0) return out;
+    const data = image.getContext('2d')!.getImageData(0, 0, image.width, image.height);
+    const d = data.data;
+    for (let i = 0; i < d.length; i += 4) {
+      d[i] = curve[d[i]]; d[i + 1] = curve[d[i + 1]]; d[i + 2] = curve[d[i + 2]];
+    }
+    out.getContext('2d')!.putImageData(data, 0, 0);
+    return out;
+  },
 };

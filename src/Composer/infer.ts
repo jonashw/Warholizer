@@ -60,6 +60,7 @@ export const placeholderOps: ImageOps<Placeholder> = {
   size: image => [image.width, image.height],
   compose: async plan => placeholder(plan.width, plan.height),
   average: async images => placeholder(images[0].width, images[0].height),
+  curve: async image => placeholder(image.width, image.height),
   frames: async images => {
     const width = Math.max(...images.map(i => i.width));
     const height = Math.max(...images.map(i => i.height));

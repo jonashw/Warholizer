@@ -310,7 +310,7 @@ sequence
 | Version | Scope |
 |---|---|
 | **v1** | Composer route; Composition document; types, canonical JSON, read-only text view; Sequence; Variations with all three distributions; Variations as **List** or **Spread** (Count, Skip by) with Expand and long-press "Spread this"; dimension binders; Effects and Separate operations from the registry; **Tone** (manual levels, auto-levels, match histogram; group-aware via *by*); Combine: Layout (Tile, Line, Print sheet, Crosstab with labels) and Blend (Stack) with *by*; Pick; Pivot; live dimension and count inference; seeds and Reroll; the Warhol duotone grid as a sample Composition |
-| **v1.1** | Built 2026-10-09: Combine · Animate (frames in cube order, GIF export), Blend · Mean and Median, shared-palette Quantize (group-aware), Layout imposition (8-page mini-zine). Still to do: Dither consolidation; geometric Spread spacing; caching, Pick pushdown, effect fusion |
+| **v1.1** | Built 2026-10-09: Combine · Animate (frames in cube order, GIF export), Blend · Mean and Median, shared-palette Quantize (group-aware), Layout imposition (8-page mini-zine). Also built: Dither consolidation (ordered | error diffusion; the older operations remain for older documents), geometric Spread spacing (Count with even ratios), caching (previews) and effect fusion (exports). Still to do: Pick pushdown |
 | **v1.2** (in order) | Length (px, relative, physical; lpi for halftone) and plan-before-render resolution; Formats, frames and the Format step; Layout (Flow and ByDimensions with nested headers, fit, align, patterns, pages with both distributions and overflow), replacing Tile, Line, Crosstab and print set in Composer; one-image-per-variant; multi-page PDF and export settings; recipes: Merch pack, shared seed, role swap |
 | **v2** | Per-cell measures and data-driven arrangement: constraint-based selection (pick where, e.g. best contrast per photo), sort by (e.g. brightness), assignment by measurement (e.g. light photos get dark palettes), **Classify** (a derived dimension from a measurement, e.g. sort photos into brightness or hue buckets for a crosstab); **Spread · Distinct** (render many values, keep the *n* most visually different, so steps land where the image visibly changes); editable text with round-tripping |
 
@@ -319,7 +319,7 @@ sequence
 1. Dimension inference: show dimensions and counts at every step without rendering; catch invalid references.
 2. Incremental, content-addressed caching (shared with ADR 0001): re-render only what changed. Built 2026-10-09 for previews: step outputs keyed by the step and the exact images arriving at it; each render keeps only what it used. Exports render one photo at a time when no step looks across photos.
 3. Query-style rewrites: Pick pushdown, hoisting shared effects above Variations, deduplicating identical children.
-4. Effect fusion: consecutive effects compile into one GPU pass.
+4. Effect fusion: consecutive effects compile into one GPU pass. Built 2026-10-09 for exports as curve fusion: runs of per-channel tone steps (Invert, Levels, Posterize, manual Tone) compose into one lookup table, one pass per image.
 5. Resolution independence: evaluate at preview resolution while editing, full resolution for output.
 6. The filter gallery as a cube view: a Spread plus a Crosstab; systematic exploration across any parameters and photos.
 7. Text form and round-tripping.

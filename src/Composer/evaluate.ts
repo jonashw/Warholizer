@@ -4,6 +4,7 @@ import { PageBox, PagePlan, planCrosstab, planFlow, planMiniZine, withReading } 
 import { isGroupAware } from "../Warholizer/RasterOperations/PureRasterOperation/registry";
 import { PureRasterOperation } from "../Warholizer/RasterOperations/PureRasterOperation/types";
 import { childrenOf } from "./tree";
+import { composeCurves, Curve, fusible } from "./fusion";
 import { dealShuffled, groupCells, normalize, unionDimensions, uniqueName } from "./cube";
 import { isSeparation, listDimension, operationLabel, separationDimension } from "./labels";
 import { formatSpreadValue, spreadSetting, spreadValuesFor } from "./spread";
@@ -26,6 +27,8 @@ export type ImageOps<Img> = {
   average: (images: Img[], kind: 'mean' | 'median') => Promise<Img>,
   /** The images as animation frames: one common size, each image contained and centered. */
   frames: (images: Img[]) => Promise<Img[]>,
+  /** One per-channel curve applied in a single pass (fused tone steps). */
+  curve?: (image: Img, curve: Curve) => Promise<Img>,
 };
 
 /** Settings that come from the composition rather than from any one step. */
@@ -118,15 +121,37 @@ export const evaluate = async <Img>(
 const evaluateNode = <Img>(node: Node, input: Cube<Img>, ops: ImageOps<Img>, trace: Trace<Img> | undefined, options: EvaluateOptions<Img>): Promise<Cube<Img>> => {
   switch (node.kind) {
     case 'operation': return evaluateOperation(node, input, ops, options);
-    case 'sequence': return node.children.reduce(
-      async (cube, child) => evaluate(child, await cube, ops, trace, options),
-      Promise.resolve(input));
+    case 'sequence': return evaluateSequence(node.children, input, ops, trace, options);
     case 'variations': return evaluateVariations(node, input, ops, trace, options);
     case 'combine': return evaluateCombine(node, input, ops, options);
     case 'format': return Promise.resolve({ ...input, cells: input.cells.map(c => ({ ...c, frame: node.format })) });
     case 'pick': return Promise.resolve(evaluatePick(node, input));
     case 'pivot': return Promise.resolve(evaluatePivot(node, input));
   }
+};
+
+/**
+ * A sequence, step by step. Without a trace (exports), runs of per-channel tone steps are fused
+ * into one curve and applied in one pass per image; with a trace (previews), every step keeps
+ * its own output for peeks.
+ */
+const evaluateSequence = async <Img>(children: Node[], input: Cube<Img>, ops: ImageOps<Img>, trace: Trace<Img> | undefined, options: EvaluateOptions<Img>): Promise<Cube<Img>> => {
+  let cube = input;
+  for (let i = 0; i < children.length; i++) {
+    let end = i;
+    if (!trace && ops.curve) {
+      while (end < children.length && fusible(children[end])) end++;
+    }
+    if (end - i >= 2) {
+      const curve = composeCurves(children.slice(i, end).map(n => (n as OperationNode).op));
+      const cells = await Promise.all(cube.cells.map(async cell => ({ ...cell, image: await ops.curve!(cell.image, curve) })));
+      cube = { dimensions: cube.dimensions, cells };
+      i = end - 1;
+    } else {
+      cube = await evaluate(children[i], cube, ops, trace, options);
+    }
+  }
+  return cube;
 };
 
 /** `op` with its sizes in this cell's pixels: preview scale, DPI and the image's short side. */

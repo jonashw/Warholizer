@@ -141,7 +141,7 @@ export const readImage = async ({ repo, store }: Context, user: User, sha256: st
 export type SaveRequest = { name: string, document: unknown, inputs: string[], preview?: string, social?: string };
 
 const summary = (c: CompositionRow) => ({
-  id: c.id, name: c.name, revision: c.revision, preview: c.preview_sha256, updatedAt: c.updated_at, createdAt: c.created_at,
+  id: c.id, name: c.name, revision: c.revision, preview: c.preview_sha256, card: c.social_sha256, updatedAt: c.updated_at, createdAt: c.created_at,
   share: { public: c.public_slug !== null, slug: c.public_slug, includeSources: c.share_sources, allowRemix: c.share_remix },
 });
 

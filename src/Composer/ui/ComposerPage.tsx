@@ -209,125 +209,6 @@ export default function ComposerPage() {
     return () => window.removeEventListener('keydown', onKey);
   }, []);
 
-  React.useEffect(() => {
-    const params = new URLSearchParams(window.location.search);
-    const clean = () => window.history.replaceState(null, '', '/composer');
-    const samples = () => loadSampleImages([sampleImageUrls.warhol, sampleImageUrls.banana, sampleImageUrls.soupCan])
-      .then(images => setPhotos(images.map((image, i) => asPhoto(image, ['Warhol', 'Banana', 'Soup can'][i]))));
-    if (params.has('shared')) {
-      // Photos shared from another app arrive through the service worker; they replace the samples.
-      takeSharedPhotos().then(shared => { clean(); if (shared.length) setPhotos(shared); else samples(); });
-    } else if (params.get('open')) {
-      const id = params.get('open')!;
-      clean();
-      openCloud(id).catch(() => samples());
-    } else if (params.get('try')) {
-      // Try a shared composition with your own photos: its steps, these photos, nothing saved.
-      const slug = params.get('try')!;
-      clean();
-      samples();
-      openPublic(slug).then(shared => {
-        setComposition(migrateComposition(shared.document));
-        setSaved(undefined);
-        setStatus('Trying a shared composition: tap + to use your own photos.');
-      }).catch(e => setStatus(String(e.message ?? e)));
-    } else {
-      samples();
-    }
-    const onPaste = (event: ClipboardEvent) => {
-      const file = [...(event.clipboardData?.items ?? [])].find(i => i.kind === 'file')?.getAsFile();
-      if (file) photoFromBlob(file, file.name || 'pasted photo').then(photo => setPhotos(p => [...p, photo]));
-    };
-    window.addEventListener('paste', onPaste);
-    return () => window.removeEventListener('paste', onPaste);
-    // Runs once, on arrival.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
-
-  /** Signed in, new photos go to the library in the background, original bytes as given. */
-  React.useEffect(() => {
-    if (!signedIn) return;
-    const pending = photos.filter(p => p.source && !p.sha256);
-    if (pending.length === 0) return;
-    let cancelled = false;
-    (async () => {
-      for (const photo of pending) {
-        if (cancelled) return;
-        try {
-          const sha256 = await uploadImage(fetcher, photo.source!, photo.full, photo.name);
-          setPhotos(ps => ps.map(p => p === photo ? { ...p, sha256 } : p));
-        } catch (e) {
-          if (e instanceof SignInNeeded) auth.logout();
-          return;
-        }
-      }
-    })();
-    return () => { cancelled = true; };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [photos, signedIn]);
-
-  const handleCloudError = (e: unknown) => {
-    if (e instanceof SignInNeeded) {
-      auth.logout();
-      setStatus('Sign in again to continue.');
-      setSheet({ type: 'library' });
-    } else {
-      setStatus(String((e as Error).message ?? e));
-    }
-  };
-
-  async function openCloud(id: string) {
-    setStatus('Opening…');
-    try {
-      const opened = await openComposition(fetcher, id);
-      const blobs = await Promise.all(opened.inputs.map(sha => fetchImage(fetcher, sha, 'original')));
-      const loaded = await Promise.all(blobs.map((b, i) => photoFromBlob(b, `photo ${i + 1}`, opened.inputs[i])));
-      setComposition(migrateComposition(opened.document));
-      setPhotos(loaded);
-      setSaved(opened);
-      setStatus(undefined);
-      setSheet(undefined);
-    } catch (e) {
-      handleCloudError(e);
-      throw e;
-    }
-  }
-
-  const saveToCloud = async () => {
-    if (!signedIn) { setSheet({ type: 'library' }); return; }
-    setStatus('Saving…');
-    try {
-      // Every input in the library (samples are stored as PNG), then a small preview of the first result.
-      const inputs: string[] = [];
-      for (const photo of photos) {
-        const source = photo.source ?? await photo.full.convertToBlob({ type: 'image/png' });
-        const sha256 = photo.sha256 ?? await uploadImage(fetcher, source, photo.full, photo.name);
-        inputs.push(sha256);
-        if (!photo.sha256) setPhotos(ps => ps.map(p => p === photo ? { ...p, sha256, source } : p));
-      }
-      const first = rendered?.output.cells[0]?.image;
-      const preview = first ? await uploadImage(fetcher, await jpegOf(first, 800, 0.82), first, 'preview', false) : undefined;
-      const card = first ? await linkCardOf(first, composition.name) : undefined;
-      const social = card ? await uploadImage(fetcher, card.blob, card.canvas, 'link preview', false) : undefined;
-      const result = await saveComposition(fetcher, saved?.id, composition, inputs, preview, social);
-      setSaved(result);
-      setStatus(`Saved · revision ${result.revision}`);
-    } catch (e) {
-      handleCloudError(e);
-    }
-  };
-
-  const useLibraryImages = async (images: LibraryImage[], mode: 'replace' | 'add') => {
-    setStatus('Loading photos…');
-    try {
-      const loaded = await Promise.all(images.map(async i => photoFromBlob(await fetchImage(fetcher, i.sha256, 'original'), i.fileName, i.sha256)));
-      setPhotos(ps => mode === 'replace' ? loaded : [...ps, ...loaded]);
-      setStatus(undefined);
-      setSheet(undefined);
-    } catch (e) {
-      handleCloudError(e);
-    }
-  };
 
   // Dimensions and counts, instantly, without pixels.
   const [inferred, setInferred] = React.useState<{ trace: Trace<Placeholder>, output: Cube<Placeholder>, root: Node, photos: Photo[] }>();
@@ -370,6 +251,147 @@ export default function ComposerPage() {
     return () => { cancelled = true; clearTimeout(timer); };
   }, [root, renderPhotos, options, previewFactor, cache]);
   const busy = !rendered || rendered.root !== root || rendered.photos !== renderPhotos;
+
+  /** Signed in, new photos go to the library in the background, original bytes as given. */
+  React.useEffect(() => {
+    if (!signedIn) return;
+    const pending = photos.filter(p => p.source && !p.sha256);
+    if (pending.length === 0) return;
+    let cancelled = false;
+    (async () => {
+      for (const photo of pending) {
+        if (cancelled) return;
+        try {
+          const sha256 = await uploadImage(fetcher, photo.source!, photo.full, photo.name);
+          setPhotos(ps => ps.map(p => p === photo ? { ...p, sha256 } : p));
+        } catch (e) {
+          if (e instanceof SignInNeeded) auth.logout();
+          return;
+        }
+      }
+    })();
+    return () => { cancelled = true; };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [photos, signedIn]);
+
+  const handleCloudError = (e: unknown) => {
+    if (!navigator.onLine) {
+      setPendingSave(true);
+      setStatus('Offline: this will save when you are back online.');
+    } else if (e instanceof SignInNeeded) {
+      auth.logout();
+      setStatus('Sign in again to continue.');
+      setSheet({ type: 'library' });
+    } else {
+      setStatus(String((e as Error).message ?? e));
+    }
+  };
+
+  async function openCloud(id: string) {
+    setStatus('Opening…');
+    try {
+      const opened = await openComposition(fetcher, id);
+      const blobs = await Promise.all(opened.inputs.map(sha => fetchImage(fetcher, sha, 'original')));
+      const loaded = await Promise.all(blobs.map((b, i) => photoFromBlob(b, `photo ${i + 1}`, opened.inputs[i])));
+      setComposition(migrateComposition(opened.document));
+      setPhotos(loaded);
+      setSaved(opened);
+      setStatus(undefined);
+      setSheet(undefined);
+    } catch (e) {
+      handleCloudError(e);
+      throw e;
+    }
+  }
+
+  // Offline, a save waits for the connection and then runs with the composition as it is by then.
+  const [pendingSave, setPendingSave] = React.useState(false);
+  const saveToCloud = async () => {
+    if (!signedIn) { setSheet({ type: 'library' }); return; }
+    if (!navigator.onLine) {
+      setPendingSave(true);
+      setStatus('Offline: this will save when you are back online.');
+      return;
+    }
+    setPendingSave(false);
+    setStatus('Saving…');
+    try {
+      // Every input in the library (samples are stored as PNG), then a small preview of the first result.
+      const inputs: string[] = [];
+      for (const photo of photos) {
+        const source = photo.source ?? await photo.full.convertToBlob({ type: 'image/png' });
+        const sha256 = photo.sha256 ?? await uploadImage(fetcher, source, photo.full, photo.name);
+        inputs.push(sha256);
+        if (!photo.sha256) setPhotos(ps => ps.map(p => p === photo ? { ...p, sha256, source } : p));
+      }
+      const first = rendered?.output.cells[0]?.image;
+      const preview = first ? await uploadImage(fetcher, await jpegOf(first, 800, 0.82), first, 'preview', false) : undefined;
+      const card = first ? await linkCardOf(first, composition.name) : undefined;
+      const social = card ? await uploadImage(fetcher, card.blob, card.canvas, 'link preview', false) : undefined;
+      const result = await saveComposition(fetcher, saved?.id, composition, inputs, preview, social);
+      setSaved(result);
+      setStatus(`Saved · revision ${result.revision}`);
+    } catch (e) {
+      handleCloudError(e);
+    }
+  };
+
+  React.useEffect(() => {
+    if (!pendingSave) return;
+    const retry = () => { saveToCloud(); };
+    window.addEventListener('online', retry);
+    return () => window.removeEventListener('online', retry);
+    // saveToCloud reads the latest state when it runs.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [pendingSave]);
+
+  const useLibraryImages = async (images: LibraryImage[], mode: 'replace' | 'add') => {
+    setStatus('Loading photos…');
+    try {
+      const loaded = await Promise.all(images.map(async i => photoFromBlob(await fetchImage(fetcher, i.sha256, 'original'), i.fileName, i.sha256)));
+      setPhotos(ps => mode === 'replace' ? loaded : [...ps, ...loaded]);
+      setStatus(undefined);
+      setSheet(undefined);
+    } catch (e) {
+      handleCloudError(e);
+    }
+  };
+
+  React.useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    const clean = () => window.history.replaceState(null, '', '/composer');
+    const samples = () => loadSampleImages([sampleImageUrls.warhol, sampleImageUrls.banana, sampleImageUrls.soupCan])
+      .then(images => setPhotos(images.map((image, i) => asPhoto(image, ['Warhol', 'Banana', 'Soup can'][i]))));
+    if (params.has('shared')) {
+      // Photos shared from another app arrive through the service worker; they replace the samples.
+      takeSharedPhotos().then(shared => { clean(); if (shared.length) setPhotos(shared); else samples(); });
+    } else if (params.get('open')) {
+      const id = params.get('open')!;
+      clean();
+      Promise.resolve().then(() => openCloud(id)).catch(() => samples());
+    } else if (params.get('try')) {
+      // Try a shared composition with your own photos: its steps, these photos, nothing saved.
+      const slug = params.get('try')!;
+      clean();
+      samples();
+      openPublic(slug).then(shared => {
+        setComposition(migrateComposition(shared.document));
+        setSaved(undefined);
+        setStatus('Trying a shared composition: tap + to use your own photos.');
+      }).catch(e => setStatus(String(e.message ?? e)));
+    } else {
+      samples();
+    }
+    const onPaste = (event: ClipboardEvent) => {
+      const file = [...(event.clipboardData?.items ?? [])].find(i => i.kind === 'file')?.getAsFile();
+      if (file) photoFromBlob(file, file.name || 'pasted photo').then(photo => setPhotos(p => [...p, photo]));
+    };
+    window.addEventListener('paste', onPaste);
+    return () => window.removeEventListener('paste', onPaste);
+    // Runs once, on arrival.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
 
   // Suggestions and checks from the composition's structure (docs/knowledge/usage-patterns.md).
   const [dismissed, setDismissed] = React.useState<string[]>([]);
