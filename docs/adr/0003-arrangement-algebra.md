@@ -16,7 +16,7 @@ The Pure Editor arranges operations with *applicators* (`pipe`, `flatMap`, `zip`
 6. Empty containers and `enabled` flags are handled inconsistently.
 7. Words like "per image", "pairwise", and "group by image or by operation first" are all about **which dimension** something acts along, but the model has no dimensions: images flow as a flat list.
 
-The last point is the key. After a fan-out, every image has coordinates (which photo, which variation): the data is a **cube**, and OLAP already has precise vocabulary for it (drill-down, roll-up, slice, dice, pivot).
+The last point is the key. After a fan-out, every image has coordinates (which photo, which variation): the data is a **cube**, and OLAP already has precise vocabulary for it (drill-down, roll-up, slice, dice, pivot). Composer keeps the structure but uses artist-friendly verbs: drill-downs are **Separate** and roll-ups are **Combine**.
 
 The Pure Editor and graph editor stay as they are. The cube model gets its own editor, **Composer**, built on the same image operations and engine (which were deliberately kept separate from how they are combined).
 
@@ -37,7 +37,7 @@ A **Composition** is the Composer document: a tree of **nodes**. A node is an **
 | Composition | Meaning | FP |
 |---|---|---|
 | **Sequence** | Each child receives the previous child's output. The document root is a Sequence. | composition |
-| **Variations** (*distribution*) | Each child receives the incoming cube; outputs gain a new dimension whose members are the children. | fanout (cross product), or zip with cycling or shuffling |
+| **Variations** (*distribution*) | Each variant receives the incoming cube; outputs gain a new dimension whose members are the variants. The variants are a **List** of child nodes or a **Spread** of one operation's parameter (see [Spread](#spread)). | fanout (cross product), or zip with cycling or shuffling |
 
 `distribution: VariationDistribution` is one of:
 
@@ -54,13 +54,13 @@ The notation nests like the type constructors (`OnePerImage of Order`, `Shuffled
 | Category | Signature | Dimensions | Operations |
 |---|---|---|---|
 | **Effects** | image → image | unchanged | invert, levels, halftone, crop, rotate, gradient map, … |
-| **Drill-downs** | image → parts | adds one (Channel, Ink, Part, Color) | split, RGB channels, separate colors, CMYK |
-| **Roll-ups**, *by* dimensions | images → image per group | keeps only the *by* dimensions | tile, line, stack, print sheet, **crosstab**; v1.1: **mean**, **median** |
+| **Separate** | image → parts | adds one (Channel, Ink, Part, Color) | split, RGB channels, separate colors, CMYK |
+| **Combine**, *by* dimensions | images → image per group | keeps only the *by* dimensions | **Layout**: tile, line, print sheet, **crosstab**; **Blend**: stack (blend mode); v1.1: mean, median; **Animate** (v1.1) |
 | **Pick** | cube → sub-cube | `= member` (slice) removes the dimension; `in [members]` (dice) keeps it, even for a list of one | pick |
 | **Pivot** | cube → cube | reorders dimensions | pivot |
 
-- **Roll-up grouping:** cells are grouped by the *by* dimensions (like SQL `GROUP BY`); each group becomes one image, combined in cube order. `by: []` makes one group. Default: all dimensions except the newest. Example phrasing: "Tile by Photo".
-- A roll-up node is exactly one of these kinds (they share the *by* control); separate roll-up nodes compose, e.g. `mean by: [photo, gradient map]` then `tile by: [photo]`.
+- **Combine grouping:** cells are grouped by the *by* dimensions (like SQL `GROUP BY`); each group becomes one image (or one animation), combined in cube order. `by: []` makes one group. Default: all dimensions except the newest. Example phrasing: "Tile by Photo".
+- **Combine** is a sum type of three kinds, each with its own methods: **Layout** (place images side by side: tile, line, print sheet, crosstab), **Blend** (overlay images into one: stack with a blend mode, mean, median), and **Animate** (images become frames). One Combine node is one kind and method (they share the *by* control); Combine nodes compose, e.g. `mean by: [photo, gradient map]` then `tile by: [photo]`.
 - **Crosstab:** a two-dimensional tile with **rows** = one dimension and **columns** = another, labeled with member names (a pivot table of images).
 - Copies, Noop, and Void are not Composer operations: copies is Variations of identical children; void is a Pick of nothing.
 
@@ -86,18 +86,18 @@ and Reference = FirstInGroup | GroupMean | Photo of int
 
 Match histogram keeps each pixel's brightness rank and assigns the reference's brightness at that rank. Auto-levels and Match histogram are **group-aware**: with *by*, statistics are computed per group ("Match histogram by Photo" makes each photo's variations consistent with each other). All three methods compile to a per-channel 256-entry curve applied by one GPU kernel.
 
-Other operations following the principle: **Halftone** (`smooth` | `classic`), **Dither** (`ordered` with Bayer size | `error-diffusion` with Floyd–Steinberg or Atkinson; consolidates two current operations), and the **roll-up kind** (tile | line | stack | print sheet | crosstab | mean | median | animate).
+Other operations following the principle: **Halftone** (`smooth` | `classic`), **Dither** (`ordered` with Bayer size | `error-diffusion` with Floyd–Steinberg or Atkinson; consolidates two current operations), **Combine** (Layout | Blend | Animate), and **Spread** (Count | Skip by).
 
 ### Dimension names
 
 - Variations of one operation type: named after the operation; members labeled by the differing parameter (Gradient map: navy → red, …; Halftone: 15°, 75°, 0°).
 - Variations of different operations: **Variation**, members labeled by each child (Invert, Grayscale; a nested sequence by its contents).
-- Drill-downs name their dimension (Channel: R, G, B; Ink: C, M, Y, K; Part; Color).
+- Separate operations name their dimension (Channel: R, G, B; Ink: C, M, Y, K; Part; Color).
 - Identical children are numbered; a repeated dimension name gets a suffix (Gradient map 2).
 - Dimensions are identified internally by the node that created them, so they can be renamed without breaking *by* or Pick references.
-- A Sweep or Variations may **bind** its dimension's name explicitly, like a comprehension variable: `sweep cell <- halftone.cell range(4, 16, steps: 4)`. Without a binder, the derived name applies; writing a binder is the rename.
+- Variations (List or Spread) may **bind** its dimension's name explicitly, like a comprehension variable: `spread cell <- halftone.cell 4..16 count: 4`. Without a binder, the derived name applies; writing a binder is the rename.
 
-Sweeps and roll-ups read as comprehensions: two sweeps then a crosstab is `[halftone(photo, cell, angle) | photo <- photos, cell <- cells, angle <- angles] |> groupBy photo |> pivot rows: cell, columns: angle`. Dimensions are the comprehension's bound variables.
+Spreads and Combines read as comprehensions: a two-parameter spread then a crosstab is `[halftone(photo, cell, angle) | photo <- photos, cell <- cells, angle <- angles] |> groupBy photo |> pivot rows: cell, columns: angle`. Dimensions are the comprehension's bound variables.
 
 ### Randomness
 
@@ -114,21 +114,20 @@ All randomness is seeded and therefore deterministic, testable, and cacheable:
   type Node =
     | Operation of Operation
     | Sequence of Node list
-    | Variations of distribution: VariationDistribution * Node list
-    | Sweep of op: Operation * parameters: (string * Values) list * distribution: VariationDistribution
+    | Variations of distribution: VariationDistribution * variants: Variants
+  and Variants =
+    | List of Node list
+    | Spread of op: Operation * parameters: Spread list
+  and Spread =
+    | Count of param: string * range: Range * n: int
+    | SkipBy of param: string * range: Range * by: float
+    (* roadmap: | Distinct of param: string * range: Range * n: int *)
+  and Range = { from: float; to: float }
   and VariationDistribution =
     | AllPerImage
     | OnePerImage of Order
   and Order = InTurn | Shuffled of seed: int
-  and Values =
-    | Range of from: float * to: float * steps: int * spacing: Spacing
-    | List of Value list
-  and Spacing = Linear | Geometric
   ```
-
-### Sweep
-
-A **Sweep** generates Variations of one operation across values of one or more of its parameters (values: a range with linear or geometric spacing, or a list, which covers non-numeric parameters such as shapes or palettes). It stays a Sweep in the document, so editing the range regenerates its children; **Expand** converts it to plain Variations. Its dimension is named after the operation and parameter (*Halftone cell*), with the values as members; with several parameters it adds one dimension per parameter (their cross product). Distributions apply as for Variations.
 - **Storage:** canonical JSON (the formula format of ADR 0001).
 - **Text view:** indentation-based s-expressions with named arguments, one node per line, children indented:
   ```
@@ -144,12 +143,32 @@ A **Sweep** generates Variations of one operation across values of one or more o
     tile by: [photo] columns: 3
   ```
 
+### Spread
+
+Variations has two forms of variants:
+
+- **List:** child nodes chosen one by one (`variations all-per-image` with children). A list may also hold values of one parameter that has choices rather than a range (halftone shape: round, square, line); the editor's **All** chip lists every choice.
+- **Spread:** one operation, varied across a numeric range of one or more of its parameters. **Spread is itself a sum type**, by how the range is divided:
+
+| Spread | Meaning | Example (0°..90°) |
+|---|---|---|
+| `count n` | *n* evenly spaced values; always includes both ends | count 5: 0, 22.5, 45, 67.5, 90 |
+| `skip-by d` | every *d*, starting at the low end, up to the high end | skip-by 15: 0, 15, 30, 45, 60, 75, 90 |
+
+- Each variant carries only the fields it uses. Spread covers numeric parameters only; parameters with choices use List.
+- With several parameters, a Spread adds one dimension per parameter (their cross product). Its dimension is named after the operation and parameter (*Halftone cell*), with the values as members.
+- A Spread stays a Spread in the document, so editing its range regenerates its variants; **Expand** converts it to a List.
+- **Optional when written, complete when saved.** The editor and text view accept `spread halftone angle` alone: the range defaults to the parameter's useful range from the registry (`sweeps`) and the division to `count 5`. The saved document always stores the resolved range and division, so a later change to registry defaults never alters a saved or shared composition. Canonical JSON is tagged by variant: `{ "spread": "count", "param": "angle", "range": [0, 90], "n": 5 }`.
+- **Editor:** long-press any slider in an effect's sheet for a peek of a default spread around the current value; **Spread this** converts the step into Variations · Spread. The full sheet edits the range with two handles and a **Count | Skip by** toggle.
+- Spacing is linear in v1; geometric spacing (useful for sizes) and **Distinct** are on the roadmap.
+
 ### Laws
 
 - Effects never change coordinates or order.
-- A drill-down followed by a roll-up by all other dimensions returns one image per original cell.
+- A Separate followed by a Combine by all other dimensions returns one image per original cell.
 - Variations of identical children is Copies; Pick of one member after Variations equals that child alone.
-- A roll-up only behaves differently "per photo" because of its *by* dimensions; there is no separate per-image wrapper.
+- A Combine only behaves differently "per photo" because of its *by* dimensions; there is no separate per-image wrapper.
+- A Spread equals its Expand: a List of the same operation with each resolved value.
 
 ### Examples
 
@@ -167,7 +186,7 @@ tile by: [photo]
 | 2 | Invert | photo 2: Invert and Grayscale tiled |
 | 2 | Grayscale | |
 
-Per-ink screen angles (drill-down, distribution in turn, roll-up):
+Per-ink screen angles (Separate, distribution in turn, Combine):
 ```
 sequence
   rgb-channels
@@ -197,10 +216,13 @@ sequence
 | 1 | Posterize + Gradient map | B |
 | 1 | Halftone | – |
 
-Systematic exploration (a two-parameter sweep in a crosstab, per photo):
+Systematic exploration (a two-parameter spread in a crosstab, per photo):
 ```
 sequence
-  sweep halftone cell: range(4, 16, steps: 4, spacing: geometric) angle: list(0, 15, 30, 45) all-per-image
+  variations all-per-image
+    spread halftone
+      cell: 4..16 count: 4
+      angle: 0..45 skip-by: 15
   crosstab rows: [halftone cell] columns: [halftone angle] by: [photo]
 ```
 
@@ -208,9 +230,9 @@ sequence
 
 | Version | Scope |
 |---|---|
-| **v1** | Composer route; Composition document; types, canonical JSON, read-only text view; Sequence; Variations with all three distributions; **Sweep** with Expand; dimension binders; Effects and Drill-downs from the registry; **Tone** (manual levels, auto-levels, match histogram; group-aware via *by*); Tile, Line, Stack, Print sheet with *by*; Crosstab with labels; Pick; Pivot; live dimension and count inference; seeds and Reroll; the Warhol duotone grid as a sample Composition |
-| **v1.1** | Animate (a roll-up to animation frames); other group-aware effects (shared palette quantize); Dither consolidation; Mean and Median roll-ups; caching, Pick pushdown, effect fusion |
-| **v2** | Per-cell measures and data-driven arrangement: constraint-based selection (pick where, e.g. best contrast per photo), sort by (e.g. brightness), assignment by measurement (e.g. light photos get dark palettes), derived dimensions (e.g. hue bucket in a crosstab); editable text with round-tripping |
+| **v1** | Composer route; Composition document; types, canonical JSON, read-only text view; Sequence; Variations with all three distributions; Variations as **List** or **Spread** (Count, Skip by) with Expand and long-press "Spread this"; dimension binders; Effects and Separate operations from the registry; **Tone** (manual levels, auto-levels, match histogram; group-aware via *by*); Combine: Layout (Tile, Line, Print sheet, Crosstab with labels) and Blend (Stack) with *by*; Pick; Pivot; live dimension and count inference; seeds and Reroll; the Warhol duotone grid as a sample Composition |
+| **v1.1** | Combine · Animate (images to animation frames); other group-aware effects (shared palette quantize); Dither consolidation; Blend · Mean and Median; geometric Spread spacing; caching, Pick pushdown, effect fusion |
+| **v2** | Per-cell measures and data-driven arrangement: constraint-based selection (pick where, e.g. best contrast per photo), sort by (e.g. brightness), assignment by measurement (e.g. light photos get dark palettes), **Classify** (a derived dimension from a measurement, e.g. sort photos into brightness or hue buckets for a crosstab); **Spread · Distinct** (render many values, keep the *n* most visually different, so steps land where the image visibly changes); editable text with round-tripping |
 
 ## Future directions (from treating compositions as an AST)
 
@@ -219,18 +241,18 @@ sequence
 3. Query-style rewrites: Pick pushdown, hoisting shared effects above Variations, deduplicating identical children.
 4. Effect fusion: consecutive effects compile into one GPU pass.
 5. Resolution independence: evaluate at preview resolution while editing, full resolution for output.
-6. The filter gallery as a cube view: a Sweep plus a Crosstab; systematic exploration across any parameters and photos.
+6. The filter gallery as a cube view: a Spread plus a Crosstab; systematic exploration across any parameters and photos.
 7. Text form and round-tripping.
 8. Canonical forms: recipe equivalence, deduplication, structural search.
 
 ## Consequences
 
 **Positive**
-- One small algebra (two compositions, five operation categories) with exact, OLAP-grounded vocabulary.
-- Expressiveness the list model lacks: fanned-out pipelines, per-dimension roll-ups, crosstabs, slicing.
+- One small algebra (two compositions, five operation categories) with exact, OLAP-grounded structure and artist-friendly names.
+- Expressiveness the list model lacks: fanned-out pipelines, per-dimension Combines, crosstabs, slicing.
 - Deterministic, testable randomness; a natural saved-formula format.
 - Existing editors keep working; operations and engine are shared.
 
 **Negative / costs**
-- A new editor and evaluator (cells carry coordinates; roll-ups group by them).
+- A new editor and evaluator (cells carry coordinates; Combines group by them).
 - Two composition models coexist until one supersedes the other.
