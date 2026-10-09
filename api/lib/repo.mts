@@ -10,7 +10,6 @@ export type CompositionRow = {
   public_slug: string | null, share_sources: boolean, share_remix: boolean, created_at: Date, updated_at: Date,
 };
 export type RevisionRow = { composition_id: string, revision: number, document: unknown, inputs: string[], created_at: Date };
-export type LegacyUpload = { id: string, user_id: string, file_name: string, type: string, base64_encoded_data: string };
 
 /** The data the cloud handlers need; Drizzle in production, memory in tests. */
 export interface Repo {
@@ -31,7 +30,6 @@ export interface Repo {
   addRevision(revision: RevisionRow, patch: Partial<CompositionRow>): Promise<void>;
   updateComposition(id: string, patch: Partial<CompositionRow>): Promise<void>;
   deleteComposition(id: string): Promise<void>;
-  legacyUploads(): Promise<LegacyUpload[]>;
 }
 
 export const memoryRepo = (): Repo & { users: Map<string, User> } => {
@@ -40,7 +38,6 @@ export const memoryRepo = (): Repo & { users: Map<string, User> } => {
   const library = new Map<string, { file_name: string, added_at: Date }>();
   const compositions = new Map<string, CompositionRow>();
   const revisions = new Map<string, RevisionRow>();
-  const legacy: LegacyUpload[] = [];
   const lk = (u: string, s: string) => `${u}\u0000${s}`;
   return {
     users,
@@ -66,7 +63,6 @@ export const memoryRepo = (): Repo & { users: Map<string, User> } => {
     },
     updateComposition: async (id, p) => { const c = compositions.get(id); if (c) compositions.set(id, { ...c, ...p }); },
     deleteComposition: async id => { compositions.delete(id); },
-    legacyUploads: async () => legacy,
   };
 };
 
@@ -103,6 +99,5 @@ export const drizzleRepo = async (): Promise<Repo> => {
     },
     updateComposition: async (id, p) => { await db.update(t.compositions).set(p).where(eq(t.compositions.id, id)); },
     deleteComposition: async id => { await db.delete(t.compositions).where(eq(t.compositions.id, id)); },
-    legacyUploads: async () => db.select().from(t.uploads),
   };
 };

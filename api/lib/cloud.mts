@@ -259,28 +259,3 @@ export const remix = async ({ repo }: Context, user: User, slug: string): Promis
   await repo.createComposition(row, { composition_id: row.id, revision: 1, document: rev?.document ?? {}, inputs, created_at: now });
   return { status: 201, body: summary(row) };
 };
-
-// Migration of the old uploads table -----------------------------------------------------------
-
-/**
- * Moves every row of the old `uploads` table (base64 in Postgres) into the image store and the
- * owner's library. Idempotent: run it again and nothing is duplicated.
- */
-export const migrateUploads = async ({ repo, store }: Context): Promise<Result> => {
-  const uploads = await repo.legacyUploads();
-  let migrated = 0;
-  const failures: { id: string, error: string }[] = [];
-  for (const u of uploads) {
-    try {
-      const bytes = new Uint8Array(Buffer.from(u.base64_encoded_data, 'base64'));
-      const sha256 = await sha256Hex(bytes);
-      if (!(await store.has(originalKey(sha256)))) await store.put(originalKey(sha256), bytes, u.type);
-      await repo.insertImage({ sha256, content_type: u.type, byte_size: bytes.length, width: null, height: null, has_thumbnail: false });
-      await repo.addToLibrary(u.user_id, sha256, u.file_name);
-      migrated++;
-    } catch (e) {
-      failures.push({ id: u.id, error: String(e) });
-    }
-  }
-  return ok({ total: uploads.length, migrated, failures });
-};

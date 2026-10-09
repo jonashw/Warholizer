@@ -6,7 +6,6 @@ import PureEditor from "./PureEditor";
 import { GraphEditorDemo } from "./GraphEditorDemo";
 import GoogleLoginPage from "./GoogleLoginPage";
 import GoogleLoginComplete from "./GoogleLoginComplete";
-import FileUploadPage from "./FileUploadPage";
 import BenchmarkPage from "./BenchmarkPage";
 import FilterGalleryPage from "./FilterGalleryPage";
 import ComposerPage from "./Composer/ui/ComposerPage";
@@ -63,10 +62,6 @@ export const routeConfig: RouteObject[] = [
       {
         path: 'benchmark',
         element: <BenchmarkPage/>
-      },
-      {
-        path: 'file-upload',
-        element: <FileUploadPage/>
       },
       {
         path: 'google-login',

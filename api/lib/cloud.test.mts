@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import type { User } from '../auth.mts';
 import {
-  commitImage, createComposition, listCompositions, listImages, migrateUploads, openComposition, openPublic,
+  commitImage, createComposition, listCompositions, listImages, openComposition, openPublic,
   prepareUpload, putBytes, readImage, readPublicImage, remix, saveRevision, share,
 } from './cloud.mts';
 import { memoryStore, originalKey, sha256Hex } from './imageStore.mts';
@@ -104,20 +104,5 @@ describe('public links', () => {
     expect((await readImage(ctx, bob, photo, 'original')).status).toBe(200);
     await share(ctx, ada, id, { public: false });
     expect((await openPublic(ctx, slug)).status).toBe(404);
-  });
-});
-
-describe('migrating the old uploads table', () => {
-  it('moves each upload into the store and its owner\'s library, idempotently', async () => {
-    const ctx = setup();
-    const legacy = await ctx.repo.legacyUploads();
-    legacy.push(
-      { id: 'u1', user_id: 'ada', file_name: 'a.jpg', type: 'image/jpeg', base64_encoded_data: Buffer.from('one').toString('base64') },
-      { id: 'u2', user_id: 'bob', file_name: 'b.png', type: 'image/png', base64_encoded_data: Buffer.from('two').toString('base64') },
-    );
-    expect(body(await migrateUploads(ctx))).toMatchObject({ total: 2, migrated: 2, failures: [] });
-    await migrateUploads(ctx);
-    expect((body(await listImages(ctx, ada)).images as { fileName: string }[]).map(i => i.fileName)).toEqual(['a.jpg']);
-    expect(ctx.store.objects.size).toBe(2);
   });
 });

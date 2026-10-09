@@ -50,6 +50,13 @@
       "when": 1791575051583,
       "tag": "0006_cloud_library",
       "breakpoints": true
+    },
+    {
+      "idx": 7,
+      "version": "7",
+      "when": 1791580775910,
+      "tag": "0007_drop_legacy_uploads",
+      "breakpoints": true
     }
   ]
 }

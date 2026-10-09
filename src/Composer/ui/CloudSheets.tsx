@@ -45,7 +45,7 @@ function Thumbnail({ fetcher, sha256, hasThumbnail, onBackfilled }: { fetcher: F
       objectUrl = URL.createObjectURL(blob);
       setUrl(objectUrl);
       if (!hasThumbnail && blob.type.startsWith('image/')) {
-        // Images moved from the old uploads table have no thumbnail yet: make and store one.
+        // Images stored without a thumbnail get one the first time they are shown.
         const bitmap = await createImageBitmap(blob);
         const canvas = new OffscreenCanvas(bitmap.width, bitmap.height);
         canvas.getContext('2d')!.drawImage(bitmap, 0, 0);
@@ -143,13 +143,6 @@ export function LibrarySheet({ currentId, onOpen, onUseImages, onSave, onClose }
       ) : (
         <>
           <span className="composer-hint">{images ? `${images.length} images` : 'Loading…'} · originals kept exactly as uploaded</span>
-          <button type="button" className="composer-chip dashed" style={{ alignSelf: 'flex-start' }} onClick={async () => {
-            // Admins only (the server checks): moves the old uploads table into libraries; safe to rerun.
-            const response = await fetcher('/api/admin/migrate-uploads', { method: 'POST' });
-            const result = await response.json().catch(() => ({}));
-            setProblem(response.ok ? `Old uploads: ${result.migrated} of ${result.total} moved${result.failures?.length ? `, ${result.failures.length} failed` : ''}.` : `Old uploads: ${result.error ?? response.status}`);
-            refresh();
-          }}>Move old uploads (admins)</button>
           <div className="composer-library-images">
             {images?.map(i => {
               const on = selected.includes(i.sha256);
