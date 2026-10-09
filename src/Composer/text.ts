@@ -29,10 +29,12 @@ const operation = (op: PureRasterOperation) => {
   return kebab(type) + args(rest);
 };
 
+const orderText = (o: Order) => o.type === 'in-turn' ? 'in-turn' : `shuffled(seed: ${o.seed})`;
+
 export const distributionText = (d: VariationDistribution): string =>
   d.type === 'all-per-image' ? 'all-per-image'
-  : d.order.type === 'in-turn' ? 'one-per-image(in-turn)'
-  : `one-per-image(shuffled(seed: ${d.order.seed}))`;
+  : d.type === 'one-per-image' ? `one-per-image(${orderText(d.order)})`
+  : `one-image-per-variant(${orderText(d.order)}, ${d.overflow})`;
 
 const spreadText = (s: Spread) =>
   `${s.bind ? `${s.bind} <- ` : ''}${kebab(s.param)}: ${s.from}..${s.to}${s.unit && s.unit !== 'px' ? ` ${s.unit}` : ''} ${s.type === 'count' ? `count: ${s.n}` : `skip-by: ${s.by}`}`;
@@ -64,8 +66,6 @@ const lines = (node: Node, depth: number): string[] => {
     case 'pivot': return [`${indent}pivot [${node.order.join(' ')}]`];
   }
 };
-
-const orderText = (o: Order) => o.type === 'in-turn' ? 'in-turn' : `shuffled(seed: ${o.seed})`;
 
 export const layoutDistributionText = (d: LayoutDistribution): string =>
   d.type === 'one-cell-per-image' ? `one-cell-per-image(${d.overflow})` : `one-image-per-cell(${orderText(d.order)}, ${d.edges})`;

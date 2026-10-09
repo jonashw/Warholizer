@@ -18,9 +18,9 @@ export const kindLabel = (node: Node): string => {
 };
 
 export const distributionLabel = (d: VariationDistribution): string =>
-  d.type === 'all-per-image' ? 'all per image'
-  : d.order.type === 'in-turn' ? 'one per image, in turn'
-  : 'one per image, shuffled';
+  d.type === 'all-per-image' ? 'all variants per image'
+  : d.type === 'one-per-image' ? `one variant per image, ${d.order.type === 'in-turn' ? 'in turn' : 'shuffled'}`
+  : `one image per variant, ${d.order.type === 'in-turn' ? 'in turn' : 'shuffled'}${d.overflow === 'spill' ? ', in rounds' : d.overflow === 'drop' ? ', extras dropped' : ', extras kept'}`;
 
 const dimensionName = (dimensions: Dimension[], id: string) =>
   dimensions.find(d => d.id === id)?.name ?? (id === 'photo' ? 'Photo' : '?');

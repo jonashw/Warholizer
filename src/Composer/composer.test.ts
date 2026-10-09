@@ -221,6 +221,39 @@ describe('lengths in compositions', () => {
   });
 });
 
+describe('one image per variant', () => {
+  const three = () => variationsList({ type: 'one-image-per-variant', order: { type: 'in-turn' }, overflow: 'spill' },
+    operationNode({ type: 'invert' }), operationNode({ type: 'noop' }), operationNode({ type: 'blur', pixels: 1 }));
+  const withOverflow = (overflow: 'spill' | 'drop' | 'keep') => {
+    const v = three() as Extract<Node, { kind: 'variations' }>;
+    return { ...v, distribution: { type: 'one-image-per-variant' as const, order: { type: 'in-turn' as const }, overflow } };
+  };
+
+  it('uses each variant once per round, spilling into a Round dimension', async () => {
+    const out = await shape(withOverflow('spill'), 8);
+    expect(out.dimensions.map(d => d.name)).toEqual(['Photo', 'Variation', 'Round']);
+    expect(labels(out).slice(0, 4)).toEqual(['1/Invert/1', '2/Pass through/1', '3/Blur/1', '4/Invert/2']);
+    expect(out.cells).toHaveLength(8);
+  });
+
+  it('drops or keeps the images beyond one round', async () => {
+    expect((await shape(withOverflow('drop'), 8)).cells).toHaveLength(3);
+    const kept = await shape(withOverflow('keep'), 8);
+    expect(kept.cells).toHaveLength(8);
+    expect(labels(kept)[3]).toBe('4/–');
+  });
+
+  it('shuffled uses every variant exactly once in each round', async () => {
+    const v = { ...withOverflow('spill'), distribution: { type: 'one-image-per-variant' as const, order: { type: 'shuffled' as const, seed: 7 }, overflow: 'spill' as const } };
+    const out = await shape(v, 6);
+    const variation = out.dimensions[1].id;
+    const round = (r: string) => out.cells.filter(c => c.coords[out.dimensions[2].id] === r).map(c => c.coords[variation]);
+    expect(new Set(round('1')).size).toBe(3);
+    expect(new Set(round('2')).size).toBe(3);
+    expect(compositionText(doc(sequence(v)))).toContain('variations one-image-per-variant(shuffled(seed: 7), spill)');
+  });
+});
+
 describe('layout planning', () => {
   const page = { width: 850, height: 1100, margin: 25, background: 'white' as const };
   const rects = (plan: { images: { x: number, y: number, w: number, h: number }[] }) => plan.images.map(i => [i.x, i.y, i.w, i.h].map(Math.round));

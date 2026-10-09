@@ -64,9 +64,15 @@ export type VariationsNode = {
   bind?: string,
 };
 
+/**
+ * How variants meet images (ADR 0003; mirrors LayoutDistribution). Display names spell both
+ * nouns: all variants per image, one variant per image, one image per variant.
+ */
 export type VariationDistribution =
   | { type: 'all-per-image' }
-  | { type: 'one-per-image', order: Order };
+  | { type: 'one-per-image', order: Order }
+  /** Each variant used once per round; images beyond one round spill into a Round dimension, are dropped, or pass through unchanged. */
+  | { type: 'one-image-per-variant', order: Order, overflow: 'spill' | 'drop' | 'keep' };
 
 export type Order =
   | { type: 'in-turn' }

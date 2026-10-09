@@ -158,16 +158,42 @@ export const variantsOf = (node: VariationsNode, existing: Dimension[]): { varia
   };
 };
 
-/** Which variant each cell (in cube order) goes through; every variant for all-per-image. */
-const assignments = (node: VariationsNode, cellCount: number, variantCount: number): number[][] => {
-  if (node.distribution.type === 'all-per-image') {
-    return Array.from({ length: variantCount }, () => Array.from({ length: cellCount }, (_, i) => i));
-  }
-  const dealt = node.distribution.order.type === 'in-turn'
-    ? Array.from({ length: cellCount }, (_, i) => i % variantCount)
-    : dealShuffled(cellCount, variantCount, node.distribution.order.seed);
-  return Array.from({ length: variantCount }, (_, v) =>
+type Assignment = {
+  /** Input cells (by index, in cube order) each variant receives. */
+  cells: number[][],
+  /** One image per variant, spilling: each input cell's round (0-based). */
+  rounds?: number[],
+  /** Input cells that pass through unchanged. */
+  kept: number[],
+};
+
+/** Which variant each cell (in cube order) goes through. */
+const assignments = (node: VariationsNode, cellCount: number, variantCount: number): Assignment => {
+  const d = node.distribution;
+  const byVariant = (dealt: (number | undefined)[]) => Array.from({ length: variantCount }, (_, v) =>
     dealt.flatMap((assigned, cell) => assigned === v ? [cell] : []));
+  if (d.type === 'all-per-image') {
+    return { cells: Array.from({ length: variantCount }, () => Array.from({ length: cellCount }, (_, i) => i)), kept: [] };
+  }
+  if (d.type === 'one-per-image') {
+    const dealt = d.order.type === 'in-turn'
+      ? Array.from({ length: cellCount }, (_, i) => i % variantCount)
+      : dealShuffled(cellCount, variantCount, d.order.seed);
+    return { cells: byVariant(dealt), kept: [] };
+  }
+  // One image per variant: round r pairs images r·k … r·k + k − 1 with the k variants.
+  const order = d.order;
+  const dealt = Array.from({ length: cellCount }, (_, i) => {
+    const round = Math.floor(i / variantCount);
+    if (round > 0 && d.overflow !== 'spill') return undefined;
+    const position = i % variantCount;
+    return order.type === 'in-turn' ? position : dealShuffled(variantCount, variantCount, order.seed + round)[position];
+  });
+  return {
+    cells: byVariant(dealt),
+    rounds: d.overflow === 'spill' ? dealt.map((_, i) => Math.floor(i / variantCount)) : undefined,
+    kept: d.overflow === 'keep' ? dealt.flatMap((v, i) => v === undefined ? [i] : []) : [],
+  };
 };
 
 const evaluateVariations = async <Img>(node: VariationsNode, input: Cube<Img>, ops: ImageOps<Img>, trace: Trace<Img> | undefined, options: EvaluateOptions): Promise<Cube<Img>> => {
@@ -176,20 +202,35 @@ const evaluateVariations = async <Img>(node: VariationsNode, input: Cube<Img>, o
     return normalize(input.dimensions, []);
   }
   const assigned = assignments(node, input.cells.length, variants.length);
+  // Spilling rounds: each image is tagged with its round before going through its variant.
+  const roundId = `${node.id}:round`;
+  const roundCount = assigned.rounds ? Math.max(0, ...assigned.rounds) + 1 : 0;
+  const inputDimensions: Dimension[] = assigned.rounds
+    ? [...input.dimensions, { id: roundId, name: uniqueName('Round', input.dimensions), members: Array.from({ length: roundCount }, (_, r) => ({ key: `${r + 1}`, label: `${r + 1}` })) }]
+    : input.dimensions;
+  const tagged = (i: number): Cell<Img> => assigned.rounds
+    ? { ...input.cells[i], coords: { ...input.cells[i].coords, [roundId]: `${assigned.rounds[i] + 1}` } }
+    : input.cells[i];
   const outputs = await Promise.all(variants.map((variant, v) => {
-    const cells = assigned[v].map(i => input.cells[i]);
-    return evaluate(variant.node, { dimensions: input.dimensions, cells }, ops, trace, options);
+    const cells = assigned.cells[v].map(tagged);
+    return evaluate(variant.node, { dimensions: inputDimensions, cells }, ops, trace, options);
   }));
   // Dimensions: the input's (that survive), then this node's, then any the variants created.
-  const childDimensions = unionDimensions(outputs.map(o => o.dimensions));
+  // Member order comes from the input where a dimension already existed (variants see subsets of it).
+  const present = new Set(outputs.flatMap(o => o.dimensions.map(d => d.id)));
+  const childDimensions = unionDimensions([inputDimensions, ...outputs.map(o => o.dimensions)]).filter(d => present.has(d.id));
   const inputIds = new Set(input.dimensions.map(d => d.id));
   const dimensions = [
     ...childDimensions.filter(d => inputIds.has(d.id)),
     ...variationDimensions,
     ...childDimensions.filter(d => !inputIds.has(d.id)),
   ];
-  const cells: Cell<Img>[] = outputs.flatMap((output, v) =>
-    output.cells.map(cell => ({ ...cell, coords: { ...cell.coords, ...variants[v].coords } })));
+  const cells: Cell<Img>[] = [
+    ...outputs.flatMap((output, v) =>
+      output.cells.map(cell => ({ ...cell, coords: { ...cell.coords, ...variants[v].coords } }))),
+    // Kept images have no member in this node's dimension.
+    ...assigned.kept.map(i => input.cells[i]),
+  ];
   return normalize(dimensions, cells);
 };
 

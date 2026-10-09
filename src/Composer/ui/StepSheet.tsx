@@ -9,7 +9,7 @@ import { nodeLabel } from "../labels";
 import { defaultSpread, formatSpreadValue, numericParamOf, numericParamsOf, paramLabel, spreadSetting, spreadValuesFor } from "../spread";
 import { convertSize, defaultDpi, isLengthParam, resolveLengths, sizeOf, unitsFor, valueOf } from "../../Warholizer/RasterOperations/PureRasterOperation/length";
 import {
-  CombineMethod, CombineNode, Dimension, Layout, Node, OperationNode, Pattern, PickNode, PivotNode, Spread, VariationDistribution, VariationsNode, combineKindOf,
+  CombineMethod, CombineNode, Dimension, Layout, Node, OperationNode, Order, Pattern, PickNode, PivotNode, Spread, VariationDistribution, VariationsNode, combineKindOf,
 } from "../types";
 import { Segmented } from "./Segmented";
 import { FormatEditor } from "./FormatEditor";
@@ -168,23 +168,40 @@ function SpreadPeek({ op, spread, sampleInput, sampleScale = 1, onSpread }: {
 }
 
 function DistributionEditor({ value, onChange }: { value: VariationDistribution, onChange: (d: VariationDistribution) => void }) {
+  const order = value.type === 'all-per-image' ? undefined : value.order;
+  const withOrder = (o: Order): VariationDistribution =>
+    value.type === 'one-per-image' ? { ...value, order: o } : value.type === 'one-image-per-variant' ? { ...value, order: o } : value;
   return (
     <div className="composer-card">
       <span className="composer-section-label">Distribution</span>
       <Segmented label="Distribution" value={value.type} onChange={type => onChange(
-        type === 'all-per-image' ? { type } : { type, order: { type: 'in-turn' } })}
-        options={[{ value: 'all-per-image', label: 'All per image' }, { value: 'one-per-image', label: 'One per image' }]} />
-      {value.type === 'one-per-image' && (
+        type === 'all-per-image' ? { type }
+        : type === 'one-per-image' ? { type, order: order ?? { type: 'in-turn' } }
+        : { type, order: order ?? { type: 'in-turn' }, overflow: 'spill' })}
+        options={[
+          { value: 'all-per-image', label: 'All variants per image' },
+          { value: 'one-per-image', label: 'One variant per image' },
+          { value: 'one-image-per-variant', label: 'One image per variant' },
+        ]} />
+      <span className="composer-hint">
+        {value.type === 'all-per-image' ? 'Every image goes through every variant.'
+          : value.type === 'one-per-image' ? 'Each image goes through one variant; variants are reused as needed.'
+          : 'Each variant is used once per round of images; mirrors a Sheet that places each image once.'}
+      </span>
+      {order && (
         <div className="composer-row">
           <div style={{ flexGrow: 1 }}>
-            <Segmented label="Order" value={value.order.type} onChange={order => onChange({
-              type: 'one-per-image', order: order === 'in-turn' ? { type: order } : { type: order, seed: newSeed() },
-            })} options={[{ value: 'in-turn', label: 'In turn' }, { value: 'shuffled', label: 'Shuffled' }]} />
+            <Segmented label="Order" value={order.type} onChange={o => onChange(withOrder(o === 'in-turn' ? { type: o } : { type: o, seed: newSeed() }))}
+              options={[{ value: 'in-turn', label: 'In turn' }, { value: 'shuffled', label: 'Shuffled' }]} />
           </div>
-          {value.order.type === 'shuffled' && (
-            <button type="button" className="composer-secondary" onClick={() => onChange({ type: 'one-per-image', order: { type: 'shuffled', seed: newSeed() } })}>Reroll</button>
+          {order.type === 'shuffled' && (
+            <button type="button" className="composer-secondary" onClick={() => onChange(withOrder({ type: 'shuffled', seed: newSeed() }))}>Reroll</button>
           )}
         </div>
+      )}
+      {value.type === 'one-image-per-variant' && (
+        <Segmented label="Extra images" value={value.overflow} onChange={overflow => onChange({ ...value, overflow })}
+          options={[{ value: 'spill', label: 'More rounds' }, { value: 'drop', label: 'Drop extras' }, { value: 'keep', label: 'Keep unchanged' }]} />
       )}
     </div>
   );
