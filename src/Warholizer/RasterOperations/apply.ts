@@ -9,7 +9,7 @@ const offscreenCanvasOperation = async (
   action: (ctx: OffscreenCanvasRenderingContext2D) => void
 ): Promise<OffscreenCanvas> => {
   const c = new OffscreenCanvas(width,height);
-  let ctx = c.getContext('2d')!;
+  const ctx = c.getContext('2d')!;
   action(ctx);
   return c;
 };
@@ -33,7 +33,7 @@ export const apply = async (op: RasterOperation, input: OffscreenCanvas): Promis
       }
     });
     
-    case 'scale':
+    case 'scale': {
       const scaleInput = await apply(op.input, input);
       const scaleWidth = Math.abs(op.x) * scaleInput.width;
       const scaleHeight = Math.abs(op.y) * scaleInput.height;
@@ -47,14 +47,15 @@ export const apply = async (op: RasterOperation, input: OffscreenCanvas): Promis
         ctx.scale(op.x, op.y);
         ctx.drawImage(scaleInput,0,0);
       });
-    case 'stack': 
+    }
+    case 'stack': {
       const stackInputs = await Promise.all(op.inputs.map(op => apply(op,input)));
       if(op.dimension === 'x'){
         return offscreenCanvasOperation(
           stackInputs.map(i => i.width).reduce((a,b) => a + b, 0),
           Math.max(...stackInputs.map(i => i.height)),
           (ctx) => {
-            for(let stackInput of stackInputs){
+            for(const stackInput of stackInputs){
               ctx.drawImage(stackInput,0,0);
               ctx.translate(stackInput.width,0);
             }
@@ -64,11 +65,12 @@ export const apply = async (op: RasterOperation, input: OffscreenCanvas): Promis
         Math.max(...stackInputs.map(i => i.width)),
         stackInputs.map(i => i.height).reduce((a,b) => a + b, 0),
         (ctx) => {
-          for(let stackInput of stackInputs){
+          for(const stackInput of stackInputs){
             ctx.drawImage(stackInput,0,0);
             ctx.translate(0,stackInput.height);
           }
         });
+    }
     case 'originalImage': 
       return input; 
     default:
@@ -89,8 +91,8 @@ export const applyPureOperations = (ops: PureRasterOperation[], inputs: Offscree
   .then(groups => groups.flatMap(g => g));
 
 export const applyPureOperationPipeline = async (ops: PureRasterOperation[], inputs: OffscreenCanvas[]): Promise<OffscreenCanvas[]> => {
-  var intermediates = inputs; 
-  for(let op of ops){
+  let intermediates = inputs; 
+  for(const op of ops){
     intermediates = await PureRasterOperations.apply(op, intermediates)
   }
   return intermediates;

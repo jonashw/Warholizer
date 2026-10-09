@@ -1,3 +1,5 @@
+// This module intentionally exports a { Provider, useAuth } object; fast refresh falls back to a full reload here.
+/* eslint-disable react-refresh/only-export-components */
 import { createContext, useState, useContext } from 'react';
 import { ReactNode } from 'react';
 import { User } from '../api/auth.mts';
@@ -17,7 +19,7 @@ const tryGetStoredState = (): AuthState|null => {
         return null;
     }
     try {
-        var state = JSON.parse(stored) as AuthState;
+        const state = JSON.parse(stored) as AuthState;
         if(!state.token || !state.user || typeof state.user !== 'object') {
             console.warn('Invalid stored auth found. Removing...', state);
             localStorage.removeItem(storageKey);

@@ -57,28 +57,28 @@ const getTextHeight = (font: string, _: string) => {
 };
 */
 
-var determineFontHeight = function(fontStyle: string, text?: string) {
-  var body = document.querySelector("body")!;
-  var dummy = document.createElement("div");
-  var dummyText = document.createTextNode(text ?? "Mg");
+const determineFontHeight = function(fontStyle: string, text?: string) {
+  const body = document.querySelector("body")!;
+  const dummy = document.createElement("div");
+  const dummyText = document.createTextNode(text ?? "Mg");
   dummy.appendChild(dummyText);
   dummy.setAttribute("style", fontStyle);
   body.appendChild(dummy);
-  var result = dummy.offsetHeight;
+  const result = dummy.offsetHeight;
   body.removeChild(dummy);
   //console.log({dummy,result});
   return result;
 };
 
 export const textOffscreen = (text: string, font: string, sizeInPx: number): OffscreenCanvas => {
-  let c = new OffscreenCanvas(0,0);
+  const c = new OffscreenCanvas(0,0);
   let ctx = c.getContext('2d')!;
-  let cssFont = `${sizeInPx}px ${font}`;
+  const cssFont = `${sizeInPx}px ${font}`;
   ctx.font = cssFont;
 
-  let measurements = ctx.measureText(text);
+  const measurements = ctx.measureText(text);
   //let textHeight = getTextHeight(cssFont,text).height;
-  let textHeight2 = determineFontHeight(`font-family:${font}; font-size: ${sizeInPx}px; line-height: ${sizeInPx}px`,text);
+  const textHeight2 = determineFontHeight(`font-family:${font}; font-size: ${sizeInPx}px; line-height: ${sizeInPx}px`,text);
   //console.log(measurements.width, textHeight2, textHeight)
   //let marginPct = 1/16;
   c.width = measurements.width;
@@ -105,15 +105,15 @@ export const textOffscreen = (text: string, font: string, sizeInPx: number): Off
 };
 export const text = (text: string, font: string, sizeInPx: number): Promise<ImagePayload> => 
   new Promise((resolve,_) => {
-    let c = document.createElement('canvas');
+    const c = document.createElement('canvas');
     document.body.prepend(c);
     let ctx = c.getContext('2d')!;
-    let cssFont = `${sizeInPx}px ${font}`;
+    const cssFont = `${sizeInPx}px ${font}`;
     ctx.font = cssFont;
 
-    let measurements = ctx.measureText(text);
+    const measurements = ctx.measureText(text);
     //let textHeight = getTextHeight(cssFont,text).height;
-    let textHeight2 = determineFontHeight(`font-family:${font}; font-size: ${sizeInPx}px; line-height: ${sizeInPx}px`, text);
+    const textHeight2 = determineFontHeight(`font-family:${font}; font-size: ${sizeInPx}px; line-height: ${sizeInPx}px`, text);
     //console.log(measurements.width, textHeight2, textHeight)
     //let marginPct = 1/16;
     c.width = measurements.width;
@@ -151,7 +151,7 @@ const offscreenCanvasOperation = async (
   action: (ctx: OffscreenCanvasRenderingContext2D) => void
 ): Promise<OffscreenCanvas> => {
   const c = new OffscreenCanvas(width,height);
-  let ctx = c.getContext('2d')!;
+  const ctx = c.getContext('2d')!;
   action(ctx);
   return c;
 };
@@ -161,11 +161,11 @@ const with2dContext = (
   height: number,
   action: (ctx: CanvasRenderingContext2D, c: HTMLCanvasElement) => void
 ): ImagePayload => {
-  let c = document.createElement('canvas');
+  const c = document.createElement('canvas');
   c.width = width;
   c.height = height;
   document.body.append(c);
-  let ctx = c.getContext('2d')!;
+  const ctx = c.getContext('2d')!;
   action(ctx,c);
   c.remove();
   const w = c.width;
@@ -203,11 +203,11 @@ function editImage<T>(
 ) => T): Promise<T> 
 {
   return new Promise((resolve,_) => {
-    let img = new Image();
+    const img = new Image();
     img.onload = () => {
-      let c = document.createElement('canvas');
+      const c = document.createElement('canvas');
       document.body.append(c);
-      let ctx = c.getContext('2d')!;
+      const ctx = c.getContext('2d')!;
       resolve(fn(img, c, ctx));
       c.remove();
     };
@@ -217,7 +217,7 @@ function editImage<T>(
 
 const loadImgElement = (src:string): Promise<HTMLImageElement> => 
   new Promise((resolve,_) => {
-    let img = new Image();
+    const img = new Image();
     img.onload = () => {
       resolve(img);
     };
@@ -287,27 +287,27 @@ export const applyImageValueRanges = (
   stencilMasks: ImagePayload[]
 }> => 
   editImage(original.dataUrl, (img, c, ctx) => {
-    let [width,height] = [img.width, img.height];
+    const [width,height] = [img.width, img.height];
     c.width = img.width;
     c.height = img.height;
     ctx.drawImage(img,0,0);
-    let originalImage = ctx.getImageData(0, 0, width, height);
+    const originalImage = ctx.getImageData(0, 0, width, height);
     const clampValueIfInRange = (value: number , range: ValueRange): [boolean,number] => 
         range.min <= value && value <= range.max
         ? [true,range.value]
         : [false,value];
 
-    let rangeImages = ranges.map(range => {
+    const rangeImages = ranges.map(range => {
       //each ValueRange yields its own bitmap that could be transformed into a stencil.
-      let rangeImage = new ImageData(
+      const rangeImage = new ImageData(
         originalImage.width,
         originalImage.height,
         {
           colorSpace: originalImage.colorSpace 
         });
-      for (var i=0; i<originalImage.data.length; i+=4) { // 4 is for RGBA channels
-        var v = rgbaValue( originalImage.data[i],  originalImage.data[i+1],  originalImage.data[i+2],  originalImage.data[i+3] );
-        let [inRange,value] = clampValueIfInRange( v, range);
+      for (let i=0; i<originalImage.data.length; i+=4) { // 4 is for RGBA channels
+        const v = rgbaValue( originalImage.data[i],  originalImage.data[i+1],  originalImage.data[i+2],  originalImage.data[i+3] );
+        const [inRange,value] = clampValueIfInRange( v, range);
         if(inRange){
           rangeImage.data[i+0] = 0
           rangeImage.data[i+1] = 0
@@ -322,7 +322,7 @@ export const applyImageValueRanges = (
       return rangeImage;
     });
 
-    let rangeImagePayloads: ImagePayload[] =
+    const rangeImagePayloads: ImagePayload[] =
       rangeImages.map(rangeImage => {
         ctx.clearRect(0, 0, width, height);
         ctx.putImageData(rangeImage, 0, 0);
@@ -375,7 +375,7 @@ export const quantize = (
   replacementColors: ([number,number,number]|undefined)[]
 ): Promise<Quantization> => 
   editImage(original.dataUrl, (img, c, ctx) => {
-    let [width,height] = [img.width, img.height];
+    const [width,height] = [img.width, img.height];
     c.width = img.width;
     c.height = img.height;
 
@@ -391,23 +391,23 @@ export const quantize = (
     };
 
     ctx.drawImage(img,0,0);
-    let originalImage = ctx.getImageData(0, 0, width, height);
+    const originalImage = ctx.getImageData(0, 0, width, height);
 
-    let colorBuckets: ColorBucket[] = 
+    const colorBuckets: ColorBucket[] = 
       quantizeLoop(originalImage,depth).map((bucketImgData,i) => {
-        let replacementColor = replacementColors[i] ;
-        let maskColor = 
-          !!replacementColor
+        const replacementColor = replacementColors[i] ;
+        const maskColor = 
+          replacementColor
           ? replacementColor 
           : averageColor(bucketImgData);
-        let maskedImgData = colorMask(maskColor,bucketImgData);
-        let masked = imageDataToPayload(maskedImgData);
-        let cssColor = `rgba(${maskColor.join(',')})`;
+        const maskedImgData = colorMask(maskColor,bucketImgData);
+        const masked = imageDataToPayload(maskedImgData);
+        const cssColor = `rgba(${maskColor.join(',')})`;
         //console.log({maskColor: cssColor});
 
         type RGBColor = [number,number,number];
         const highlightColor: RGBColor = [255,0,255];
-        let highlightedMask = imageDataToPayload(colorMask(highlightColor,bucketImgData));
+        const highlightedMask = imageDataToPayload(colorMask(highlightColor,bucketImgData));
 
         return {
           original: imageDataToPayload(bucketImgData),
@@ -433,10 +433,10 @@ export const quantize = (
   });
 
   const colorPaletteSize = (img: ImageData): number => {
-    let colors = new Set<number>();
-    for (var i = 0; i < img.data.length; i += 4) { // 4 is for RGBA channels
+    const colors = new Set<number>();
+    for (let i = 0; i < img.data.length; i += 4) { // 4 is for RGBA channels
       if(img.data[i+3] === 255){
-        let rgba = rgbaEncode(
+        const rgba = rgbaEncode(
           img.data[i+0],
           img.data[i+1],
           img.data[i+2],
@@ -450,15 +450,15 @@ export const quantize = (
   
 
 const mergeImages = (imgs: ImageData[]): ImageData => {
-  let merged = new ImageData(
+  const merged = new ImageData(
     imgs[0].width,
     imgs[0].height,
     {
       colorSpace: imgs[0].colorSpace 
     });
 
-  for(let img of imgs){
-    for (var i = 0; i < merged.data.length; i += 4) { // 4 is for RGBA channels
+  for(const img of imgs){
+    for (let i = 0; i < merged.data.length; i += 4) { // 4 is for RGBA channels
       if(img.data[i+3] === 255){
         merged.data[i+0] = img.data[i+0];
         merged.data[i+1] = img.data[i+1]; 
@@ -478,7 +478,7 @@ const colorMask = (color: [number,number,number], mask: ImageData): ImageData =>
     {
       colorSpace: mask.colorSpace 
     });
-  for (var i = 0; i < mask.data.length; i += 4) { // 4 is for RGBA channels
+  for (let i = 0; i < mask.data.length; i += 4) { // 4 is for RGBA channels
     if(mask.data[i+3] > 0){
       outImg.data[i+0] = color[0];
       outImg.data[i+1] = color[1];
@@ -494,7 +494,7 @@ const quantizeLoop = (img: ImageData, i: number): ImageData[] => {
   if(i===0){
     return [img];
   }
-  let {upper,lower,pixelCount} = divide(img);
+  const {upper,lower,pixelCount} = divide(img);
   //console.log(`loop #${i}:`, stats.printable);
   return [
     ...(pixelCount.upper > 0 ? [upper] : []),
@@ -505,7 +505,7 @@ const quantizeLoop = (img: ImageData, i: number): ImageData[] => {
 const averageColor = (img: ImageData): [number,number,number] => {
   const sums: [number, number, number] = [0,0,0];
   let opaqueCount = 0;
-  for (var i = 0; i < img.data.length; i += 4) { // 4 is for RGBA channels
+  for (let i = 0; i < img.data.length; i += 4) { // 4 is for RGBA channels
     if(img.data[i+3] === 255){
       sums[0] += img.data[i + 0];
       sums[1] += img.data[i + 1];
@@ -524,29 +524,29 @@ const averageColor = (img: ImageData): [number,number,number] => {
 };
 
 const divide = (img: ImageData) => {
-  let valuesByDimension = Array(3).fill(0).map((_, dindex) => {
-    var values = new Set<number>();
-    for (var i = 0; i < img.data.length; i += 4) { // 4 is for RGBA channels
+  const valuesByDimension = Array(3).fill(0).map((_, dindex) => {
+    const values = new Set<number>();
+    for (let i = 0; i < img.data.length; i += 4) { // 4 is for RGBA channels
       if(img.data[i+3] === 255){//Alpha
         values.add(img.data[i + dindex]);
       }
     }
-    let valuesArray = Array.from(values).sort((a,b) => a>b?a:b);
+    const valuesArray = Array.from(values).sort((a,b) => a>b?a:b);
     //console.log({values,valuesArray});
     return valuesArray;
   });
-  let dimensions =
+  const dimensions =
     valuesByDimension.map((vs,index) => {
-      let min = vs[0];
-      let max = vs[vs.length-1];
-      let range = max-min;
+      const min = vs[0];
+      const max = vs[vs.length-1];
+      const range = max-min;
       return {min, max, range, index, vs};
     });
   //console.log({dimensions});
-  let dominantDimension = dimensions.reduce((a,b) => a.range > b.range ? a : b);
-  let values = valuesByDimension[dominantDimension.index];
-  let medianValue = values[Math.ceil(values.length/2)];
-  let division = {
+  const dominantDimension = dimensions.reduce((a,b) => a.range > b.range ? a : b);
+  const values = valuesByDimension[dominantDimension.index];
+  const medianValue = values[Math.ceil(values.length/2)];
+  const division = {
     upper: new ImageData(
       img.width,
       img.height,
@@ -561,12 +561,12 @@ const divide = (img: ImageData) => {
       })
   };
   const pixelCount = {upper: 0, lower: 0};
-  for (var i = 0; i < img.data.length; i += 4) { // 4 is for RGBA channels
+  for (let i = 0; i < img.data.length; i += 4) { // 4 is for RGBA channels
     division.lower.data[i + 3] = 0;
     division.upper.data[i + 3] = 0;
-    let v = img.data[i + dominantDimension.index];
-    let isLower = v < medianValue;
-    let newBucket = isLower ? division.lower : division.upper;
+    const v = img.data[i + dominantDimension.index];
+    const isLower = v < medianValue;
+    const newBucket = isLower ? division.lower : division.upper;
     if(isLower){
       pixelCount.lower++;
     } else {
@@ -611,10 +611,10 @@ const divide = (img: ImageData) => {
 };
 
 function rgbaEncode(red: number, green: number, blue: number, alpha: number): number {
-    var r = red & 0xFF;
-    var g = green & 0xFF;
-    var b = blue & 0xFF;
-    var a = alpha & 0xFF;
+    const r = red & 0xFF;
+    const g = green & 0xFF;
+    const b = blue & 0xFF;
+    const a = alpha & 0xFF;
     
     return (r << 24) + (g << 16) + (b << 8) + (a);
 }
@@ -642,19 +642,19 @@ export const getValueHistogram = (
   original: ImagePayload
 ): Promise<ImagePayload> => 
   editImage(original.dataUrl, (img, c, ctx) => {
-    let [width,height] = [img.width, img.height];
+    const [width,height] = [img.width, img.height];
     c.width = img.width;
     c.height = img.height;
     ctx.drawImage(img,0,0);
-    let originalImage = ctx.getImageData(0, 0, width, height);
-    var pixelCountByValue = Array(255).fill(0);
-    for (var i=0; i<originalImage.data.length; i+=4) { // 4 is for RGBA channels
-      var v = rgbaValue( originalImage.data[i],  originalImage.data[i+1],  originalImage.data[i+2],  originalImage.data[i+3] );
+    const originalImage = ctx.getImageData(0, 0, width, height);
+    const pixelCountByValue = Array(255).fill(0);
+    for (let i=0; i<originalImage.data.length; i+=4) { // 4 is for RGBA channels
+      const v = rgbaValue( originalImage.data[i],  originalImage.data[i+1],  originalImage.data[i+2],  originalImage.data[i+3] );
       pixelCountByValue[v]++;
     }
-    var totalPixelCount = originalImage.data.length/4;
-    var max = pixelCountByValue.reduce((a,b) => Math.max(a,b));
-    var proportionalPixelsByValue = pixelCountByValue.map(c => Math.floor(100*c/max));
+    const totalPixelCount = originalImage.data.length/4;
+    const max = pixelCountByValue.reduce((a,b) => Math.max(a,b));
+    const proportionalPixelsByValue = pixelCountByValue.map(c => Math.floor(100*c/max));
     //var checksum = proportionalPixelsByValue.reduce((a,b) => a+b);
     //console.log({proportionalPixelsByValue,checksum});
 
@@ -663,7 +663,7 @@ export const getValueHistogram = (
     c.height = 100;
     ctx.fillStyle="black";
     for(let i=0; i<totalPixelCount; i++){
-      var h = proportionalPixelsByValue[i];
+      const h = proportionalPixelsByValue[i];
       ctx.fillRect(i,c.height-h,1,h);
     }
 
@@ -683,7 +683,7 @@ const noise = (width: number, height: number, type: NoiseType): Promise<ImagePay
     switch(type){
       case "bw":
         for(let i=0; i<data.data.length; i+=4){
-          var n = 255 * Math.round(Math.random());
+          const n = 255 * Math.round(Math.random());
           data.data[i+0] = n;
           data.data[i+1] = n;
           data.data[i+2] = n;
@@ -700,7 +700,7 @@ const noise = (width: number, height: number, type: NoiseType): Promise<ImagePay
         break;
       case 'grayscale':
         for(let i=0; i<data.data.length; i+=4){
-          var n = Math.floor(255 * Math.random());
+          const n = Math.floor(255 * Math.random());
           data.data[i+0] = n;
           data.data[i+1] = n;
           data.data[i+2] = n;
@@ -741,7 +741,7 @@ const threshold = async (img: ImagePayload, value: Byte): Promise<ImagePayload> 
 const payloadToOffscreenCanvas = async (img: ImagePayload): Promise<OffscreenCanvas> => {
   const el = await loadImgElement(img.dataUrl);
   const c = new OffscreenCanvas(img.width,img.height);
-  let ctx = c.getContext('2d')!;
+  const ctx = c.getContext('2d')!;
   ctx.drawImage(el,0,0);
   return c;
 };

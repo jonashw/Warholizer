@@ -21,7 +21,7 @@ export const splitValueRangeByThresholdValue = (
     console.info('threshold outside range: too high');
     return [range];
   }
-  let midpoint: Byte = Math.min(255,range.min + (threshold - range.min)/2) as Byte;
+  const midpoint: Byte = Math.min(255,range.min + (threshold - range.min)/2) as Byte;
   return [
     {
       min: range.min,
@@ -54,10 +54,10 @@ export const split = (
       return ranges;
     }
     // [...initRanges, prevRange]
-    let initRanges = ranges.slice(0,ranges.length-1);
+    const initRanges = ranges.slice(0,ranges.length-1);
     //let isFirstSplitting = initRanges.length === 0;
-    let prevRange = ranges[ranges.length-1];
-    let tailRanges = splitValueRangeByThresholdValue(prevRange, threshold);
+    const prevRange = ranges[ranges.length-1];
+    const tailRanges = splitValueRangeByThresholdValue(prevRange, threshold);
     //console.log({initRanges,prevRange,isFirstSplitting,tailRanges});
     return [
       ...initRanges,

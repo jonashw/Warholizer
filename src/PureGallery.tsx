@@ -17,75 +17,75 @@ const pureExample = (ops: PureRasterOperation[]): Effect =>
         async img => applyPureOperationPipeline(ops,img)
     ];
 
-export default () => {
-    const effects: Effect[] = [
-        ...[false,true].flatMap(invert => 
-            ([0,15,30,45,60] as number[]).map(ang =>
-                pureExample([{type:'halftone', angle: angle(ang), blurPixels:1, dotDiameter: 5, invert}]),
-            )),
-        ...([0,15,30,45,60] as number[]).map(ang =>
-            pureExample([{type:'halftone', angle: angle(ang), blurPixels:0, dotDiameter: 20, dotsOnly:true}]),
-        ),
-        pureExample([{type:'noise', monochromatic: true, amount: 50}]),
-        pureExample([{type:'noise', monochromatic: false, amount: 50}]),
-        pureExample([{type:'rgbChannels'}]), 
-        pureExample([{type:'rgbChannels'},{type:'stack', blendingMode:'multiply'}]), 
-        pureExample([{type:'rgbChannels'},{type:'grayscale', percent: 100}]), 
-        ...PaperSizes.flatMap(paperSize =>
-            ['portrait','landscape'].flatMap(orientation =>
-                TilingPatterns.map(tilingPattern =>
-                    pureExample([{
-                        type:'printSet',
-                        paperSize: paperSize.id,
-                        tilingPattern,
-                        rowLength: positiveNumber(4),
-                        orientation: orientation as unknown as 'portrait' | 'landscape'  }]),
-                ))),
-        ...([2] as number[]).map(blurPixels =>
-            pureExample([{type:'halftone', angle: 0, blurPixels, dotDiameter: 10}]),
-        ),
-        ...([90,180,270] as Angle[]).map(degrees =>
-            pureExample([{type:'rotateHue', degrees}]),
-        ),
-        pureExample([{type:'invert'}]),
-        ...([60,120,180] as Byte[]).map(value =>
-            pureExample([{type:'threshold', value}]),
-        ),
-        pureExample([{type:'blur', pixels: 3}]),
-        ...(
-            (['x','y'] as Dimension[]).flatMap(dimension => 
-            ([20,50,80] as Percentage[]).map(amount => 
-                pureExample([{type:'slideWrap',dimension,amount}]),
-            ))
-        ),
-        ...(
-            (['x','y'] as Dimension[]).flatMap(dimension => 
-            [0.2,0.5,0.8].map(amount => 
-                pureExample([{
-                    type:'scale',
-                    x: dimension == 'x' ? amount : 1,
-                    y: dimension == 'y' ? amount : 1
-                }]),
-            ))
-        ),
-        ...([100,200,300] as PositiveNumber[]).flatMap(w =>
-        ([100,200,300] as PositiveNumber[]).map(h =>
-            pureExample([{type:'scaleToFit', w,h}]),
+const effects: Effect[] = [
+    ...[false,true].flatMap(invert => 
+        ([0,15,30,45,60] as number[]).map(ang =>
+            pureExample([{type:'halftone', angle: angle(ang), blurPixels:1, dotDiameter: 5, invert}]),
         )),
-        ...([50,100] as Percentage[]).map(percent =>
-            pureExample([{type:'grayscale', percent}]),
-        ),
-        ...[1,2,3].map(n =>
-            pureExample([{type:'multiply',n}]),
-        ),
-    ];
+    ...([0,15,30,45,60] as number[]).map(ang =>
+        pureExample([{type:'halftone', angle: angle(ang), blurPixels:0, dotDiameter: 20, dotsOnly:true}]),
+    ),
+    pureExample([{type:'noise', monochromatic: true, amount: 50}]),
+    pureExample([{type:'noise', monochromatic: false, amount: 50}]),
+    pureExample([{type:'rgbChannels'}]), 
+    pureExample([{type:'rgbChannels'},{type:'stack', blendingMode:'multiply'}]), 
+    pureExample([{type:'rgbChannels'},{type:'grayscale', percent: 100}]), 
+    ...PaperSizes.flatMap(paperSize =>
+        ['portrait','landscape'].flatMap(orientation =>
+            TilingPatterns.map(tilingPattern =>
+                pureExample([{
+                    type:'printSet',
+                    paperSize: paperSize.id,
+                    tilingPattern,
+                    rowLength: positiveNumber(4),
+                    orientation: orientation as unknown as 'portrait' | 'landscape'  }]),
+            ))),
+    ...([2] as number[]).map(blurPixels =>
+        pureExample([{type:'halftone', angle: 0, blurPixels, dotDiameter: 10}]),
+    ),
+    ...([90,180,270] as Angle[]).map(degrees =>
+        pureExample([{type:'rotateHue', degrees}]),
+    ),
+    pureExample([{type:'invert'}]),
+    ...([60,120,180] as Byte[]).map(value =>
+        pureExample([{type:'threshold', value}]),
+    ),
+    pureExample([{type:'blur', pixels: 3}]),
+    ...(
+        (['x','y'] as Dimension[]).flatMap(dimension => 
+        ([20,50,80] as Percentage[]).map(amount => 
+            pureExample([{type:'slideWrap',dimension,amount}]),
+        ))
+    ),
+    ...(
+        (['x','y'] as Dimension[]).flatMap(dimension => 
+        [0.2,0.5,0.8].map(amount => 
+            pureExample([{
+                type:'scale',
+                x: dimension == 'x' ? amount : 1,
+                y: dimension == 'y' ? amount : 1
+            }]),
+        ))
+    ),
+    ...([100,200,300] as PositiveNumber[]).flatMap(w =>
+    ([100,200,300] as PositiveNumber[]).map(h =>
+        pureExample([{type:'scaleToFit', w,h}]),
+    )),
+    ...([50,100] as Percentage[]).map(percent =>
+        pureExample([{type:'grayscale', percent}]),
+    ),
+    ...[1,2,3].map(n =>
+        pureExample([{type:'multiply',n}]),
+    ),
+];
 
+export default function PureGallery() {
     const [inputImages, setInputImages] = React.useState<{id:number,osc:OffscreenCanvas}[]>([]);
     const [outputImages,setOutputImages] = React.useState<({id:number,img:ImageOutput}|undefined)[]>(effects.map(_ => undefined));
 
     const unixNow = () => new Date().valueOf();
 
-    const prepareInputImage = async (oscPromise: Promise<OffscreenCanvas>) => {
+    const prepareInputImage = React.useCallback(async (oscPromise: Promise<OffscreenCanvas>) => {
         const osc = await oscPromise;
         const op: PureRasterOperation = {
             type:'scaleToFit',
@@ -93,23 +93,23 @@ export default () => {
             h: positiveNumber(500)
         };
         const scaled = await PureRasterOperations.apply(op, [osc]);
-        setInputImages([
+        setInputImages(inputImages => [
             ...inputImages,
             {
                 id: unixNow(),
                 osc: scaled[0]
             }
         ]);
-    }
+    }, []);
 
     React.useEffect(() => {
         prepareInputImage(ImageUtil.loadOffscreen("/warhol.jpg"))
         onFilePaste(async (data: ArrayBuffer | string) => {
             prepareInputImage(ImageUtil.loadOffscreen(data.toString()));
         });
-    },[]);
+    },[prepareInputImage]);
 
-    const useFile = async (file: File) => {
+    const addFile = async (file: File) => {
         const url = await fileToDataUrl(file);
         prepareInputImage(ImageUtil.loadOffscreen(url.toString()));
     };
@@ -124,11 +124,11 @@ export default () => {
         console.log('refreshing...')
         setOutputImages(effects.map(_ => undefined));
         const effect = async () => {
-            let outputs: ({img:ImageOutput, id: number}|undefined)[] = 
+            const outputs: ({img:ImageOutput, id: number}|undefined)[] = 
                 effects.map(_ => undefined); //placeholders for unfinished effects
 
             let i = 1;
-            for(let effect of effects){
+            for(const effect of effects){
                 const ta = window.performance.now();
                 const outputImgs = await effect[1](inputImages.map(i => i.osc));
                 const tb = window.performance.now();
@@ -197,11 +197,11 @@ export default () => {
                                             capture={o.capture}
                                             accept="image/jpeg, image/png, image/gif"
                                             onChange={e => {
-                                                var files = Array.from(e.target.files || []);
+                                                const files = Array.from(e.target.files || []);
                                                 if (files.length !== 1) {
                                                     return;
                                                 }
-                                                useFile(files[0]);
+                                                addFile(files[0]);
                                             }}
                                         />
                                     </label>
@@ -241,4 +241,4 @@ export default () => {
             </div>
         </div>
     );
-};
+}

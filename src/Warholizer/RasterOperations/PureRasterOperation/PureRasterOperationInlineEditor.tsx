@@ -88,7 +88,7 @@ function NumberSpinnerInput<T extends number>({
             <Add/>
         </button>
     </div>;
-};
+}
 
 const AbstractNumberInput = <T extends number>(
     min:T,

@@ -1,6 +1,6 @@
 import { useNavigate } from 'react-router-dom';
 import AuthContext from './AuthContext.tsx';
-export default () => {
+export default function GoogleLoginComplete() {
     const navigate = useNavigate();
     const auth = AuthContext.useAuth();
     //const pictureRef = React.useRef<HTMLImageElement>(null);
@@ -27,4 +27,4 @@ export default () => {
             <button className="btn btn-outline-danger" onClick={logout}>Logout</button>
         </div>
     </div>);
-};
+}

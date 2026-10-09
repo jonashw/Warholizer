@@ -33,10 +33,10 @@ const HSLuvColorPicker = () => {
         if(!canvasRef.current){
             return;
         }
-        let c = canvasRef.current;
+        const c = canvasRef.current;
         c.width=H;
         c.height=S;
-        let ctx = c.getContext('2d');
+        const ctx = c.getContext('2d');
         if(!ctx){
             return;
         }
@@ -44,11 +44,11 @@ const HSLuvColorPicker = () => {
             case "H":
                 for(let l=0; l<L; l++)
                 for(let s=0; s<S; s++){
-                    let ss = hsluvColorSpace[h];
+                    const ss = hsluvColorSpace[h];
                     if(!ss){ continue; }
-                    let ls = ss[s];
+                    const ls = ss[s];
                     if(!ls){ continue; }
-                    let color = hsluvColorSpace[h][s][l];
+                    const color = hsluvColorSpace[h][s][l];
                     ctx.fillStyle = color;
                     ctx.fillRect(s,L-1-l,1,1);
                 }
@@ -56,7 +56,7 @@ const HSLuvColorPicker = () => {
             case "S":
                 for(let h=0; h<H; h++)
                 for(let l=0; l<L; l++){
-                    let color = hsluvColorSpace[h][s][l];
+                    const color = hsluvColorSpace[h][s][l];
                     ctx.fillStyle = color;
                     ctx.fillRect(h,L-1-l,1,1);
                 }
@@ -64,7 +64,7 @@ const HSLuvColorPicker = () => {
             case "L":
                 for(let h=0; h<H; h++)
                 for(let s=0; s<S; s++){
-                    let color = hsluvColorSpace[h][s][l];
+                    const color = hsluvColorSpace[h][s][l];
                     ctx.fillStyle = color;
                     ctx.fillRect(h,S-1-s,1,1);
                 }
@@ -84,7 +84,7 @@ const HSLuvColorPicker = () => {
         if(!color){
             return;
         }
-        let [h,s,l] = hexToHsluv(color);
+        const [h,s,l] = hexToHsluv(color);
         setH(Math.floor(h));
         setS(Math.floor(s));
         setL(Math.floor(l));
@@ -94,10 +94,10 @@ const HSLuvColorPicker = () => {
         if(!canvasRef.current){
             return;
         }
-        let rect = canvasRef.current.getBoundingClientRect();
+        const rect = canvasRef.current.getBoundingClientRect();
         const x = e.clientX - rect.left;
         const y = e.clientY - rect.top;
-        let color = 
+        const color = 
             mode === "H" ? hsluvColorSpace[h][x][L-y-1]
             : mode === "S" ? hsluvColorSpace[x][s][L-y-1]
             : mode === "L" ? hsluvColorSpace[x][S-y-1][l]
@@ -144,7 +144,7 @@ const HSLuvColorPicker = () => {
                     min="0"
                     max={max-1}
                     onChange={e => {
-                        let value = parseInt(e.target.value);
+                        const value = parseInt(e.target.value);
                         if(isNaN(value)){
                             return;
                         }

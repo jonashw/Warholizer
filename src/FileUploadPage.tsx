@@ -1,5 +1,5 @@
 import AuthContext from "./AuthContext";
-export default () => {
+export default function FileUploadPage() {
     const auth = AuthContext.useAuth();
     const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
         const file = e.target.files?.[0];
@@ -42,4 +42,4 @@ export default () => {
     return <form>
         <input type="file" name="fileUpload" required onChange={handleFileChange}/>
     </form>
-};
+}

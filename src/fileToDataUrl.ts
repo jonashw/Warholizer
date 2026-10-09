@@ -14,7 +14,7 @@ export default function fileToDataUrl(file: File): Promise<string | ArrayBuffer>
                 reject();
                 return;
             }
-            let r: string | ArrayBuffer = reader.result;
+            const r: string | ArrayBuffer = reader.result;
             resolve(r);
         };
         reader.onerror = error => reject(error);

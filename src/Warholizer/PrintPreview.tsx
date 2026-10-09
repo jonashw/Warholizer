@@ -30,9 +30,9 @@ const ImageGrid = ({
       if(!windowSize){
         return;
       }
-      let ar = (img.width)/(img.height);
-      let w = (paper.width/rowSize);
-      let h = w/ar;
+      const ar = (img.width)/(img.height);
+      const w = (paper.width/rowSize);
+      const h = w/ar;
       setWH({w,h});
       setScale(
         Math.min(
@@ -48,7 +48,7 @@ const ImageGrid = ({
     ]);
 
     const infinityAsZero = (n: number): number => n === Infinity ? 0 : n;
-    let {w,h} = WH;
+    const {w,h} = WH;
     const canvasW = w*rowSize;
     const canvasH = canvasW/paper.AR;
     const colSize = infinityAsZero(Math.ceil(canvasH/h) || 0);

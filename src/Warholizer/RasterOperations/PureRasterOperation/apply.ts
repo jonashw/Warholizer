@@ -155,7 +155,7 @@ const apply = async (op: PureRasterOperation, inputs: OffscreenCanvas[]): Promis
           ctx.fillStyle = "black";
           const s = patternSideLength;
           const h = s/2;
-          for(let [x,y] of [ [h,h], [0,0], [0,s], [s,0], [s,s] ]){
+          for(const [x,y] of [ [h,h], [0,0], [0,s], [s,0], [s,s] ]){
             ctx.beginPath();
             ctx.arc(x,y,op.dotDiameter/2,0,Math.PI*2);
             ctx.fill();
@@ -270,7 +270,7 @@ const apply = async (op: PureRasterOperation, inputs: OffscreenCanvas[]): Promis
           const outputData = new ImageData(input.width, input.height, {colorSpace:inputData.colorSpace});
           const randomByte = () => Math.floor(Math.random() * 255);
           const mono = op.monochromatic;
-          for (var i = 0; i < inputData.data.length; i += 4) { // 4 is for RGBA channels
+          for (let i = 0; i < inputData.data.length; i += 4) { // 4 is for RGBA channels
             if(mono){
               const rand = randomByte();
               outputData.data[i + 0] = rand;
@@ -293,12 +293,6 @@ const apply = async (op: PureRasterOperation, inputs: OffscreenCanvas[]): Promis
         });
       }));
     case 'rgbChannels': 
-      function rgbaValue(r: number, g: number, b: number, a: number) {
-        //reference: https://computergraphics.stackexchange.com/a/5114
-        //const [rPeakWavelength,gPeakWavelength,bPeakWavelength]=[600,540,450];
-        const [rCoeff, gCoeff, bCoeff] = [0.21, 0.72, 0.07];
-        return Math.floor((a / 255) * ((r * rCoeff) + (g * gCoeff) + (b * bCoeff)));
-      }
       return Promise.all(inputs.flatMap(input => {
         const inputData = input.getContext('2d')!.getImageData(0,0,input.width,input.height);
         const out = {
@@ -308,7 +302,7 @@ const apply = async (op: PureRasterOperation, inputs: OffscreenCanvas[]): Promis
         };
         const empty = 255;
         const useValue = false;
-        for (var i = 0; i < inputData.data.length; i += 4) { // 4 is for RGBA channels
+        for (let i = 0; i < inputData.data.length; i += 4) { // 4 is for RGBA channels
           const r = inputData.data[i+0];
           const g = inputData.data[i+1];
           const b = inputData.data[i+2]; 
@@ -526,9 +520,9 @@ const tile = async (inputs: OffscreenCanvas[], op: Tile): Promise<OffscreenCanva
     ];
     
   return await offscreenCanvasOperation(width, height, (ctx) => {
-    for(let line of lines){
+    for(const line of lines){
       ctx.save();
-      for(let input of line.inputs){
+      for(const input of line.inputs){
         ctx.drawImage(input,0,0);
 
         if(op.primaryDimension === "x"){

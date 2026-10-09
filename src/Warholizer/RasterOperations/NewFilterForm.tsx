@@ -50,7 +50,7 @@ export const NewFilterForm = ({
                     checked={wrap.dimension === dim}
                     id={id} 
                     onChange={e => {
-                        setWrap({...wrap, dimension: e.target.value as any})
+                        setWrap({...wrap, dimension: e.target.value as SlideWrap['dimension']})
                     }}/>
                 </label>;
             })}

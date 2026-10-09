@@ -3,7 +3,7 @@ import AuthContext from './AuthContext.tsx';
 import { useNavigate } from 'react-router-dom';
 import { User } from '../api/auth.mts';
 
-export default () => {
+export default function GoogleLoginPage() {
     const auth = AuthContext.useAuth();
     const navigate = useNavigate();
     return <GoogleLogin
@@ -27,4 +27,4 @@ export default () => {
             alert('Login Failed');
         }}
     />
-};
+}

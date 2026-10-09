@@ -55,9 +55,9 @@ const Warholizer = ({
   const [fontPreviewText, setFontPreviewText] = React.useState<string>('');
   const defaultCrop: Crop = React.useMemo(() => ({x:0,y:0,width:0,height:0,unit:'px' }),[]);
   const [crop, setCrop] = React.useState<Crop>(defaultCrop);
-  let [paper,setPaper] = React.useState<Paper>(PAPER.LETTER_PORTRAIT);
-	let [thresholdIsInEffect, setThresholdIsInEffect] = React.useState<boolean>(initialThresholdIsInEffect === undefined ? true : initialThresholdIsInEffect)
-  let [colorAdjustedImg,setColorAdjustedImg] = React.useState<ImagePayload|undefined>();
+  const [paper,setPaper] = React.useState<Paper>(PAPER.LETTER_PORTRAIT);
+	const [thresholdIsInEffect, setThresholdIsInEffect] = React.useState<boolean>(initialThresholdIsInEffect === undefined ? true : initialThresholdIsInEffect)
+  const [colorAdjustedImg,setColorAdjustedImg] = React.useState<ImagePayload|undefined>();
   const [quantization,setQuantization] = React.useState<Quantization|undefined>();
   const [quantizationDepth,setQuantizationDepth] = React.useState<number>(2);
   const [stencilMaskImgs,setStencilMaskImgs] = React.useState<ImagePayload[]>([]);
@@ -88,7 +88,7 @@ const Warholizer = ({
 
   React.useEffect(() => {
     const effect = async () => {
-      let img = await load(initialImgSrc);
+      const img = await load(initialImgSrc);
       setOriginalImg(img);
     }
     effect();
@@ -96,7 +96,7 @@ const Warholizer = ({
 
   React.useEffect(() => {
     const effect = async () => {
-      let fonts: string[] = await Fonts.loadAll();
+      const fonts: string[] = await Fonts.loadAll();
       setFonts(fonts);
     }
     effect();
@@ -104,7 +104,7 @@ const Warholizer = ({
 
   React.useEffect(() => {
     onFilePaste(async (data: ArrayBuffer | string) => {
-      let img = await load(data.toString());
+      const img = await load(data.toString());
       setOriginalImg(img);
       console.log('image paste');
     });
@@ -183,7 +183,7 @@ const Warholizer = ({
         return;
       }
 
-      if(!cropImgRef.current){
+      if(!prevCropImgRef){
         setCroppedImg(originalImg);
         return;
       }
@@ -193,9 +193,6 @@ const Warholizer = ({
       }
       if(crop.width === 0 || crop.height === 0){
         setCroppedImg(originalImg);
-        return;
-      }
-      if(!prevCropImgRef){
         return;
       }
       /* The ReactCrop component pays no mind to the automatic scaling that
@@ -452,11 +449,11 @@ const Warholizer = ({
               <br/>(or just paste an image from your clipboard)
             </label>
             <input type="file" id="formFileUpload" onChange={async e => {
-              var files = Array.from(e.target.files || []);
+              const files = Array.from(e.target.files || []);
               if (files.length !== 1) {
                 return;
               }
-              let dataUrl: string | ArrayBuffer = await fileToDataUrl(files[0]);
+              const dataUrl: string | ArrayBuffer = await fileToDataUrl(files[0]);
               setOriginalImg(await load(dataUrl.toString()));
             }} accept="image/*" />
             <div className="mt-3">
@@ -478,13 +475,13 @@ const Warholizer = ({
                   key={f} 
                   onClick={async _ => {
                     //setFonts(fonts => fonts.filter((_,ffi) => ffi !== fi));
-                    let textToDraw = !!fontPreviewText ? fontPreviewText : f;
-                    let img = await text(` ${textToDraw} `, f, 320);
+                    const textToDraw = fontPreviewText ? fontPreviewText : f;
+                    const img = await text(` ${textToDraw} `, f, 320);
                     setCrop(defaultCrop);
                     setOriginalImg(img);
                   }}
                 >
-                  {!!fontPreviewText ? fontPreviewText : f}
+                  {fontPreviewText ? fontPreviewText : f}
                 </div>)}
               </div>
             </div>
@@ -514,7 +511,7 @@ const Warholizer = ({
               <div key={t} className="d-flex py-1">
                 <input className="form-range" disabled={!thresholdIsInEffect} type="range" min="0" max="255" defaultValue={threshold} 
                   onChange={e => {
-                    let newThresholds = [...thresholds];
+                    const newThresholds = [...thresholds];
                     newThresholds[t] = byte(parseInt(e.target.value));
                     setThresholds(newThresholds);
                   }}
@@ -533,7 +530,7 @@ const Warholizer = ({
               <button 
               className="btn btn-primary"
               onClick={() => {
-                let nextThreshold: Byte = byte(
+                const nextThreshold: Byte = byte(
                   thresholds.length === 0 
                   ? 125 
                   : (255+thresholds[thresholds.length-1])/2);
@@ -635,7 +632,7 @@ const Warholizer = ({
             <Swatch color={bucket.averageColorCSS} />
             <div className="h3 m-0">&rarr;</div>
 
-            {!!replacementColors[i] 
+            {replacementColors[i] 
               ? <Swatch color={'rgba(' + replacementColors[i] + ')'} />
               : <span>N/A</span>
             }
@@ -643,21 +640,21 @@ const Warholizer = ({
             <input type="text"
               style={{width:'unset'}}
               className="form-control form-control-sm flex-shrink-1"
-              defaultValue={!!replacementCSSColors[i] ? replacementCSSColors[i] : ""} 
+              defaultValue={replacementCSSColors[i] ? replacementCSSColors[i] : ""} 
               onChange={e => {
-                let colorString = e.target.value?.trim() || "";
-                let rgb = 
+                const colorString = e.target.value?.trim() || "";
+                const rgb = 
                   colorString
                     .split(',')
                     .map(str => parseInt(str))
                     .filter(n => !isNaN(n) && 0 <= n && n <= 255);
                 setReplacementColors(cs => {
-                  let updatedColors = [...cs];
+                  const updatedColors = [...cs];
                   updatedColors[i] = rgb.length !== 3 ? undefined : (rgb as [number,number,number]);
                   return updatedColors;
                 })
                 setReplacementCSSColors(cs => {
-                  let updatedColors = [...cs];
+                  const updatedColors = [...cs];
                   updatedColors[i] = rgb.length !== 3 ? "" : colorString;
                   return updatedColors;
                 })

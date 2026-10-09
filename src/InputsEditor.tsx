@@ -23,12 +23,6 @@ export function InputsEditor({
     const [webcamVisible, setWebcamVisible] = React.useState(false);
 
     React.useEffect(() => {
-        onFilePaste(async (data: ArrayBuffer | string) => {
-            prepareInputUrls([data.toString()]);
-        });
-    }, []);
-
-    React.useEffect(() => {
         onChange(inputs);
     }, [inputs, onChange]);
 
@@ -55,6 +49,16 @@ export function InputsEditor({
             }))
         ]);
     };
+
+    // The paste listener is registered once, so route it through a ref to the latest
+    // prepareInputUrls; otherwise it would append to the initial (stale) inputs.
+    const prepareInputUrlsRef = React.useRef(prepareInputUrls);
+    prepareInputUrlsRef.current = prepareInputUrls;
+    React.useEffect(() => {
+        onFilePaste(async (data: ArrayBuffer | string) => {
+            prepareInputUrlsRef.current([data.toString()]);
+        });
+    }, []);
 
     const prepareFiles = async (files: File[]) => {
         const urls = await Promise.all(files.map(fileToDataUrl));
