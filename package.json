@@ -16,10 +16,11 @@
     "db:studio": "netlify dev:exec drizzle-kit studio"
   },
   "dependencies": {
-    "@emotion/react": "^11.11.4",
-    "@emotion/styled": "^11.11.5",
+    "@emotion/react": "^11.14.0",
+    "@emotion/styled": "^11.14.1",
     "@hello-pangea/dnd": "^18.0.1",
-    "@mui/icons-material": "^5.15.15",
+    "@mui/icons-material": "^9.4.0",
+    "@mui/material": "^9.4.0",
     "@netlify/functions": "^2.6.3",
     "@netlify/neon": "^0.1.2",
     "@react-oauth/google": "^0.13.4",
