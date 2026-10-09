@@ -56,7 +56,7 @@ const tryGetUserFromTicket = (ticket: LoginTicket): User|string => {
     return user;
 };
 
-export async function withAuthenticatedGoogleUser(req: Request, next: (user: User) => Promise<Response>) {
+export async function withAuthenticatedGoogleUser(req: Request, next: (user: User, ticket: LoginTicket) => Promise<Response>) {
     const authHeader = req.headers.get('Authorization');
     if (!authHeader?.startsWith('Bearer ')) {
         return new Response(JSON.stringify({ error: 'Missing or invalid Authorization header' }), { headers: { 'Content-Type': 'application/json' }, status: 401 });
@@ -70,7 +70,27 @@ export async function withAuthenticatedGoogleUser(req: Request, next: (user: Use
     if (typeof user === 'string') {
         return unauthorized(user);
     }
-    return next(user);
+    return next(user, ticket);
+}
+
+// Comma-separated list of admin emails, set in the Netlify environment. Unset means no admins.
+const adminEmails = (process.env.ADMIN_EMAILS ?? '')
+    .split(',')
+    .map(e => e.trim().toLowerCase())
+    .filter(e => e.length > 0);
+
+/** Like withAuthenticatedGoogleUser, but also requires a verified email listed in ADMIN_EMAILS. */
+export async function withAuthenticatedAdmin(req: Request, next: (user: User) => Promise<Response>) {
+    return withAuthenticatedGoogleUser(req, async (user, ticket) => {
+        const payload = ticket.getPayload();
+        const isAdmin =
+            payload?.email_verified === true
+            && adminEmails.includes(user.email.toLowerCase());
+        if (!isAdmin) {
+            return new Response(JSON.stringify({ error: 'Forbidden' }), { headers: { 'Content-Type': 'application/json' }, status: 403 });
+        }
+        return next(user);
+    });
 }
 
 export default async (req: Request) => {
