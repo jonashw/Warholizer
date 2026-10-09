@@ -1,5 +1,7 @@
 import { defaultFormat } from "../formats";
-import { Cell, Cube, ExportSettings, Format } from "../types";
+import { isGroupAware } from "../../Warholizer/RasterOperations/PureRasterOperation/registry";
+import { childrenOf } from "../tree";
+import { Cell, Cube, ExportSettings, Format, Node, PHOTO } from "../types";
 import { gifOf } from "./gif";
 import { buildPdf, PdfPage } from "./pdf";
 
@@ -49,14 +51,20 @@ const jpegOf = async (image: OffscreenCanvas) =>
 export type ExportFile = { name: string, blob: Blob };
 
 /** The files for some results of a cube, named by their addresses. */
+/** A result as a PDF page: its JPEG and physical size (small, so many can be collected). */
+export const pdfPageOf = async (cube: Cube<OffscreenCanvas>, i: number, format: Format = defaultFormat): Promise<PdfPage> => {
+  const cell = cube.cells[i];
+  const [widthPt, heightPt, bleedPt] = pointsOf(cell, format);
+  return { jpeg: await jpegOf(cell.image), pixelWidth: cell.image.width, pixelHeight: cell.image.height, widthPt, heightPt, bleedPt };
+};
+
+export const pdfDocument = (name: string, pages: PdfPage[]): ExportFile =>
+  ({ name: `${slug(name)}.pdf`, blob: new Blob([buildPdf(pages) as BlobPart], { type: 'application/pdf' }) });
+
 export const exportFiles = async (
   name: string, cube: Cube<OffscreenCanvas>, indexes: number[], settings: ExportSettings, format: Format = defaultFormat,
 ): Promise<ExportFile[]> => {
-  const page = async (i: number): Promise<PdfPage> => {
-    const cell = cube.cells[i];
-    const [widthPt, heightPt, bleedPt] = pointsOf(cell, format);
-    return { jpeg: await jpegOf(cell.image), pixelWidth: cell.image.width, pixelHeight: cell.image.height, widthPt, heightPt, bleedPt };
-  };
+  const page = (i: number) => pdfPageOf(cube, i, format);
   const pdfBlob = (pages: PdfPage[]) => new Blob([buildPdf(pages) as BlobPart], { type: 'application/pdf' });
   // Animations are GIFs whatever the file type; everything else follows the settings.
   const animated = indexes.filter(i => cube.cells[i].animation);
@@ -89,4 +97,22 @@ const stillFiles = async (
         blob: await cube.cells[i].image.convertToBlob({ type: 'image/png' }),
       })));
   }
+};
+
+/**
+ * Whether results can be rendered one photo at a time (memory-safe export): every result keeps
+ * its photo, and no step looks across photos (group-aware steps grouped without Photo, a match to
+ * another photo, or distributions that deal variants across images).
+ */
+export const separableByPhoto = (root: Node, output: Cube<unknown>): boolean => {
+  if (output.cells.length === 0 || !output.cells.every(c => c.coords[PHOTO] !== undefined)) return false;
+  const nodes = (node: Node): Node[] => [node, ...childrenOf(node).flatMap(nodes)];
+  return nodes(root).every(node => {
+    if (node.kind === 'variations') return node.distribution.type === 'all-variants-per-image';
+    if (node.kind === 'operation' && isGroupAware(node.op)) {
+      const photoReference = node.op.type === 'tone' && node.op.method.type === 'match' && typeof node.op.method.reference === 'object';
+      return !photoReference && (node.by ?? []).includes(PHOTO);
+    }
+    return true;
+  });
 };

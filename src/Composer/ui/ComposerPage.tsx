@@ -12,13 +12,13 @@ import { fetchImage, jpegOf, LibraryImage, linkCardOf, openComposition, openPubl
 import { LibrarySheet, ShareSheet } from "./CloudSheets";
 import { canvasOps } from "../canvasOps";
 import { photoCube } from "../cube";
-import { evaluate, EvaluateOptions, Trace } from "../evaluate";
+import { createEvaluationCache, evaluate, EvaluateOptions, nextGeneration, pruneUnused, Trace } from "../evaluate";
 import { inferComposition, Placeholder, totalPixels } from "../infer";
 import { compositionText } from "../text";
 import { findNode, insertNode, moveNode, parentOf, removeNode, updateNode } from "../tree";
 import { Composition, Cube, Dimension, ExportSettings, Format, Node, NodeId, SequenceNode, VariationDistribution } from "../types";
 import { AddSheet } from "./AddSheet";
-import { defaultExportSettings, exportFiles, fileNameOf, resultAddress } from "../export/exportResults";
+import { defaultExportSettings, exportFiles, fileNameOf, pdfDocument, pdfPageOf, resultAddress, separableByPhoto } from "../export/exportResults";
 import { Segmented } from "./Segmented";
 import "./Composer.css";
 import { StepSheet } from "./StepSheet";
@@ -350,18 +350,24 @@ export default function ComposerPage() {
 
   // Images at preview size; the previous render stays on screen until the next one is ready.
   const [rendered, setRendered] = React.useState<{ root: Node, photos: Photo[], trace: Trace<OffscreenCanvas>, output: Cube<OffscreenCanvas> }>();
+  // Step outputs are reused while their step and incoming images are unchanged (incremental rendering).
+  const [cache] = React.useState(() => createEvaluationCache<OffscreenCanvas>());
   React.useEffect(() => {
     // Wait for this composition's inference: it decides the preview size before anything heavy renders.
     if (previewFactor === undefined) return;
     let cancelled = false;
     const timer = setTimeout(() => {
       const trace: Trace<OffscreenCanvas> = new Map();
-      evaluate(root, previewCube(renderPhotos), canvasOps, trace, options)
-        .then(output => { if (!cancelled) setRendered({ root, photos: renderPhotos, trace, output }); })
+      nextGeneration(cache);
+      evaluate(root, previewCube(renderPhotos), canvasOps, trace, { ...options, cache })
+        .then(output => {
+          pruneUnused(cache);
+          if (!cancelled) setRendered({ root, photos: renderPhotos, trace, output });
+        })
         .catch(error => console.error('Composer render failed', error));
     }, 60);
     return () => { cancelled = true; clearTimeout(timer); };
-  }, [root, renderPhotos, options, previewFactor]);
+  }, [root, renderPhotos, options, previewFactor, cache]);
   const busy = !rendered || rendered.root !== root || rendered.photos !== renderPhotos;
 
   // Suggestions and checks from the composition's structure (docs/knowledge/usage-patterns.md).
@@ -738,10 +744,37 @@ function Viewer({ cube, root, photos, composition, options, printPlan, onSetting
         return factor < 1 ? scaled(p.full, Math.ceil(Math.max(p.full.width, p.full.height) * factor)) : p.full;
       });
       const scales = sources.map((source, i) => source.width / photos[i].full.width);
-      const rendered = await evaluate(root, photoCube(sources, scales), canvasOps, undefined, { format: options.format });
-      const files = await exportFiles(composition.name, rendered, indexes.filter(i => i < rendered.cells.length), settings, options.format);
-      for (const file of files) {
-        await download(file.blob, file.name);
+      const evaluateOptions = { format: options.format };
+      if (separableByPhoto(root, cube)) {
+        // Memory-safe: one photo at a time, writing its files before rendering the next.
+        const coordsKey = (c: { coords: Record<string, string> }) => JSON.stringify(Object.entries(c.coords).sort());
+        const wanted = new Map(indexes.map(i => [coordsKey(cube.cells[i]), i]));
+        const photoKeys = [...new Set(indexes.map(i => cube.cells[i].coords.photo))];
+        const oneDocument = settings.fileType === 'pdf' && settings.pdf === 'one-document';
+        const pages: { order: number, page: Awaited<ReturnType<typeof pdfPageOf>> }[] = [];
+        for (const [n, key] of photoKeys.entries()) {
+          setBusy(`${what}:${n + 1}/${photoKeys.length}`);
+          const p = Number(key) - 1;
+          const rendered = await evaluate(root, photoCube([sources[p]], [scales[p]], [key]), canvasOps, undefined, evaluateOptions);
+          const mine = rendered.cells.map((c, i) => [i, wanted.get(coordsKey(c))] as const).filter(([, order]) => order !== undefined);
+          if (oneDocument && mine.every(([i]) => !rendered.cells[i].animation)) {
+            for (const [i, order] of mine) pages.push({ order: order!, page: await pdfPageOf(rendered, i, options.format) });
+          } else {
+            for (const file of await exportFiles(composition.name, rendered, mine.map(([i]) => i), settings, options.format)) {
+              await download(file.blob, file.name);
+            }
+          }
+        }
+        if (pages.length) {
+          const document = pdfDocument(composition.name, pages.sort((a, b) => a.order - b.order).map(p => p.page));
+          await download(document.blob, document.name);
+        }
+      } else {
+        const rendered = await evaluate(root, photoCube(sources, scales), canvasOps, undefined, evaluateOptions);
+        const files = await exportFiles(composition.name, rendered, indexes.filter(i => i < rendered.cells.length), settings, options.format);
+        for (const file of files) {
+          await download(file.blob, file.name);
+        }
       }
     } finally {
       setBusy(undefined);
@@ -765,7 +798,7 @@ function Viewer({ cube, root, photos, composition, options, printPlan, onSetting
         <Segmented label="Resolution" value={settings.resolution} onChange={resolution => onSettings({ ...settings, resolution })}
           options={[{ value: 'final', label: 'Final' }, { value: 'proof', label: 'Proof (half size)' }]} />
         <button type="button" className="composer-primary" disabled={busy !== undefined} onClick={() => exportResults(all, 'all')}>
-          {busy === 'all' ? 'Rendering…' : `Export all (${fileCount} ${fileCount === 1 ? 'file' : 'files'})`}
+          {busy?.startsWith('all') ? (busy.includes(':') ? `Rendering photo ${busy.split(':')[1].replace('/', ' of ')}…` : 'Rendering…') : `Export all (${fileCount} ${fileCount === 1 ? 'file' : 'files'})`}
         </button>
         <span style={{ fontSize: 12, color: '#b9bdc6' }}>Files are named by their place in the composition, e.g. {fileNameOf(resultAddress(composition.name, cube, 0), settings.fileType === 'jpeg' ? 'jpg' : settings.fileType)}</span>
         {cube.cells.some(c => c.frame) && (
@@ -783,7 +816,7 @@ function Viewer({ cube, root, photos, composition, options, printPlan, onSetting
           <div className="composer-row" style={{ flexWrap: 'nowrap' }}>
             <span style={{ flexGrow: 1, fontSize: 12, color: '#b9bdc6' }}>{cellLabel(cube, i)}</span>
             <button type="button" className="composer-primary" style={{ height: 40 }} disabled={busy !== undefined} onClick={() => exportResults([i], `${i}`)}>
-              {busy === `${i}` ? 'Rendering…' : `Save ${c.animation ? 'GIF' : settings.fileType.toUpperCase()}`}
+              {busy?.split(':')[0] === `${i}` ? 'Rendering…' : `Save ${c.animation ? 'GIF' : settings.fileType.toUpperCase()}`}
             </button>
           </div>
         </div>

@@ -317,7 +317,7 @@ sequence
 ## Future directions (from treating compositions as an AST)
 
 1. Dimension inference: show dimensions and counts at every step without rendering; catch invalid references.
-2. Incremental, content-addressed caching (shared with ADR 0001): re-render only what changed.
+2. Incremental, content-addressed caching (shared with ADR 0001): re-render only what changed. Built 2026-10-09 for previews: step outputs keyed by the step and the exact images arriving at it; each render keeps only what it used. Exports render one photo at a time when no step looks across photos.
 3. Query-style rewrites: Pick pushdown, hoisting shared effects above Variations, deduplicating identical children.
 4. Effect fusion: consecutive effects compile into one GPU pass.
 5. Resolution independence: evaluate at preview resolution while editing, full resolution for output.

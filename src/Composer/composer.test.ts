@@ -595,3 +595,55 @@ describe('distribution rename', () => {
     expect(b.distribution).toEqual({ type: 'one-variant-per-image', order: { type: 'in-turn' } });
   });
 });
+
+describe('incremental rendering', () => {
+  it('re-renders only the edited step and what follows it', async () => {
+    const { createEvaluationCache, nextGeneration, pruneUnused } = await import('./evaluate');
+    const applied: string[] = [];
+    const counting = { ...canvasOps, apply: async (op: PureRasterOperation, inputs: OffscreenCanvas[]) => { applied.push(op.type); return canvasOps.apply(op, inputs); } };
+    const cache = createEvaluationCache<OffscreenCanvas>();
+    const photos = photoCube([solid(8, 8, RED), solid(8, 8, BLUE)]);
+    const invert = operationNode({ type: 'invert' });
+    const blur = operationNode({ type: 'blur', pixels: 1 });
+    const render = async (root: Node) => {
+      nextGeneration(cache);
+      const trace = new Map();
+      const out = await evaluate(root, photos, counting, trace, { format: defaultFormat, cache });
+      pruneUnused(cache);
+      return { out, trace };
+    };
+    const first = await render(sequence(invert, blur));
+    expect(applied).toEqual(['invert', 'invert', 'blur', 'blur']);
+    applied.length = 0;
+    const again = await render({ ...sequence(invert, blur), id: (first as unknown as { id: string }).id });
+    expect(applied).toEqual([]);
+    expect(again.out.cells[0].image).toBe(first.out.cells[0].image);
+    expect(again.trace.has(invert.id)).toBe(true);
+    applied.length = 0;
+    await render(sequence(invert, { ...blur, op: { type: 'blur', pixels: 2 } } as Node));
+    expect(applied).toEqual(['blur', 'blur']);
+    expect(cache.entries.size).toBeLessThanOrEqual(4);
+  });
+});
+
+describe('memory-safe export', () => {
+  it('renders one photo at a time only when no step looks across photos', async () => {
+    const { separableByPhoto } = await import('./export/exportResults');
+    const perPhoto = sequence(variationsList(allPerImage, operationNode({ type: 'invert' }), operationNode({ type: 'noop' })), combine(layout(), [PHOTO]));
+    expect(separableByPhoto(perPhoto, await shape(perPhoto, 2))).toBe(true);
+    const dealt = sequence(variationsList(inTurn, operationNode({ type: 'invert' }), operationNode({ type: 'noop' })));
+    expect(separableByPhoto(dealt, await shape(dealt, 2))).toBe(false);
+    const pooledTone = sequence({ kind: 'operation', id: 't', op: { type: 'tone', method: { type: 'auto', clip: 1 } } } as Node);
+    expect(separableByPhoto(pooledTone, await shape(pooledTone, 2))).toBe(false);
+    const perPhotoTone = sequence({ kind: 'operation', id: 't', op: { type: 'tone', method: { type: 'auto', clip: 1 } }, by: [PHOTO] } as Node);
+    expect(separableByPhoto(perPhotoTone, await shape(perPhotoTone, 2))).toBe(true);
+    const acrossPhotos = sequence(combine(layout(), []));
+    expect(separableByPhoto(acrossPhotos, await shape(acrossPhotos, 2))).toBe(false);
+  });
+
+  it('a photo rendered alone keeps its number, so results match the full render', async () => {
+    const root = sequence(operationNode({ type: 'invert' }));
+    const alone = await evaluate(root, photoCube([solid(4, 4, BLUE)], [1], ['2']), canvasOps);
+    expect(alone.cells[0].coords[PHOTO]).toBe('2');
+  });
+});

@@ -3,6 +3,7 @@ import { defaultFormat, formatToPixels, pageBoxOf, pagePixels } from "./formats"
 import { PageBox, PagePlan, planCrosstab, planFlow, planMiniZine, withReading } from "./layoutPlan";
 import { isGroupAware } from "../Warholizer/RasterOperations/PureRasterOperation/registry";
 import { PureRasterOperation } from "../Warholizer/RasterOperations/PureRasterOperation/types";
+import { childrenOf } from "./tree";
 import { dealShuffled, groupCells, normalize, unionDimensions, uniqueName } from "./cube";
 import { isSeparation, listDimension, operationLabel, separationDimension } from "./labels";
 import { formatSpreadValue, spreadSetting, spreadValuesFor } from "./spread";
@@ -28,7 +29,7 @@ export type ImageOps<Img> = {
 };
 
 /** Settings that come from the composition rather than from any one step. */
-export type EvaluateOptions = {
+export type EvaluateOptions<Img = unknown> = {
   format: Format,
   /** For previews: pages larger than this (long side, px) render smaller, at a proportionally smaller scale. */
   maxPageSize?: number,
@@ -37,7 +38,51 @@ export type EvaluateOptions = {
    * pixel of the source photo (above 1 means upscaled), with the page's format. For print planning.
    */
   onPlaced?: (placement: { photo: MemberKey | undefined, photoScale: number, format: Format }) => void,
+  /** Reuses step outputs whose step and incoming images are unchanged (ADR 0003, future direction 2). */
+  cache?: EvaluationCache<Img>,
 };
+
+/**
+ * Step outputs keyed by the step (its settings and children) and the exact images arriving at it.
+ * Unchanged steps return the same image objects, so a render after an edit reuses everything
+ * before the edited step. After each render, entries it did not use are dropped.
+ */
+export type EvaluationCache<Img> = {
+  entries: Map<string, { output: Cube<Img>, generation: number }>,
+  generation: number,
+  hits: number,
+  misses: number,
+};
+
+export const createEvaluationCache = <Img,>(): EvaluationCache<Img> => ({ entries: new Map(), generation: 0, hits: 0, misses: 0 });
+
+/** Call before a render: starts a generation (the previous render's entries stay available). */
+export const nextGeneration = <Img,>(cache: EvaluationCache<Img>) => {
+  cache.generation++;
+  cache.hits = 0;
+  cache.misses = 0;
+};
+
+/** Call after a render completes: keeps only what it used, so memory matches one render's worth. */
+export const pruneUnused = <Img,>(cache: EvaluationCache<Img>) => {
+  for (const [key, entry] of cache.entries) {
+    if (entry.generation < cache.generation) cache.entries.delete(key);
+  }
+};
+
+const imageIds = new WeakMap<object, number>();
+let nextImageId = 1;
+const imageId = (image: unknown): number => {
+  if (typeof image !== 'object' || image === null) return 0;
+  let id = imageIds.get(image);
+  if (id === undefined) { id = nextImageId++; imageIds.set(image, id); }
+  return id;
+};
+
+const cubeKey = <Img,>(cube: Cube<Img>): string => JSON.stringify([
+  cube.dimensions,
+  cube.cells.map(c => [c.coords, imageId(c.image), c.scale ?? 1, c.frame ?? null, c.animation ? c.animation.frames.map(imageId) : null]),
+]);
 const defaultOptions: EvaluateOptions = { format: defaultFormat };
 
 /** The cubes into and out of each node, by node id. */
@@ -48,14 +93,29 @@ export const evaluate = async <Img>(
   input: Cube<Img>,
   ops: ImageOps<Img>,
   trace?: Trace<Img>,
-  options: EvaluateOptions = defaultOptions,
+  options: EvaluateOptions<Img> = defaultOptions as EvaluateOptions<Img>,
 ): Promise<Cube<Img>> => {
+  const cache = options.cache;
+  const key = cache ? `${JSON.stringify(node)}\u0000${cubeKey(input)}` : '';
+  const cached = cache?.entries.get(key);
+  if (cache && cached) {
+    cached.generation = cache.generation;
+    cache.hits++;
+    // Containers re-walk their (cached) children so the trace still has every step, for peeks.
+    if (trace && childrenOf(node).length) await evaluateNode(node, input, ops, trace, options);
+    trace?.set(node.id, { input, output: cached.output });
+    return cached.output;
+  }
   const output = await evaluateNode(node, input, ops, trace, options);
+  if (cache) {
+    cache.misses++;
+    cache.entries.set(key, { output, generation: cache.generation });
+  }
   trace?.set(node.id, { input, output });
   return output;
 };
 
-const evaluateNode = <Img>(node: Node, input: Cube<Img>, ops: ImageOps<Img>, trace: Trace<Img> | undefined, options: EvaluateOptions): Promise<Cube<Img>> => {
+const evaluateNode = <Img>(node: Node, input: Cube<Img>, ops: ImageOps<Img>, trace: Trace<Img> | undefined, options: EvaluateOptions<Img>): Promise<Cube<Img>> => {
   switch (node.kind) {
     case 'operation': return evaluateOperation(node, input, ops, options);
     case 'sequence': return node.children.reduce(
@@ -70,7 +130,7 @@ const evaluateNode = <Img>(node: Node, input: Cube<Img>, ops: ImageOps<Img>, tra
 };
 
 /** `op` with its sizes in this cell's pixels: preview scale, DPI and the image's short side. */
-const resolvedFor = <Img>(op: PureRasterOperation, cell: Cell<Img> | undefined, ops: ImageOps<Img>, options: EvaluateOptions): PureRasterOperation => {
+const resolvedFor = <Img>(op: PureRasterOperation, cell: Cell<Img> | undefined, ops: ImageOps<Img>, options: EvaluateOptions<Img>): PureRasterOperation => {
   const [w, h] = cell && ops.size ? ops.size(cell.image) : [0, 0];
   const dpi = cell?.frame?.dpi ?? options.format.dpi;
   return resolveLengths(op, { dpi, scale: cell?.scale ?? 1, shortSide: Math.min(w, h) }) as PureRasterOperation;
@@ -85,7 +145,7 @@ const withReference = <Img>(op: PureRasterOperation, input: Cube<Img>): { op: Pu
 };
 
 /** Group-aware effects: one call per group of the `by` dimensions, so statistics stay within a group. */
-const evaluateGroupAware = async <Img>(node: OperationNode, input: Cube<Img>, ops: ImageOps<Img>, options: EvaluateOptions): Promise<Cube<Img>> => {
+const evaluateGroupAware = async <Img>(node: OperationNode, input: Cube<Img>, ops: ImageOps<Img>, options: EvaluateOptions<Img>): Promise<Cube<Img>> => {
   const by = (node.by ?? []).filter(id => input.dimensions.some(d => d.id === id));
   const { op: unresolved, reference } = withReference(node.op, input);
   const groups = groupCells(input, by);
@@ -98,7 +158,7 @@ const evaluateGroupAware = async <Img>(node: OperationNode, input: Cube<Img>, op
   return normalize(input.dimensions, results.flat().filter(c => c.image !== undefined));
 };
 
-const evaluateOperation = async <Img>(node: OperationNode, input: Cube<Img>, ops: ImageOps<Img>, options: EvaluateOptions): Promise<Cube<Img>> => {
+const evaluateOperation = async <Img>(node: OperationNode, input: Cube<Img>, ops: ImageOps<Img>, options: EvaluateOptions<Img>): Promise<Cube<Img>> => {
   const { op } = node;
   if (isGroupAware(op)) {
     return evaluateGroupAware(node, input, ops, options);
@@ -205,7 +265,7 @@ const assignments = (node: VariationsNode, cellCount: number, variantCount: numb
   };
 };
 
-const evaluateVariations = async <Img>(node: VariationsNode, input: Cube<Img>, ops: ImageOps<Img>, trace: Trace<Img> | undefined, options: EvaluateOptions): Promise<Cube<Img>> => {
+const evaluateVariations = async <Img>(node: VariationsNode, input: Cube<Img>, ops: ImageOps<Img>, trace: Trace<Img> | undefined, options: EvaluateOptions<Img>): Promise<Cube<Img>> => {
   const { variants, dimensions: variationDimensions } = variantsOf(node, input.dimensions);
   if (variants.length === 0) {
     return normalize(input.dimensions, []);
@@ -272,7 +332,7 @@ export const combineBy = <Img>(node: CombineNode, dimensions: Dimension[], cells
   return ids.filter(id => by.includes(id) || decidesFormat(id));
 };
 
-const evaluateCombine = async <Img>(node: CombineNode, input: Cube<Img>, ops: ImageOps<Img>, options: EvaluateOptions): Promise<Cube<Img>> => {
+const evaluateCombine = async <Img>(node: CombineNode, input: Cube<Img>, ops: ImageOps<Img>, options: EvaluateOptions<Img>): Promise<Cube<Img>> => {
   const { method } = node;
   if (method.type === 'layout') {
     return evaluateLayout(node, method, input, ops, options);
@@ -311,7 +371,7 @@ const combinations = <Img>(dimensions: Dimension[], cells: Cell<Img>[]): Member[
 
 const pageDimensionName = 'Page';
 
-const evaluateLayout = async <Img>(node: CombineNode, layout: Layout, input: Cube<Img>, ops: ImageOps<Img>, options: EvaluateOptions): Promise<Cube<Img>> => {
+const evaluateLayout = async <Img>(node: CombineNode, layout: Layout, input: Cube<Img>, ops: ImageOps<Img>, options: EvaluateOptions<Img>): Promise<Cube<Img>> => {
   const by = combineBy(node, input.dimensions, input.cells);
   const groups = groupCells(input, by);
   const { frame, placement } = layout;
