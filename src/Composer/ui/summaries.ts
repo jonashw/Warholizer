@@ -1,6 +1,7 @@
-import { operationRegistry } from "../../Warholizer/RasterOperations/PureRasterOperation/registry";
 import { stringRepresentation } from "../../Warholizer/RasterOperations/PureRasterOperation/stringRepresentation";
-import { isSeparation, operationLabel } from "../labels";
+import { combineMethodLabel, isSeparation, operationLabel } from "../labels";
+import { formatSummary } from "../formats";
+import { formatSize } from "../../Warholizer/RasterOperations/PureRasterOperation/length";
 import { combineKindOf, Dimension, Node, VariationDistribution } from "../types";
 
 /** What kind of step a node is, in the vocabulary of ADR 0003. */
@@ -12,6 +13,7 @@ export const kindLabel = (node: Node): string => {
     case 'combine': return `Combine · ${combineKindOf(node.method) === 'blend' ? 'Blend' : 'Layout'}`;
     case 'pick': return 'Pick';
     case 'pivot': return 'Pivot';
+    case 'format': return 'Format';
   }
 };
 
@@ -37,11 +39,18 @@ export const nodeSummary = (node: Node, dimensions: Dimension[]): string => {
       : `${node.variants.params.map(p => `${p.param} ${p.from}..${p.to} ${p.type === 'count' ? `×${p.n}` : `every ${p.by}`}`).join(' · ')} · ${distributionLabel(node.distribution)}`;
     case 'combine': {
       const by = node.by ? node.by.map(id => dimensionName(dimensions, id)).join(', ') || 'everything' : 'auto';
-      if (node.method.type === 'crosstab') {
-        return `${dimensionName(dimensions, node.method.rows)} × ${dimensionName(dimensions, node.method.columns)} · by ${by}`;
-      }
-      return `by ${by}`;
+      const m = node.method;
+      if (m.type !== 'layout') return `${m.blendingMode} · by ${by}`;
+      const names = (ids: string[]) => ids.map(id => dimensionName(dimensions, id)).join(' × ') || 'none';
+      const where = m.placement.type === 'by-dimensions'
+        ? `${names(m.placement.rows)} down, ${names(m.placement.columns)} across`
+        : m.size.type === 'across' || m.size.type === 'down' ? `${m.size.n} ${m.size.type}` : `${m.size.type} ${formatSize(m.size.size)}`;
+      const page = m.frame.type === 'page'
+        ? (m.frame.distribution.type === 'one-cell-per-image' ? ` · each once, ${m.frame.distribution.overflow}` : ' · fill the page')
+        : '';
+      return `${where}${page} · by ${by}`;
     }
+    case 'format': return formatSummary(node.format);
     case 'pick': {
       const name = dimensionName(dimensions, node.dimension);
       return Array.isArray(node.members) ? `${name} in ${node.members.length}` : `${name} = one`;
@@ -71,7 +80,8 @@ export const nodeTitle = (node: Node): string => {
   switch (node.kind) {
     case 'operation': return operationLabel(node.op);
     case 'variations': return node.variants.type === 'spread' ? `Spread ${operationLabel(node.variants.op)}` : 'Variations';
-    case 'combine': return node.method.type === 'crosstab' ? 'Crosstab' : operationRegistry[node.method.type].label;
+    case 'combine': return combineMethodLabel(node.method);
+    case 'format': return node.format.name;
     case 'sequence': return 'Sequence';
     case 'pick': return 'Pick';
     case 'pivot': return 'Pivot';

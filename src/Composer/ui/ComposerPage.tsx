@@ -3,10 +3,13 @@ import { CanvasView } from "../../CanvasView";
 import fileToDataUrl from "../../fileToDataUrl";
 import { loadSampleImages, sampleImageUrls } from "../../sampleImageUrls";
 import ImageUtil from "../../Warholizer/ImageUtil";
-import { combine, emptyComposition, newSeed, warholDuotoneGrid } from "../build";
+import { combine, emptyComposition, layout, newSeed, warholDuotoneGrid } from "../build";
+import { defaultFormat } from "../formats";
+import { migrateComposition } from "../migrate";
+import { FormatEditor } from "./FormatEditor";
 import { canvasOps } from "../canvasOps";
 import { photoCube } from "../cube";
-import { evaluate, Trace } from "../evaluate";
+import { evaluate, EvaluateOptions, Trace } from "../evaluate";
 import { inferComposition, Placeholder } from "../infer";
 import { compositionText } from "../text";
 import { findNode, insertNode, moveNode, parentOf, removeNode, updateNode } from "../tree";
@@ -22,6 +25,7 @@ type Sheet =
   /** The images on a wire: after a node, or the input photos when `after` is null. */
   | { type: 'peek', after: NodeId | null }
   | { type: 'text' }
+  | { type: 'format' }
   | { type: 'viewer' };
 
 type Photo = { full: OffscreenCanvas, preview: OffscreenCanvas };
@@ -45,7 +49,7 @@ const loadSaved = (): Composition => {
     const saved = localStorage.getItem(storageKey);
     if (saved) {
       const parsed = JSON.parse(saved) as Composition;
-      if (parsed.version === 1 && parsed.root?.kind === 'sequence') return parsed;
+      if (parsed.version === 1 && parsed.root?.kind === 'sequence') return migrateComposition(parsed);
     }
   } catch {
     // Storage may be unavailable; start from the sample.
@@ -93,6 +97,9 @@ export default function ComposerPage() {
   const [photos, setPhotos] = React.useState<Photo[]>([]);
   const [sheet, setSheet] = React.useState<Sheet>();
   const root = composition.root;
+  const format = composition.format ?? defaultFormat;
+  // Previews render pages at most 1200 px on the long side; exports at full size.
+  const options = React.useMemo(() => ({ format, maxPageSize: 1200 }), [format]);
 
   const setComposition = (next: Composition) => {
     setHistory(h => [...h.slice(-49), composition]);
@@ -131,9 +138,10 @@ export default function ComposerPage() {
   const [inferred, setInferred] = React.useState<{ trace: Trace<Placeholder>, output: Cube<Placeholder> }>();
   React.useEffect(() => {
     let cancelled = false;
-    inferComposition(composition, photos.length).then(r => { if (!cancelled) setInferred(r); });
+    inferComposition(composition, photos.map(p => [p.preview.width, p.preview.height]), photos.map(p => p.preview.width / p.full.width))
+      .then(r => { if (!cancelled) setInferred(r); });
     return () => { cancelled = true; };
-  }, [composition, photos.length]);
+  }, [composition, photos]);
 
   // Images at preview size; the previous render stays on screen until the next one is ready.
   const [rendered, setRendered] = React.useState<{ root: Node, photos: Photo[], trace: Trace<OffscreenCanvas>, output: Cube<OffscreenCanvas> }>();
@@ -141,12 +149,12 @@ export default function ComposerPage() {
     let cancelled = false;
     const timer = setTimeout(() => {
       const trace: Trace<OffscreenCanvas> = new Map();
-      evaluate(root, previewCube(photos), canvasOps, trace)
+      evaluate(root, previewCube(photos), canvasOps, trace, options)
         .then(output => { if (!cancelled) setRendered({ root, photos, trace, output }); })
         .catch(error => console.error('Composer render failed', error));
     }, 60);
     return () => { cancelled = true; clearTimeout(timer); };
-  }, [root, photos]);
+  }, [root, photos, options]);
   const busy = !rendered || rendered.root !== root || rendered.photos !== photos;
 
   const inputPhotos = previewCube(photos);
@@ -189,6 +197,7 @@ export default function ComposerPage() {
         <input className="composer-title" aria-label="Composition name" value={composition.name}
           onChange={e => setCompositionState(c => { const next = { ...c, name: e.target.value }; save(next); return next; })} />
         {busy && <span className="composer-busy">rendering</span>}
+        <button type="button" className="composer-icon-button" onClick={() => setSheet({ type: 'format' })} title="The composition's format">{format.name}</button>
         <button type="button" className="composer-icon-button" onClick={undo} disabled={history.length === 0}>Undo</button>
         <button type="button" className="composer-icon-button" onClick={() => setSheet({ type: 'text' })}>Text</button>
       </div>
@@ -289,7 +298,7 @@ export default function ComposerPage() {
                 onClose={() => setSheet(undefined)}
                 onCombine={() => {
                   const index = sheet.after === null ? 0 : steps.findIndex(s => s.id === sheet.after) + 1;
-                  const node = combine({ type: 'tile', primaryDimension: 'x', lineLength: 3 });
+                  const node = combine(layout());
                   setRoot(insertNode(root, root.id, index, node));
                   setSheet({ type: 'step', id: node.id });
                 }}
@@ -299,6 +308,16 @@ export default function ComposerPage() {
                   setRoot(insertNode(root, root.id, index, node));
                   setSheet({ type: 'step', id: node.id });
                 }} />
+            )}
+            {sheet.type === 'format' && (
+              <>
+                <div className="composer-handle" />
+                <div className="composer-sheet-header">
+                  <div className="composer-sheet-title"><strong>Composition format</strong><span>The page for Sheets, unless a Format step says otherwise</span></div>
+                  <button type="button" className="composer-icon-button" onClick={() => setSheet(undefined)}>Done</button>
+                </div>
+                <FormatEditor value={format} onChange={next => setComposition({ ...composition, format: next })} />
+              </>
             )}
             {sheet.type === 'text' && (
               <>
@@ -320,7 +339,7 @@ export default function ComposerPage() {
       )}
 
       {sheet?.type === 'viewer' && rendered && (
-        <Viewer cube={rendered.output} root={root} photos={photos} name={composition.name} onClose={() => setSheet(undefined)} />
+        <Viewer cube={rendered.output} root={root} photos={photos} name={composition.name} options={options} onClose={() => setSheet(undefined)} />
       )}
     </div>
   );
@@ -406,15 +425,15 @@ function Peek({ cube, onClose, onCombine, onPick }: {
   );
 }
 
-function Viewer({ cube, root, photos, name, onClose }: {
-  cube: Cube<OffscreenCanvas>, root: Node, photos: Photo[], name: string, onClose: () => void,
+function Viewer({ cube, root, photos, name, options, onClose }: {
+  cube: Cube<OffscreenCanvas>, root: Node, photos: Photo[], name: string, options: EvaluateOptions, onClose: () => void,
 }) {
   const [saving, setSaving] = React.useState<number>();
   const saveFullSize = async (i: number) => {
     setSaving(i);
     try {
       // Full resolution: the same composition, evaluated on the original photos.
-      const full = await evaluate(root, photoCube(photos.map(p => p.full)), canvasOps);
+      const full = await evaluate(root, photoCube(photos.map(p => p.full)), canvasOps, undefined, { format: options.format });
       const image = full.cells[i]?.image;
       if (image) await download(image, `${name || 'composition'} ${i + 1}.png`);
     } finally {

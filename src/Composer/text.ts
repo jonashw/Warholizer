@@ -1,6 +1,6 @@
 import { isLength } from "../Warholizer/RasterOperations/PureRasterOperation/length";
 import { PureRasterOperation } from "../Warholizer/RasterOperations/PureRasterOperation/types";
-import { Composition, Node, Spread, VariationDistribution } from "./types";
+import { Composition, Layout, LayoutDistribution, Node, Order, Spread, VariationDistribution } from "./types";
 
 /** "gradientMap" → "gradient-map". */
 const kebab = (s: string) => s.replace(/([a-z0-9])([A-Z])/g, '$1-$2').toLowerCase();
@@ -57,14 +57,32 @@ const lines = (node: Node, depth: number): string[] => {
     case 'combine': {
       const { method } = node;
       const by = node.by ? ` by: [${node.by.join(' ')}]` : '';
-      if (method.type === 'crosstab') {
-        return [`${indent}crosstab rows: ${method.rows} columns: ${method.columns}${method.labels ? '' : ' labels: false'}${by}`];
-      }
-      return [indent + operation(method) + by];
+      return [indent + (method.type === 'layout' ? layoutText(method) : operation(method)) + by];
     }
+    case 'format': return [`${indent}format ${kebab(node.format.name.replace(/[^A-Za-z0-9]+/g, ' ').trim().replace(/ /g, '-'))} ${node.format.width} × ${node.format.height} ${node.format.unit}${node.format.unit === 'px' ? '' : ` ${node.format.dpi} dpi`}`];
     case 'pick': return [`${indent}pick ${node.dimension} ${Array.isArray(node.members) ? `in: [${node.members.join(' ')}]` : `= ${node.members}`}`];
     case 'pivot': return [`${indent}pivot [${node.order.join(' ')}]`];
   }
+};
+
+const orderText = (o: Order) => o.type === 'in-turn' ? 'in-turn' : `shuffled(seed: ${o.seed})`;
+
+export const layoutDistributionText = (d: LayoutDistribution): string =>
+  d.type === 'one-cell-per-image' ? `one-cell-per-image(${d.overflow})` : `one-image-per-cell(${orderText(d.order)}, ${d.edges})`;
+
+/** A Layout, writing only what differs from the defaults (flow, contain, center, normal, no gutter, no labels, free). */
+const layoutText = (l: Layout): string => {
+  const parts = ['layout'];
+  if (l.placement.type === 'by-dimensions') parts.push(`rows: [${l.placement.rows.join(' ')}] columns: [${l.placement.columns.join(' ')}]`);
+  else if (l.size.type === 'across' || l.size.type === 'down') parts.push(`${l.size.type}: ${l.size.n}`);
+  else parts.push(`${l.size.type}: ${value(l.size.size)}`);
+  if (l.fit !== 'contain') parts.push(`fit: ${l.fit}`);
+  if (l.align !== 'center') parts.push(`align: ${l.align}`);
+  if (l.pattern !== 'normal') parts.push(`pattern: ${l.pattern}`);
+  if (l.gutter !== 0) parts.push(`gutter: ${typeof l.gutter === 'number' ? `${l.gutter}px` : value(l.gutter)}`);
+  if (l.labels !== 'none') parts.push(`labels: ${l.labels}`);
+  if (l.frame.type === 'page') parts.push(`page: ${layoutDistributionText(l.frame.distribution)}`);
+  return parts.join(' ');
 };
 
 /**

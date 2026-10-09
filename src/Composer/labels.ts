@@ -1,12 +1,15 @@
 import { operationRegistry } from "../Warholizer/RasterOperations/PureRasterOperation/registry";
 import { PureRasterOperation } from "../Warholizer/RasterOperations/PureRasterOperation/types";
 import { formatParamValue, paramLabel } from "./spread";
+import { LayoutPreset, presetOf } from "./build";
 import { CombineMethod, Member, Node, VariationsNode } from "./types";
 
 export const operationLabel = (op: PureRasterOperation) => operationRegistry[op.type].label;
 
+const presetLabels: Record<LayoutPreset, string> = { tile: 'Tile', line: 'Line', crosstab: 'Crosstab', sheet: 'Sheet' };
+
 export const combineMethodLabel = (method: CombineMethod): string =>
-  method.type === 'crosstab' ? 'Crosstab' : operationLabel(method);
+  method.type === 'layout' ? presetLabels[presetOf(method)] : operationLabel(method);
 
 /** Short name of a node, for pills, members and the text view. */
 export const nodeLabel = (node: Node): string => {
@@ -19,6 +22,7 @@ export const nodeLabel = (node: Node): string => {
     case 'combine': return combineMethodLabel(node.method);
     case 'pick': return 'Pick';
     case 'pivot': return 'Pivot';
+    case 'format': return node.format.name;
   }
 };
 
@@ -49,6 +53,12 @@ export const isSeparation = (op: PureRasterOperation) =>
  */
 export const listDimension = (node: VariationsNode & { variants: { type: 'list' } }): { name: string, members: Member[] } => {
   const children = node.variants.children;
+  if (children.length > 0 && children.every(c => c.kind === 'format')) {
+    return {
+      name: node.bind ?? 'Format',
+      members: children.map(c => ({ key: c.id, label: c.kind === 'format' ? c.format.name : '' })),
+    };
+  }
   const ops = children.map(c => c.kind === 'operation' ? c.op : undefined);
   const sameType = ops.length > 0 && ops.every(op => op && op.type === ops[0]!.type);
   if (sameType) {

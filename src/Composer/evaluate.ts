@@ -1,11 +1,13 @@
-import { defaultDpi, resolveLengths } from "../Warholizer/RasterOperations/PureRasterOperation/length";
+import { resolveLength, resolveLengths } from "../Warholizer/RasterOperations/PureRasterOperation/length";
+import { defaultFormat, formatToPixels, pagePixels } from "./formats";
+import { PageBox, PagePlan, planCrosstab, planFlow } from "./layoutPlan";
 import { isGroupAware } from "../Warholizer/RasterOperations/PureRasterOperation/registry";
 import { PureRasterOperation } from "../Warholizer/RasterOperations/PureRasterOperation/types";
 import { dealShuffled, groupCells, normalize, unionDimensions, uniqueName } from "./cube";
 import { isSeparation, listDimension, operationLabel, separationDimension } from "./labels";
 import { formatSpreadValue, spreadSetting, spreadValuesFor } from "./spread";
 import {
-  Cell, CombineNode, Cube, Dimension, DimensionId, MemberKey, Node, NodeId, OperationNode,
+  Cell, CombineNode, Cube, Dimension, DimensionId, Format, Layout, Member, MemberKey, Node, NodeId, OperationNode,
   PHOTO, PickNode, PivotNode, VariationsNode,
 } from "./types";
 
@@ -17,9 +19,17 @@ export type ImageOps<Img> = {
   apply: (op: PureRasterOperation, inputs: Img[]) => Promise<Img[]>,
   /** Width and height, for sizes relative to an image; absent for placeholders. */
   size?: (image: Img) => [number, number],
-  /** A labeled grid; `grid[row][column]` is undefined where no image has those coordinates. */
-  crosstab: (grid: (Img | undefined)[][], rowLabels: string[], columnLabels: string[], labels: boolean) => Promise<Img>,
+  /** Draws one planned page or canvas of a Layout from the group's images. */
+  compose: (plan: PagePlan, images: Img[]) => Promise<Img>,
 };
+
+/** Settings that come from the composition rather than from any one step. */
+export type EvaluateOptions = {
+  format: Format,
+  /** For previews: pages larger than this (long side, px) render smaller, at a proportionally smaller scale. */
+  maxPageSize?: number,
+};
+const defaultOptions: EvaluateOptions = { format: defaultFormat };
 
 /** The cubes into and out of each node, by node id. */
 export type Trace<Img> = Map<NodeId, { input: Cube<Img>, output: Cube<Img> }>;
@@ -29,29 +39,32 @@ export const evaluate = async <Img>(
   input: Cube<Img>,
   ops: ImageOps<Img>,
   trace?: Trace<Img>,
+  options: EvaluateOptions = defaultOptions,
 ): Promise<Cube<Img>> => {
-  const output = await evaluateNode(node, input, ops, trace);
+  const output = await evaluateNode(node, input, ops, trace, options);
   trace?.set(node.id, { input, output });
   return output;
 };
 
-const evaluateNode = <Img>(node: Node, input: Cube<Img>, ops: ImageOps<Img>, trace?: Trace<Img>): Promise<Cube<Img>> => {
+const evaluateNode = <Img>(node: Node, input: Cube<Img>, ops: ImageOps<Img>, trace: Trace<Img> | undefined, options: EvaluateOptions): Promise<Cube<Img>> => {
   switch (node.kind) {
-    case 'operation': return evaluateOperation(node, input, ops);
+    case 'operation': return evaluateOperation(node, input, ops, options);
     case 'sequence': return node.children.reduce(
-      async (cube, child) => evaluate(child, await cube, ops, trace),
+      async (cube, child) => evaluate(child, await cube, ops, trace, options),
       Promise.resolve(input));
-    case 'variations': return evaluateVariations(node, input, ops, trace);
-    case 'combine': return evaluateCombine(node, input, ops);
+    case 'variations': return evaluateVariations(node, input, ops, trace, options);
+    case 'combine': return evaluateCombine(node, input, ops, options);
+    case 'format': return Promise.resolve({ ...input, cells: input.cells.map(c => ({ ...c, frame: node.format })) });
     case 'pick': return Promise.resolve(evaluatePick(node, input));
     case 'pivot': return Promise.resolve(evaluatePivot(node, input));
   }
 };
 
 /** `op` with its sizes in this cell's pixels: preview scale, DPI and the image's short side. */
-const resolvedFor = <Img>(op: PureRasterOperation, cell: Cell<Img> | undefined, ops: ImageOps<Img>): PureRasterOperation => {
+const resolvedFor = <Img>(op: PureRasterOperation, cell: Cell<Img> | undefined, ops: ImageOps<Img>, options: EvaluateOptions): PureRasterOperation => {
   const [w, h] = cell && ops.size ? ops.size(cell.image) : [0, 0];
-  return resolveLengths(op, { dpi: defaultDpi, scale: cell?.scale ?? 1, shortSide: Math.min(w, h) }) as PureRasterOperation;
+  const dpi = cell?.frame?.dpi ?? options.format.dpi;
+  return resolveLengths(op, { dpi, scale: cell?.scale ?? 1, shortSide: Math.min(w, h) }) as PureRasterOperation;
 };
 
 /** The group-aware operation with "Photo n" resolved: the reference image goes first, then the group. */
@@ -63,12 +76,12 @@ const withReference = <Img>(op: PureRasterOperation, input: Cube<Img>): { op: Pu
 };
 
 /** Group-aware effects: one call per group of the `by` dimensions, so statistics stay within a group. */
-const evaluateGroupAware = async <Img>(node: OperationNode, input: Cube<Img>, ops: ImageOps<Img>): Promise<Cube<Img>> => {
+const evaluateGroupAware = async <Img>(node: OperationNode, input: Cube<Img>, ops: ImageOps<Img>, options: EvaluateOptions): Promise<Cube<Img>> => {
   const by = (node.by ?? []).filter(id => input.dimensions.some(d => d.id === id));
   const { op: unresolved, reference } = withReference(node.op, input);
   const groups = groupCells(input, by);
   const results = await Promise.all(groups.map(async group => {
-    const op = resolvedFor(unresolved, group.cells[0], ops);
+    const op = resolvedFor(unresolved, group.cells[0], ops, options);
     const images = group.cells.map(c => c.image);
     const out = reference === undefined ? await ops.apply(op, images) : (await ops.apply(op, [reference, ...images])).slice(1);
     return group.cells.map((cell, i) => ({ ...cell, image: out[i] }));
@@ -76,12 +89,12 @@ const evaluateGroupAware = async <Img>(node: OperationNode, input: Cube<Img>, op
   return normalize(input.dimensions, results.flat().filter(c => c.image !== undefined));
 };
 
-const evaluateOperation = async <Img>(node: OperationNode, input: Cube<Img>, ops: ImageOps<Img>): Promise<Cube<Img>> => {
+const evaluateOperation = async <Img>(node: OperationNode, input: Cube<Img>, ops: ImageOps<Img>, options: EvaluateOptions): Promise<Cube<Img>> => {
   const { op } = node;
   if (isGroupAware(op)) {
-    return evaluateGroupAware(node, input, ops);
+    return evaluateGroupAware(node, input, ops, options);
   }
-  const outputs = await Promise.all(input.cells.map(cell => ops.apply(resolvedFor(op, cell, ops), [cell.image])));
+  const outputs = await Promise.all(input.cells.map(cell => ops.apply(resolvedFor(op, cell, ops, options), [cell.image])));
   if (!isSeparation(op)) {
     // Effects: one image per cell, coordinates unchanged. (Void leaves none.)
     const cells = input.cells.flatMap((cell, i) => outputs[i].slice(0, 1).map(image => ({ ...cell, image })));
@@ -99,6 +112,7 @@ const evaluateOperation = async <Img>(node: OperationNode, input: Cube<Img>, ops
     coords: { ...cell.coords, [node.id]: `${part}` },
     image,
     scale: cell.scale,
+    frame: cell.frame,
   })));
   return normalize([...input.dimensions, dimension], cells);
 };
@@ -156,7 +170,7 @@ const assignments = (node: VariationsNode, cellCount: number, variantCount: numb
     dealt.flatMap((assigned, cell) => assigned === v ? [cell] : []));
 };
 
-const evaluateVariations = async <Img>(node: VariationsNode, input: Cube<Img>, ops: ImageOps<Img>, trace?: Trace<Img>): Promise<Cube<Img>> => {
+const evaluateVariations = async <Img>(node: VariationsNode, input: Cube<Img>, ops: ImageOps<Img>, trace: Trace<Img> | undefined, options: EvaluateOptions): Promise<Cube<Img>> => {
   const { variants, dimensions: variationDimensions } = variantsOf(node, input.dimensions);
   if (variants.length === 0) {
     return normalize(input.dimensions, []);
@@ -164,7 +178,7 @@ const evaluateVariations = async <Img>(node: VariationsNode, input: Cube<Img>, o
   const assigned = assignments(node, input.cells.length, variants.length);
   const outputs = await Promise.all(variants.map((variant, v) => {
     const cells = assigned[v].map(i => input.cells[i]);
-    return evaluate(variant.node, { dimensions: input.dimensions, cells }, ops, trace);
+    return evaluate(variant.node, { dimensions: input.dimensions, cells }, ops, trace, options);
   }));
   // Dimensions: the input's (that survive), then this node's, then any the variants created.
   const childDimensions = unionDimensions(outputs.map(o => o.dimensions));
@@ -179,39 +193,123 @@ const evaluateVariations = async <Img>(node: VariationsNode, input: Cube<Img>, o
   return normalize(dimensions, cells);
 };
 
-/** The dimensions a Combine groups by: as written, or all but the newest (all but rows and columns for a crosstab). */
-export const combineBy = (node: CombineNode, dimensions: Dimension[]): DimensionId[] => {
+/**
+ * The dimensions a Combine groups by: as written, or all but the newest (all but the rows and
+ * columns for a crosstab-style layout).
+ */
+export const combineBy = <Img>(node: CombineNode, dimensions: Dimension[], cells: Cell<Img>[] = []): DimensionId[] => {
   const ids = dimensions.map(d => d.id);
   if (node.by) {
     return node.by.filter(id => ids.includes(id));
   }
-  if (node.method.type === 'crosstab') {
-    const { rows, columns } = node.method;
-    return ids.filter(id => id !== rows && id !== columns);
-  }
-  return ids.slice(0, -1);
+  const { method } = node;
+  const by = method.type === 'layout' && method.placement.type === 'by-dimensions'
+    ? ids.filter(id => !(method.placement.type === 'by-dimensions' && [...method.placement.rows, ...method.placement.columns].includes(id)))
+    : ids.slice(0, -1);
+  if (method.type !== 'layout' || method.frame.type !== 'page') return by;
+  // Images with different formats cannot share a page: keep any dimension that decides the format.
+  const decidesFormat = (d: DimensionId) => {
+    const formatOf = new Map<string, string>();
+    for (const cell of cells) {
+      const key = cell.coords[d];
+      const name = cell.frame?.name ?? '';
+      if (key === undefined) continue;
+      if (formatOf.has(key) && formatOf.get(key) !== name) return false;
+      formatOf.set(key, name);
+    }
+    return new Set(formatOf.values()).size > 1;
+  };
+  return ids.filter(id => by.includes(id) || decidesFormat(id));
 };
 
-const evaluateCombine = async <Img>(node: CombineNode, input: Cube<Img>, ops: ImageOps<Img>): Promise<Cube<Img>> => {
+const evaluateCombine = async <Img>(node: CombineNode, input: Cube<Img>, ops: ImageOps<Img>, options: EvaluateOptions): Promise<Cube<Img>> => {
+  const { method } = node;
+  if (method.type === 'layout') {
+    return evaluateLayout(node, method, input, ops, options);
+  }
   const by = combineBy(node, input.dimensions);
   const groups = groupCells(input, by);
-  const { method } = node;
-  const images = await Promise.all(groups.map(async group => {
-    if (method.type !== 'crosstab') {
-      const [image] = await ops.apply(method, group.cells.map(c => c.image));
-      return image;
-    }
-    const rowDimension = input.dimensions.find(d => d.id === method.rows);
-    const columnDimension = input.dimensions.find(d => d.id === method.columns);
-    const rowMembers = rowDimension?.members ?? [{ key: '', label: '' }];
-    const columnMembers = columnDimension?.members ?? [{ key: '', label: '' }];
-    const at = (row: MemberKey, column: MemberKey) => group.cells.find(c =>
-      (!rowDimension || c.coords[method.rows] === row) && (!columnDimension || c.coords[method.columns] === column))?.image;
-    const grid = rowMembers.map(r => columnMembers.map(c => at(r.key, c.key)));
-    return ops.crosstab(grid, rowMembers.map(m => m.label), columnMembers.map(m => m.label), method.labels);
-  }));
-  const cells = groups.flatMap((group, i) => images[i] === undefined ? [] : [{ coords: group.coords, image: images[i], scale: group.cells[0]?.scale }]);
+  const images = await Promise.all(groups.map(async group => (await ops.apply(method, group.cells.map(c => c.image)))[0]));
+  const cells = groups.flatMap((group, i) => images[i] === undefined ? [] : [{
+    coords: group.coords, image: images[i], scale: group.cells[0]?.scale, frame: group.cells[0]?.frame,
+  }]);
   return normalize(input.dimensions.filter(d => by.includes(d.id)), cells);
+};
+
+/** All combinations of the members of `dimensions` (outer first) that some cell has. */
+const combinations = <Img>(dimensions: Dimension[], cells: Cell<Img>[]): Member[][] => {
+  let combos: Member[][] = [[]];
+  for (const d of dimensions) {
+    combos = combos.flatMap(c => d.members.map(m => [...c, m]));
+  }
+  return combos.filter(combo => cells.some(cell => combo.every((m, i) => cell.coords[dimensions[i].id] === m.key)));
+};
+
+const pageDimensionName = 'Page';
+
+const evaluateLayout = async <Img>(node: CombineNode, layout: Layout, input: Cube<Img>, ops: ImageOps<Img>, options: EvaluateOptions): Promise<Cube<Img>> => {
+  const by = combineBy(node, input.dimensions, input.cells);
+  const groups = groupCells(input, by);
+  const { frame, placement } = layout;
+  const distribution = frame.type === 'page' ? frame.distribution : undefined;
+  const spills = distribution?.type === 'one-cell-per-image' && distribution.overflow === 'spill';
+  const pageId = `${node.id}:page`;
+  const unplaced = input.dimensions.filter(d => !by.includes(d.id));
+  const label = (cell: Cell<Img>, d: Dimension) => d.members.find(m => m.key === cell.coords[d.id])?.label ?? '–';
+
+  const results = await Promise.all(groups.map(async group => {
+    const first = group.cells[0];
+    const format = first?.frame ?? options.format;
+    const full = pagePixels(format, first?.scale ?? 1);
+    const scale = (first?.scale ?? 1) * (frame.type === 'page' && options.maxPageSize ? Math.min(1, options.maxPageSize / Math.max(...full)) : 1);
+    const sizes = group.cells.map(c => ops.size ? ops.size(c.image) : [1, 1] as [number, number]);
+    const context = { dpi: format.dpi, scale, shortSide: Math.min(...(sizes[0] ?? [0, 0])) };
+    const gutter = resolveLength(layout.gutter, context);
+    const cellLength = layout.size.type === 'width' || layout.size.type === 'height' ? resolveLength(layout.size.size, context) : undefined;
+    const [width, height] = pagePixels(format, scale);
+    const page: PageBox | undefined = frame.type === 'page'
+      ? { width, height, margin: formatToPixels(format, format.margin, scale), background: format.background }
+      : undefined;
+    let plans: PagePlan[];
+    if (placement.type === 'flow') {
+      const captions = group.cells.map(c => unplaced.map(d => label(c, d)).join(' · '));
+      plans = planFlow({ sizes, captions, layout, gutter, cellLength, page });
+    } else {
+      const rowDims = placement.rows.flatMap(id => input.dimensions.filter(d => d.id === id));
+      const columnDims = placement.columns.flatMap(id => input.dimensions.filter(d => d.id === id));
+      const rows = combinations(rowDims, group.cells);
+      const columns = combinations(columnDims, group.cells);
+      const matches = (cell: Cell<Img>, dims: Dimension[], combo: Member[]) => combo.every((m, i) => cell.coords[dims[i].id] === m.key);
+      plans = planCrosstab({
+        rows: rows.map(r => r.map(m => m.label)),
+        columns: columns.map(c => c.map(m => m.label)),
+        at: (r, c) => {
+          const index = group.cells.findIndex(cell => matches(cell, rowDims, rows[r]) && matches(cell, columnDims, columns[c]));
+          return index < 0 ? undefined : index;
+        },
+        sizes, fit: layout.fit, align: layout.align, headers: layout.labels === 'headers', gutter, page,
+        overflow: distribution?.type === 'one-cell-per-image' ? distribution.overflow : 'spill',
+      });
+    }
+    const images = await Promise.all(plans.map(plan => ops.compose(plan, group.cells.map(c => c.image))));
+    return images.map((image, k): Cell<Img> => ({
+      coords: { ...group.coords, ...(spills ? { [pageId]: `${k + 1}` } : {}) },
+      image,
+      scale,
+      frame: page ? format : undefined,
+    }));
+  }));
+  const cells = results.flat();
+  const byDimensions = input.dimensions.filter(d => by.includes(d.id));
+  const pages = Math.max(0, ...results.map(r => r.length));
+  const dimensions = spills
+    ? [...byDimensions, {
+      id: pageId,
+      name: uniqueName(pageDimensionName, byDimensions),
+      members: Array.from({ length: pages }, (_, k) => ({ key: `${k + 1}`, label: `${k + 1}` })),
+    }]
+    : byDimensions;
+  return normalize(dimensions, cells);
 };
 
 const evaluatePick = <Img>(node: PickNode, input: Cube<Img>): Cube<Img> => {

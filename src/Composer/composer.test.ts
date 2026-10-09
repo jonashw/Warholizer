@@ -1,8 +1,11 @@
 import { describe, expect, it } from 'vitest';
 import { angle } from '../NumberTypes';
 import { BLUE, GREEN, RED, bands, colorDistance, pixel, solid } from '../Warholizer/RasterOperations/PureRasterOperation/testUtil';
-import { allPerImage, combine, inTurn, operationNode, sequence, shuffled, variationsList, variationsSpread, warholDuotoneGrid } from './build';
-import { canvasOps, drawCrosstab } from './canvasOps';
+import { allPerImage, combine, formatNode, inTurn, layout, operationNode, sequence, shuffled, variationsList, variationsSpread, warholDuotoneGrid } from './build';
+import { canvasOps, drawPlan } from './canvasOps';
+import { planCrosstab, planFlow } from './layoutPlan';
+import { migrateComposition } from './migrate';
+import { allFormats, defaultFormat } from './formats';
 import { dealShuffled, photoCube } from './cube';
 import { evaluate } from './evaluate';
 import { inferComposition } from './infer';
@@ -12,7 +15,8 @@ import { Composition, Cube, Node, PHOTO } from './types';
 import { PureRasterOperation } from '../Warholizer/RasterOperations/PureRasterOperation/types';
 
 const doc = (root: Node): Composition => ({ version: 1, name: 'test', root: root as Composition['root'] });
-const shape = async (root: Node, photos: number) => (await inferComposition(doc(root), photos)).output;
+const squares = (n: number) => Array.from({ length: n }, () => [100, 100] as [number, number]);
+const shape = async (root: Node, photos: number) => (await inferComposition(doc(root), squares(photos))).output;
 const labels = (cube: Cube<unknown>) => cube.cells.map(c => cube.dimensions.map(d => {
   const key = c.coords[d.id];
   return key === undefined ? '–' : d.members.find(m => m.key === key)!.label;
@@ -39,7 +43,7 @@ describe('spread values', () => {
 describe('composition shapes', () => {
   it('Warhol duotone grid: 3 photos → 18 duotones → 3 grids', async () => {
     const composition = warholDuotoneGrid();
-    const { output, trace } = await inferComposition(composition, 3);
+    const { output, trace } = await inferComposition(composition, squares(3));
     const [levels, variations, tile] = composition.root.children;
     expect(trace.get(levels.id)!.output.cells).toHaveLength(3);
     expect(trace.get(variations.id)!.output.cells).toHaveLength(18);
@@ -67,7 +71,7 @@ describe('composition shapes', () => {
       operationNode({ type: 'rgbChannels' }),
       variationsList(inTurn, ...angles),
       combine({ type: 'stack', blendingMode: 'multiply' }, [PHOTO]));
-    const { trace, output } = await inferComposition(doc(root), 2);
+    const { trace, output } = await inferComposition(doc(root), squares(2));
     expect(labels(trace.get(root.children[1].id)!.output)).toEqual(['1/R/15°', '1/G/75°', '1/B/0°', '2/R/15°', '2/G/75°', '2/B/0°']);
     expect(output.cells).toHaveLength(2);
   });
@@ -94,7 +98,7 @@ describe('composition shapes', () => {
     const spread = variationsSpread(allPerImage, { type: 'halftone', angle: angle(45), dotDiameter: 5, blurPixels: 0 },
       { type: 'count', param: 'dotDiameter', from: 4, to: 16, n: 4 },
       { type: 'count', param: 'angle', from: 0, to: 45, n: 4 });
-    const root = sequence(spread, combine({ type: 'crosstab', rows: `${spread.id}:dotDiameter`, columns: `${spread.id}:angle`, labels: true }));
+    const root = sequence(spread, combine(layout({ placement: { type: 'by-dimensions', rows: [`${spread.id}:dotDiameter`], columns: [`${spread.id}:angle`] }, labels: 'headers' })));
     const out = await shape(root, 3);
     expect(out.cells).toHaveLength(3);
     expect(out.dimensions.map(d => d.id)).toEqual([PHOTO]);
@@ -103,7 +107,7 @@ describe('composition shapes', () => {
   it('combine without by keeps all but the newest dimension', async () => {
     const root = sequence(
       variationsList(allPerImage, operationNode({ type: 'invert' }), operationNode({ type: 'noop' })),
-      combine({ type: 'tile', primaryDimension: 'x', lineLength: 2 }));
+      combine(layout({ size: { type: 'across', n: 2 } })));
     const out = await shape(root, 3);
     expect(out.cells).toHaveLength(3);
   });
@@ -150,7 +154,11 @@ describe('rendering', () => {
   });
 
   it('draws a crosstab grid in row and column order', () => {
-    const c = drawCrosstab([[solid(10, 10, RED), solid(10, 10, GREEN)], [solid(10, 10, BLUE), undefined]], ['a', 'b'], ['x', 'y'], false);
+    const images = [solid(10, 10, RED), solid(10, 10, GREEN), solid(10, 10, BLUE)];
+    const at = [[0, 1], [2, undefined]];
+    const [plan] = planCrosstab({ rows: [['a'], ['b']], columns: [['x'], ['y']], at: (r, c) => at[r][c], sizes: images.map(i => [i.width, i.height]),
+      fit: 'contain', align: 'center', headers: false, gutter: 0, overflow: 'spill' });
+    const c = drawPlan(plan, images);
     expect(colorDistance(pixel(c, 5, 5), RED)).toBe(0);
     expect(colorDistance(pixel(c, c.width - 5, 5), GREEN)).toBe(0);
     expect(colorDistance(pixel(c, 5, c.height - 5), BLUE)).toBe(0);
@@ -213,6 +221,108 @@ describe('lengths in compositions', () => {
   });
 });
 
+describe('layout planning', () => {
+  const page = { width: 850, height: 1100, margin: 25, background: 'white' as const };
+  const rects = (plan: { images: { x: number, y: number, w: number, h: number }[] }) => plan.images.map(i => [i.x, i.y, i.w, i.h].map(Math.round));
+
+  it('tiles a free frame: so many across, cells the size of the largest image', () => {
+    const [plan] = planFlow({ sizes: squares(5), layout: layout(), gutter: 10 });
+    expect([plan.width, plan.height]).toEqual([320, 210]);
+    expect(rects(plan)[4]).toEqual([110, 110, 100, 100]);
+  });
+
+  it('plans Down as Across, transposed', () => {
+    const [plan] = planFlow({ sizes: squares(5), layout: layout({ size: { type: 'down', n: 3 } }), gutter: 0 });
+    expect([plan.width, plan.height]).toEqual([200, 300]);
+    expect(rects(plan)[3]).toEqual([100, 0, 100, 100]);
+  });
+
+  it('spills onto pages, each image once', () => {
+    const plans = planFlow({ sizes: squares(18), layout: layout({ frame: { type: 'page', distribution: { type: 'one-cell-per-image', overflow: 'spill' } } }), gutter: 0, page });
+    // 800 px of content across 3 is 266.7 px cells; 3 rows fit in 1050 px: 9 per page.
+    expect(plans.map(p => p.images.length)).toEqual([9, 9]);
+    expect([plans[0].width, plans[0].height]).toEqual([850, 1100]);
+  });
+
+  it('shrinks to fit one page by adding columns', () => {
+    const plans = planFlow({ sizes: squares(18), layout: layout({ frame: { type: 'page', distribution: { type: 'one-cell-per-image', overflow: 'shrink' } } }), gutter: 0, page });
+    expect(plans).toHaveLength(1);
+    expect(plans[0].images).toHaveLength(18);
+    expect(Math.max(...plans[0].images.map(i => i.y + i.h))).toBeLessThanOrEqual(1075.5);
+  });
+
+  it('fills a page by cycling the images in turn, whole copies only', () => {
+    const [plan] = planFlow({ sizes: squares(2), layout: layout({ size: { type: 'width', size: 200 }, frame: { type: 'page', distribution: { type: 'one-image-per-cell', order: { type: 'in-turn' }, edges: 'whole-copies' } } }), cellLength: 200, gutter: 0, page });
+    // 4 across (800 / 200) and 5 down (1050 / 200).
+    expect(plan.images).toHaveLength(20);
+    expect(plan.images.slice(0, 4).map(i => i.index)).toEqual([0, 1, 0, 1]);
+  });
+
+  it('half-brick shifts every other row by half a cell; mirror flips alternate cells', () => {
+    const [brick] = planFlow({ sizes: squares(4), layout: layout({ size: { type: 'across', n: 2 }, pattern: 'half-brick' }), gutter: 0 });
+    expect(rects(brick)[2]).toEqual([50, 100, 100, 100]);
+    const [mirror] = planFlow({ sizes: squares(4), layout: layout({ size: { type: 'across', n: 2 }, pattern: 'mirror' }), gutter: 0 });
+    expect(mirror.images.map(i => [i.flipX, i.flipY])).toEqual([[false, false], [true, false], [false, true], [true, true]]);
+  });
+
+  it('justified rows share a height and fill the width; shapes are kept', () => {
+    const sizes: [number, number][] = [[200, 100], [100, 100], [100, 200], [100, 100]];
+    const [plan] = planFlow({ sizes, layout: layout({ size: { type: 'across', n: 3 }, fit: 'justified' }), gutter: 0 });
+    const row = plan.images.slice(0, 3);
+    expect(new Set(row.map(i => Math.round(i.h))).size).toBe(1);
+    expect(Math.round(row.reduce((a, i) => a + i.w, 0))).toBe(600);
+    expect(row[0].w / row[0].h).toBeCloseTo(2);
+  });
+
+  it('crosstab nests headers: outer labels span their inner rows', () => {
+    const [plan] = planCrosstab({ rows: [['1', '0°'], ['1', '15°'], ['2', '0°'], ['2', '15°']], columns: [['A'], ['B']],
+      at: (r, c) => r * 2 + c, sizes: squares(8), fit: 'contain', align: 'center', headers: true, gutter: 0, overflow: 'spill' });
+    const labels = plan.texts.map(t => t.text);
+    expect(labels.filter(l => l === '1' || l === '2')).toEqual(['1', '2']);
+    expect(labels.filter(l => l === '0°')).toHaveLength(2);
+  });
+});
+
+describe('formats and pages', () => {
+  it('a Sheet that spills adds a Page dimension', async () => {
+    const root = sequence(
+      variationsList(allPerImage, ...Array.from({ length: 18 }, () => operationNode({ type: 'noop' }))),
+      combine(layout({ frame: { type: 'page', distribution: { type: 'one-cell-per-image', overflow: 'spill' } } }), [PHOTO]));
+    const out = await shape(root, 2);
+    expect(out.dimensions.map(d => d.name)).toEqual(['Photo', 'Page']);
+    expect(out.cells).toHaveLength(4);
+    expect(out.cells[0].image).toMatchObject({ width: 2550, height: 3300 });
+  });
+
+  it('Variations of Format make Format a dimension, each laid out for its own page', async () => {
+    const square = allFormats.find(f => f.name === 'Square')!;
+    const root = sequence(
+      variationsList(allPerImage, formatNode(defaultFormat), formatNode(square)),
+      combine(layout({ size: { type: 'across', n: 1 }, frame: { type: 'page', distribution: { type: 'one-cell-per-image', overflow: 'shrink' } } })));
+    const out = await shape(root, 1);
+    expect(labels(out)).toEqual(['1/Letter', '1/Square']);
+    expect(out.cells.map(c => [c.image.width, c.image.height])).toEqual([[2550, 3300], [1080, 1080]]);
+  });
+
+  it('migrates Tile, Line and Crosstab to Layout', () => {
+    const old = { version: 1, name: 'old', root: { kind: 'sequence', id: 'r', children: [
+      { kind: 'combine', id: 'c', method: { type: 'tile', primaryDimension: 'x', lineLength: 4 }, by: ['photo'] },
+      { kind: 'combine', id: 'd', method: { type: 'crosstab', rows: 'a', columns: 'b', labels: true } },
+    ] } } as unknown as Composition;
+    const [tile, crosstab] = (migrateComposition(old).root.children) as Extract<Node, { kind: 'combine' }>[];
+    expect(tile.method).toMatchObject({ type: 'layout', size: { type: 'across', n: 4 } });
+    expect(crosstab.method).toMatchObject({ type: 'layout', placement: { type: 'by-dimensions', rows: ['a'], columns: ['b'] }, labels: 'headers' });
+  });
+
+  it('writes layouts and formats in the text view', () => {
+    const root = sequence(formatNode(defaultFormat),
+      combine(layout({ frame: { type: 'page', distribution: { type: 'one-image-per-cell', order: { type: 'shuffled', seed: 7 }, edges: 'bleed' } }, pattern: 'half-drop' })));
+    const text = compositionText(doc(root));
+    expect(text).toContain('format letter 8.5 × 11 in 300 dpi');
+    expect(text).toContain('layout across: 3 pattern: half-drop page: one-image-per-cell(shuffled(seed: 7), bleed)');
+  });
+});
+
 describe('text view', () => {
   it('writes one node per line, children indented', () => {
     const text = compositionText(warholDuotoneGrid());
@@ -226,7 +336,7 @@ describe('text view', () => {
       '    gradient-map stops: [#891c72 #00e5c8]',
       '    gradient-map stops: [#980405 #88dbdf]',
       '    gradient-map stops: [#077942 #fef08d]',
-      '  tile primary-dimension: x line-length: 3 by: [photo]',
+      '  layout across: 3 by: [photo]',
     ]);
   });
 

@@ -1,45 +1,56 @@
 import { apply } from "../Warholizer/RasterOperations/PureRasterOperation/engine";
 import { ImageOps } from "./evaluate";
+import { PagePlan, PlacedImage } from "./layoutPlan";
 
 const labelFont = (size: number) => `600 ${size}px system-ui, sans-serif`;
 
-/** Draws a labeled grid of images; each cell is sized to the largest image. */
-export const drawCrosstab = (
-  grid: (OffscreenCanvas | undefined)[][],
-  rowLabels: string[],
-  columnLabels: string[],
-  labels: boolean,
-): OffscreenCanvas => {
-  const images = grid.flat().filter((c): c is OffscreenCanvas => c !== undefined);
-  const cellWidth = Math.max(1, ...images.map(c => c.width));
-  const cellHeight = Math.max(1, ...images.map(c => c.height));
-  const columns = Math.max(1, ...grid.map(r => r.length));
-  const fontSize = Math.max(12, Math.round(Math.min(cellWidth, cellHeight) * 0.08));
-  const gap = Math.max(2, Math.round(fontSize / 4));
-  const left = labels ? Math.ceil(fontSize * Math.max(2, ...rowLabels.map(l => l.length)) * 0.62) + gap * 2 : 0;
-  const top = labels ? fontSize + gap * 3 : 0;
-  const canvas = new OffscreenCanvas(
-    left + columns * cellWidth + (columns - 1) * gap,
-    top + grid.length * cellHeight + (grid.length - 1) * gap);
-  const ctx = canvas.getContext('2d')!;
-  ctx.fillStyle = '#ffffff';
-  ctx.fillRect(0, 0, canvas.width, canvas.height);
-  if (labels) {
-    ctx.fillStyle = '#111318';
-    ctx.font = labelFont(fontSize);
-    ctx.textBaseline = 'middle';
-    ctx.textAlign = 'center';
-    columnLabels.forEach((label, c) => ctx.fillText(label, left + c * (cellWidth + gap) + cellWidth / 2, top / 2));
-    ctx.textAlign = 'right';
-    rowLabels.forEach((label, r) => ctx.fillText(label, left - gap * 2, top + r * (cellHeight + gap) + cellHeight / 2));
+const alignOffset = (align: PlacedImage['align'], space: number) =>
+  align === 'start' ? 0 : align === 'center' ? space / 2 : space;
+
+/** Draws one image into its cell: contained (whole image), covered (cropped) or filled. */
+const drawPlaced = (ctx: OffscreenCanvasRenderingContext2D, image: OffscreenCanvas, p: PlacedImage) => {
+  if (image.width === 0 || image.height === 0 || p.w <= 0 || p.h <= 0) return;
+  let { x, y, w, h } = p;
+  let [sx, sy, sw, sh] = [0, 0, image.width, image.height];
+  if (p.fit === 'contain') {
+    const s = Math.min(p.w / image.width, p.h / image.height);
+    w = image.width * s; h = image.height * s;
+    x += alignOffset(p.align, p.w - w); y += alignOffset(p.align, p.h - h);
+  } else if (p.fit === 'cover') {
+    const s = Math.max(p.w / image.width, p.h / image.height);
+    sw = p.w / s; sh = p.h / s;
+    sx = alignOffset(p.align, image.width - sw); sy = alignOffset(p.align, image.height - sh);
   }
-  grid.forEach((row, r) => row.forEach((image, c) => {
-    if (image) {
-      const x = left + c * (cellWidth + gap) + (cellWidth - image.width) / 2;
-      const y = top + r * (cellHeight + gap) + (cellHeight - image.height) / 2;
-      ctx.drawImage(image, x, y);
-    }
-  }));
+  ctx.save();
+  ctx.translate(x + (p.flipX ? w : 0), y + (p.flipY ? h : 0));
+  ctx.scale(p.flipX ? -1 : 1, p.flipY ? -1 : 1);
+  ctx.drawImage(image, sx, sy, sw, sh, 0, 0, w, h);
+  ctx.restore();
+};
+
+/** Draws a planned layout page. */
+export const drawPlan = (plan: PagePlan, images: OffscreenCanvas[]): OffscreenCanvas => {
+  const canvas = new OffscreenCanvas(Math.max(1, Math.round(plan.width)), Math.max(1, Math.round(plan.height)));
+  const ctx = canvas.getContext('2d')!;
+  if (plan.background === 'white') {
+    ctx.fillStyle = '#ffffff';
+    ctx.fillRect(0, 0, canvas.width, canvas.height);
+  }
+  ctx.save();
+  if (plan.clip) {
+    ctx.beginPath();
+    ctx.rect(plan.clip.x, plan.clip.y, plan.clip.w, plan.clip.h);
+    ctx.clip();
+  }
+  plan.images.forEach(p => { const image = images[p.index]; if (image) drawPlaced(ctx, image, p); });
+  ctx.restore();
+  ctx.fillStyle = '#111318';
+  ctx.textBaseline = 'middle';
+  plan.texts.forEach(t => {
+    ctx.font = labelFont(t.size);
+    ctx.textAlign = t.align;
+    ctx.fillText(t.text, t.x, t.y);
+  });
   return canvas;
 };
 
@@ -47,5 +58,5 @@ export const drawCrosstab = (
 export const canvasOps: ImageOps<OffscreenCanvas> = {
   apply,
   size: image => [image.width, image.height],
-  crosstab: async (grid, rowLabels, columnLabels, labels) => drawCrosstab(grid, rowLabels, columnLabels, labels),
+  compose: async (plan, images) => drawPlan(plan, images),
 };

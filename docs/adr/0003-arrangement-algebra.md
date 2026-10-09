@@ -209,6 +209,7 @@ type Layout = {
 - **Line** is `Across: all` (or `Down: all`); reading direction belongs to every Layout.
 - **Crosstab** is ByDimensions with Headers. Each axis takes a list of dimensions, combined in cube order (outer first) with spanning headers, like a pivot table. Positions with no image stay blank (for example after a one-variant-per-image distribution). Patterns are disabled for labeled grids. On a page, spill breaks between rows (at outer members where possible) and repeats the column headers.
 - **Tile**, **Sheet**, **Line** and **Crosstab** remain the names in the UI as entry points; switching between them keeps shared settings.
+- On pages, images with different formats never share a page: without an explicit *by*, a Layout keeps any dimension that decides the format (so Variations of Format give one set of pages per format).
 - Laws: a Layout with a free frame has exactly one cell per image. On a page, the frame and size fix the number of cells, independent of the image count.
 
 ### Distributions: Variations and Layout mirror each other

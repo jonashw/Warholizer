@@ -2,7 +2,8 @@ import React from "react";
 import { CanvasView } from "../../CanvasView";
 import { defaultOperations, operationRegistry } from "../../Warholizer/RasterOperations/PureRasterOperation/registry";
 import { PureRasterOperation } from "../../Warholizer/RasterOperations/PureRasterOperation/types";
-import { allPerImage, combine, newId, operationNode, variationsList } from "../build";
+import { allPerImage, combine, formatNode, layout, newId, operationNode, variationsList, withPreset } from "../build";
+import { defaultFormat } from "../formats";
 import { canvasOps } from "../canvasOps";
 import { defaultDpi, resolveLengths } from "../../Warholizer/RasterOperations/PureRasterOperation/length";
 import { isSeparation } from "../labels";
@@ -33,11 +34,10 @@ const choicesFor = (category: Category, dims: Dimension[], inList: boolean): Cho
       make: () => variationsList(allPerImage, operationNode({ type: 'noop' }), operationNode({ type: 'invert' })),
     }];
     case 'combine': return inList ? [] : [
-      { key: 'tile', label: 'Tile', description: 'Layout: a grid of each group\'s images.', make: () => combine({ type: 'tile', primaryDimension: 'x', lineLength: 3 }) },
-      { key: 'line', label: 'Line', description: 'Layout: each group\'s images in a row.', make: () => combine({ type: 'line', direction: 'right', squish: false }) },
-      { key: 'crosstab', label: 'Crosstab', description: 'Layout: a labeled grid, one dimension down and another across.', make: () => combine({
-        type: 'crosstab', rows: dims[Math.max(0, dims.length - 2)]?.id ?? PHOTO, columns: newest?.id ?? PHOTO, labels: true,
-      }) },
+      { key: 'tile', label: 'Tile', description: 'Layout: a grid of each group\'s images.', make: () => combine(layout()) },
+      { key: 'line', label: 'Line', description: 'Layout: each group\'s images in one row.', make: () => combine(withPreset(layout(), 'line', dims)) },
+      { key: 'crosstab', label: 'Crosstab', description: 'Layout: a labeled grid, one dimension down and another across.', make: () => combine(withPreset(layout(), 'crosstab', dims)) },
+      { key: 'sheet', label: 'Sheet', description: 'Layout on a page of the format: each image once (spilling onto pages), or filling the page.', make: () => combine(withPreset(layout(), 'sheet', dims)) },
       { key: 'stack', label: 'Stack', description: 'Blend: each group\'s images layered with a blend mode.', make: () => combine({ type: 'stack', blendingMode: 'multiply' }) },
     ];
     case 'pick': return [
@@ -47,6 +47,7 @@ const choicesFor = (category: Category, dims: Dimension[], inList: boolean): Cho
       { key: 'pivot', label: 'Pivot', description: 'Reorder dimensions, which reorders images.', make: () => ({
         kind: 'pivot', id: newId(), order: newest ? [newest.id] : [],
       }) },
+      { key: 'format', label: 'Format', description: 'Set the paper, screen or product the images after it are laid out for. Vary it to export several formats at once.', make: () => formatNode(defaultFormat) },
     ];
   }
 };
@@ -56,7 +57,7 @@ const categories: { value: Category, label: string }[] = [
   { value: 'separate', label: 'Separate' },
   { value: 'variations', label: 'Vary' },
   { value: 'combine', label: 'Combine' },
-  { value: 'pick', label: 'Pick' },
+  { value: 'pick', label: 'More' },
 ];
 
 const thumbnailSize = 112;

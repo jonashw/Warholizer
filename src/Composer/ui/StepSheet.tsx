@@ -1,17 +1,19 @@
 import React from "react";
 import { CanvasView } from "../../CanvasView";
 import { isGroupAware } from "../../Warholizer/RasterOperations/PureRasterOperation/registry";
-import { BlendingModes, Direction, LengthUnit, PureRasterOperation } from "../../Warholizer/RasterOperations/PureRasterOperation/types";
-import { allPerImage, newId, newSeed, operationNode, variationsSpread } from "../build";
+import { BlendingModes, LengthUnit, PureRasterOperation } from "../../Warholizer/RasterOperations/PureRasterOperation/types";
+import { allPerImage, layout, newId, newSeed, operationNode, presetOf, variationsSpread, withPreset } from "../build";
 import { canvasOps } from "../canvasOps";
 import { variantsOf } from "../evaluate";
 import { nodeLabel } from "../labels";
 import { defaultSpread, formatSpreadValue, numericParamOf, numericParamsOf, paramLabel, spreadSetting, spreadValuesFor } from "../spread";
 import { convertSize, defaultDpi, isLengthParam, resolveLengths, sizeOf, unitsFor, valueOf } from "../../Warholizer/RasterOperations/PureRasterOperation/length";
 import {
-  CombineMethod, CombineNode, Dimension, Node, OperationNode, PickNode, PivotNode, Spread, VariationDistribution, VariationsNode, combineKindOf,
+  CombineMethod, CombineNode, Dimension, Layout, Node, OperationNode, Pattern, PickNode, PivotNode, Spread, VariationDistribution, VariationsNode, combineKindOf,
 } from "../types";
 import { Segmented } from "./Segmented";
+import { FormatEditor } from "./FormatEditor";
+import { LengthInput } from "./LengthInput";
 import { SettingsEditor } from "./SettingsEditor";
 import { kindLabel, nodeTitle } from "./summaries";
 
@@ -62,6 +64,7 @@ function StepEditor(props: StepSheetProps) {
     case 'combine': return <CombineEditor {...props} node={node} />;
     case 'pick': return <PickEditor {...props} node={node} />;
     case 'pivot': return <PivotEditor {...props} node={node} />;
+    case 'format': return <FormatEditor value={node.format} onChange={format => props.onChange({ ...node, format })} />;
     case 'sequence': return (
       <div className="composer-row">
         {node.children.map(c => <button key={c.id} type="button" className="composer-chip" onClick={() => props.onOpen(c.id)}>{nodeLabel(c)}</button>)}
@@ -312,17 +315,6 @@ function SpreadEditor({ node, onChange, inputs }: { node: VariationsNode & { var
   );
 }
 
-const layoutDefaults: Record<'tile' | 'line' | 'crosstab', (dims: Dimension[]) => CombineMethod> = {
-  tile: () => ({ type: 'tile', primaryDimension: 'x', lineLength: 3 }),
-  line: () => ({ type: 'line', direction: 'right', squish: false }),
-  crosstab: dims => ({
-    type: 'crosstab',
-    rows: dims[Math.max(0, dims.length - 2)]?.id ?? 'photo',
-    columns: dims[dims.length - 1]?.id ?? 'photo',
-    labels: true,
-  }),
-};
-
 function DimensionSelect({ label, value, dimensions, onChange }: { label: string, value: string, dimensions: Dimension[], onChange: (id: string) => void }) {
   return (
     <label className="composer-field">
@@ -335,75 +327,169 @@ function DimensionSelect({ label, value, dimensions, onChange }: { label: string
   );
 }
 
+function DimensionChips({ label, dimensions, value, onChange }: {
+  label: string, dimensions: Dimension[], value: string[], onChange: (ids: string[]) => void,
+}) {
+  return (
+    <div className="composer-setting">
+      <span className="composer-setting-label">{label}</span>
+      <div className="composer-row">
+        {dimensions.map(d => {
+          const at = value.indexOf(d.id);
+          return (
+            <button key={d.id} type="button" className={'composer-chip' + (at >= 0 ? ' on' : '')} aria-pressed={at >= 0}
+              onClick={() => onChange(at >= 0 ? value.filter(id => id !== d.id) : [...value, d.id])}>
+              {at >= 0 && value.length > 1 ? `${at + 1}. ` : ''}{d.name}
+            </button>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
+
+const sizeTypes = [{ value: 'across', label: 'Across' }, { value: 'down', label: 'Down' }, { value: 'width', label: 'Width' }, { value: 'height', label: 'Height' }] as const;
+const patterns: Pattern[] = ['normal', 'half-drop', 'half-brick', 'mirror', 'wacky'];
+
+function LayoutEditor({ method, onChange, inputDimensions }: { method: Layout, onChange: (l: Layout) => void, inputDimensions: Dimension[] }) {
+  const preset = presetOf(method);
+  const set = (changes: Partial<Layout>) => onChange({ ...method, ...changes });
+  const { placement, size, frame } = method;
+  const byDimensions = placement.type === 'by-dimensions';
+  return (
+    <>
+      <Segmented label="Layout" value={preset} onChange={p => onChange(withPreset(method, p, inputDimensions))}
+        options={[{ value: 'tile', label: 'Tile' }, { value: 'line', label: 'Line' }, { value: 'crosstab', label: 'Crosstab' }, { value: 'sheet', label: 'Sheet' }]} />
+      <div className="composer-card">
+        {placement.type === 'by-dimensions' ? (
+          <>
+            <DimensionChips label="Rows (outer first)" dimensions={inputDimensions} value={placement.rows}
+              onChange={rows => set({ placement: { ...placement, rows, columns: placement.columns.filter(c => !rows.includes(c)) } })} />
+            <DimensionChips label="Columns (outer first)" dimensions={inputDimensions} value={placement.columns}
+              onChange={columns => set({ placement: { ...placement, columns, rows: placement.rows.filter(r => !columns.includes(r)) } })} />
+            <Segmented label="Labels" value={method.labels === 'headers' ? 'headers' : 'none'} onChange={labels => set({ labels })}
+              options={[{ value: 'headers', label: 'Headers' }, { value: 'none', label: 'No labels' }]} />
+          </>
+        ) : (
+          <>
+            <Segmented label="Size" value={size.type} onChange={type => set({
+              size: type === 'across' || type === 'down'
+                ? { type, n: size.type === 'across' || size.type === 'down' ? size.n : 3 }
+                : { type, size: size.type === 'width' || size.type === 'height' ? size.size : { value: 2, unit: 'in' } },
+            })} options={[...sizeTypes]} />
+            <div className="composer-row">
+              {size.type === 'across' || size.type === 'down' ? (
+                <>
+                  <label className="composer-field">{size.type === 'across' ? 'Per row' : 'Per column'}
+                    <input type="number" min={1} value={size.n === 'all' ? '' : size.n} placeholder="all"
+                      onChange={e => set({ size: { ...size, n: e.target.value === '' ? 'all' : Math.max(1, Number(e.target.value)) } })} />
+                  </label>
+                  <button type="button" className={'composer-chip' + (size.n === 'all' ? ' on' : '')} aria-pressed={size.n === 'all'}
+                    onClick={() => set({ size: { ...size, n: size.n === 'all' ? 3 : 'all' } })}>All in one line</button>
+                </>
+              ) : (
+                <LengthInput label={size.type === 'width' ? 'Cell width' : 'Cell height'} value={size.size} onChange={s => set({ size: { ...size, size: s } })} />
+              )}
+            </div>
+            <div className="composer-setting">
+              <span className="composer-setting-label">Pattern</span>
+              <div className="composer-row">
+                {patterns.map(p => (
+                  <button key={p} type="button" className={'composer-chip' + (method.pattern === p ? ' on' : '')} aria-pressed={method.pattern === p}
+                    onClick={() => set({ pattern: p })}>{p.replace('-', ' ')}</button>
+                ))}
+              </div>
+              {method.pattern !== 'normal' && (method.fit === 'natural' || method.fit === 'justified') && (
+                <span className="composer-hint">Patterns apply to Contain and Cover.</span>
+              )}
+            </div>
+            <Segmented label="Labels" value={method.labels === 'captions' ? 'captions' : 'none'} onChange={labels => set({ labels })}
+              options={[{ value: 'none', label: 'No labels' }, { value: 'captions', label: 'Captions' }]} />
+          </>
+        )}
+      </div>
+      <div className="composer-card">
+        <span className="composer-section-label">Fit</span>
+        <Segmented label="Fit" value={method.fit} onChange={fit => set({ fit })}
+          options={[{ value: 'contain', label: 'Contain' }, { value: 'cover', label: 'Cover' },
+            { value: 'natural', label: 'Natural', disabled: byDimensions }, { value: 'justified', label: 'Justified', disabled: byDimensions }]} />
+        <span className="composer-hint">
+          {method.fit === 'contain' ? 'The whole image, with bands where shapes differ.'
+            : method.fit === 'cover' ? 'Fills each cell, cropping edges (Align picks what stays).'
+            : method.fit === 'natural' ? 'Each image keeps its size; lines are as tall as their tallest image.'
+            : 'Equal heights per row, each row filling the width (equal widths per column when Down).'}
+        </span>
+        <Segmented label="Align" value={method.align} onChange={align => set({ align })}
+          options={[{ value: 'start', label: 'Start' }, { value: 'center', label: 'Center' }, { value: 'end', label: 'End' }]} />
+        <div className="composer-row">
+          <span className="composer-setting-label">Gutter</span>
+          <LengthInput label="Gutter" value={method.gutter} onChange={gutter => set({ gutter })} />
+        </div>
+      </div>
+      <div className="composer-card">
+        <span className="composer-section-label">Frame</span>
+        <Segmented label="Frame" value={frame.type} onChange={type => set({
+          frame: type === 'free' ? { type } : { type, distribution: { type: 'one-cell-per-image', overflow: 'spill' } },
+        })} options={[{ value: 'free', label: 'Free (grows to fit)' }, { value: 'page', label: 'Page' }]} />
+        {frame.type === 'page' && (
+          <>
+            <span className="composer-hint">The page is the images' format: the composition's (in the header) or a Format step's.</span>
+            <Segmented label="Distribution" value={frame.distribution.type} onChange={type => set({
+              frame: { type: 'page', distribution: type === 'one-cell-per-image'
+                ? { type, overflow: 'spill' }
+                : { type, order: { type: 'in-turn' }, edges: 'whole-copies' } },
+            })} options={[{ value: 'one-cell-per-image', label: 'Each image once' }, { value: 'one-image-per-cell', label: 'Fill the page' }]} />
+            {frame.distribution.type === 'one-cell-per-image' ? (
+              <Segmented label="Overflow" value={frame.distribution.overflow}
+                onChange={overflow => set({ frame: { type: 'page', distribution: { type: 'one-cell-per-image', overflow } } })}
+                options={[{ value: 'spill', label: 'Spill onto pages' }, { value: 'shrink', label: 'Shrink to fit' }]} />
+            ) : (
+              <>
+                <div className="composer-row" style={{ flexWrap: 'nowrap' }}>
+                  <div style={{ flexGrow: 1 }}>
+                    <Segmented label="Order" value={frame.distribution.order.type} onChange={o => frame.distribution.type === 'one-image-per-cell' && set({
+                      frame: { type: 'page', distribution: { ...frame.distribution, order: o === 'in-turn' ? { type: o } : { type: o, seed: newSeed() } } },
+                    })} options={[{ value: 'in-turn', label: 'In turn' }, { value: 'shuffled', label: 'Shuffled' }]} />
+                  </div>
+                  {frame.distribution.order.type === 'shuffled' && (
+                    <button type="button" className="composer-secondary" onClick={() => frame.distribution.type === 'one-image-per-cell' && set({
+                      frame: { type: 'page', distribution: { ...frame.distribution, order: { type: 'shuffled', seed: newSeed() } } },
+                    })}>Reroll</button>
+                  )}
+                </div>
+                <Segmented label="Edges" value={frame.distribution.edges} onChange={edges => frame.distribution.type === 'one-image-per-cell' && set({
+                  frame: { type: 'page', distribution: { ...frame.distribution, edges } },
+                })} options={[{ value: 'whole-copies', label: 'Whole copies' }, { value: 'bleed', label: 'Bleed to the edge' }]} />
+              </>
+            )}
+          </>
+        )}
+      </div>
+    </>
+  );
+}
+
 function CombineEditor({ node, onChange, inputDimensions }: StepSheetProps & { node: CombineNode }) {
   const { method } = node;
   const kind = combineKindOf(method);
   const setMethod = (m: CombineMethod) => onChange({ ...node, method: m });
-  const by = node.by;
   return (
     <>
-      <Segmented label="Combine kind" value={kind} onChange={k => setMethod(k === 'blend'
-        ? { type: 'stack', blendingMode: 'multiply' } : layoutDefaults.tile(inputDimensions))}
-        options={[{ value: 'layout', label: 'Layout' }, { value: 'blend', label: 'Blend' }, ]} />
-      {kind === 'layout' && (
-        <div className="composer-row">
-          {(['tile', 'line', 'crosstab'] as const).map(t => (
-            <button key={t} type="button" className={'composer-chip' + (method.type === t ? ' on' : '')} aria-pressed={method.type === t}
-              onClick={() => method.type !== t && setMethod(layoutDefaults[t](inputDimensions))}>
-              {t === 'tile' ? 'Tile' : t === 'line' ? 'Line' : 'Crosstab'}
-            </button>
-          ))}
-        </div>
-      )}
-      <div className="composer-card">
-        {method.type === 'tile' && (
-          <div className="composer-row">
-            <label className="composer-field">{method.primaryDimension === 'x' ? 'Columns' : 'Rows'}
-              <input type="number" min={1} value={method.lineLength} onChange={e => setMethod({ ...method, lineLength: Math.max(1, Number(e.target.value)) })} />
-            </label>
-            <Segmented label="Fill direction" value={method.primaryDimension} onChange={d => setMethod({ ...method, primaryDimension: d })}
-              options={[{ value: 'x', label: 'Across' }, { value: 'y', label: 'Down' }]} />
-          </div>
-        )}
-        {method.type === 'line' && (
-          <label className="composer-field">Direction
-            <select value={method.direction} onChange={e => setMethod({ ...method, direction: e.target.value as Direction })}>
-              {(['right', 'left', 'down', 'up'] as Direction[]).map(d => <option key={d} value={d}>{d}</option>)}
-            </select>
-          </label>
-        )}
-        {method.type === 'stack' && (
+      <Segmented label="Combine kind" value={kind} onChange={k => setMethod(k === 'blend' ? { type: 'stack', blendingMode: 'multiply' } : layout())}
+        options={[{ value: 'layout', label: 'Layout' }, { value: 'blend', label: 'Blend' }]} />
+      {method.type === 'layout' ? (
+        <LayoutEditor method={method} onChange={setMethod} inputDimensions={inputDimensions} />
+      ) : (
+        <div className="composer-card">
           <label className="composer-field">Blend mode
             <select value={method.blendingMode} onChange={e => setMethod({ ...method, blendingMode: e.target.value as typeof method.blendingMode })}>
               {BlendingModes.map(m => <option key={m} value={m}>{m}</option>)}
             </select>
           </label>
-        )}
-        {method.type === 'crosstab' && (
-          <>
-            <DimensionSelect label="Rows" value={method.rows} dimensions={inputDimensions} onChange={rows => setMethod({ ...method, rows })} />
-            <DimensionSelect label="Columns" value={method.columns} dimensions={inputDimensions} onChange={columns => setMethod({ ...method, columns })} />
-            <label className="composer-field"><input type="checkbox" checked={method.labels} onChange={e => setMethod({ ...method, labels: e.target.checked })} /> Labels</label>
-          </>
-        )}
-      </div>
-      <div className="composer-card">
-        <span className="composer-section-label">By: one result per</span>
-        <div className="composer-row">
-          <button type="button" className={'composer-chip' + (by === undefined ? ' on' : '')} aria-pressed={by === undefined}
-            onClick={() => onChange({ ...node, by: undefined })}>Auto</button>
-          {inputDimensions.map(d => {
-            const on = by?.includes(d.id) ?? false;
-            return (
-              <button key={d.id} type="button" className={'composer-chip' + (on ? ' on' : '')} aria-pressed={on}
-                onClick={() => onChange({ ...node, by: on ? (by ?? []).filter(id => id !== d.id) : [...(by ?? []), d.id] })}>
-                {d.name}
-              </button>
-            );
-          })}
         </div>
-        <span style={{ fontSize: 12, color: 'var(--c-muted)' }}>Auto: everything except the newest dimension{method.type === 'crosstab' ? ' (except rows and columns for a crosstab)' : ''}. None selected: one result for everything.</span>
-      </div>
+      )}
+      <ByChips label="By: one result per" dimensions={inputDimensions} by={node.by} autoLabel="Auto" onChange={by => onChange({ ...node, by })} />
+      <span className="composer-hint">Auto: everything except the newest dimension (except rows and columns for a crosstab). None selected: one result for everything.</span>
     </>
   );
 }

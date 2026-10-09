@@ -2,11 +2,12 @@ import { operationRegistry } from "../Warholizer/RasterOperations/PureRasterOper
 import { PureRasterOperation } from "../Warholizer/RasterOperations/PureRasterOperation/types";
 import { photoCube } from "./cube";
 import { evaluate, ImageOps, Trace } from "./evaluate";
+import { defaultFormat } from "./formats";
 import { Composition, Cube } from "./types";
 
-/** A stand-in image: inference tracks coordinates and counts without pixels. */
-export type Placeholder = { readonly placeholder: true };
-const placeholder: Placeholder = { placeholder: true };
+/** A stand-in image: inference tracks coordinates, counts and sizes without pixels. */
+export type Placeholder = { readonly placeholder: true, width: number, height: number };
+const placeholder = (width: number, height: number): Placeholder => ({ placeholder: true, width, height });
 
 const partsOf = (op: PureRasterOperation): number => {
   switch (op.type) {
@@ -22,27 +23,29 @@ const partsOf = (op: PureRasterOperation): number => {
 
 const manyToOne = new Set<PureRasterOperation['type']>(['tile', 'line', 'stack']);
 
-/** Image operations that only count, following each operation's cardinality. */
+/** Image operations that only count, following each operation's cardinality; sizes pass through. */
 export const placeholderOps: ImageOps<Placeholder> = {
   apply: async (op, inputs) => {
     if (manyToOne.has(op.type)) {
-      return inputs.length === 0 ? [] : [placeholder];
+      return inputs.length === 0 ? [] : [inputs[0]];
     }
     if (operationRegistry[op.type].kind === 'cardinality') {
-      return inputs.flatMap(() => Array.from({ length: partsOf(op) }, () => placeholder));
+      return inputs.flatMap(input => Array.from({ length: partsOf(op) }, () => input));
     }
-    return inputs.map(() => placeholder);
+    return inputs;
   },
-  crosstab: async () => placeholder,
+  size: image => [image.width, image.height],
+  compose: async plan => placeholder(plan.width, plan.height),
 };
 
-/** Dimensions and counts at every node for `photoCount` photos, without rendering. */
-export const inferComposition = async (composition: Composition, photoCount: number) => {
+/** Dimensions, counts and pages at every node, without rendering. */
+export const inferComposition = async (composition: Composition, photoSizes: [number, number][], scales?: number[]) => {
   const trace: Trace<Placeholder> = new Map();
   const output: Cube<Placeholder> = await evaluate(
     composition.root,
-    photoCube(Array.from({ length: photoCount }, () => placeholder)),
+    photoCube(photoSizes.map(([w, h]) => placeholder(w, h)), scales),
     placeholderOps,
-    trace);
+    trace,
+    { format: composition.format ?? defaultFormat });
   return { output, trace };
 };

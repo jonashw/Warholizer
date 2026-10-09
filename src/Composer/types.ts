@@ -1,4 +1,4 @@
-import { LengthUnit, Line, PureRasterOperation, Stack, Tile } from "../Warholizer/RasterOperations/PureRasterOperation/types";
+import { LengthUnit, PureRasterOperation, Size, Stack } from "../Warholizer/RasterOperations/PureRasterOperation/types";
 
 /**
  * Composer documents (ADR 0003). A Composition is a tree of nodes; every node takes a cube of
@@ -8,6 +8,27 @@ export type Composition = {
   version: 1,
   name: string,
   root: SequenceNode,
+  /** The default frame for pages (Letter, portrait, 300 DPI when absent). */
+  format?: Format,
+};
+
+/**
+ * A named frame (ADR 0003, Formats): paper, a screen shape or a product. Sizes are in `unit`;
+ * `dpi` turns physical units into pixels (and gives pixel formats a physical size).
+ */
+export type Format = {
+  name: string,
+  width: number,
+  height: number,
+  unit: 'in' | 'mm' | 'px',
+  dpi: number,
+  /** Printer margins: content stays inside. */
+  margin: number,
+  /** Extra image past the trim, on each side. */
+  bleed: number,
+  /** Keep important content this far inside the trim. */
+  safe: number,
+  background: 'white' | 'transparent',
 };
 
 /** Every node has a stable id; dimensions are identified by the node (and parameter) that created them. */
@@ -19,7 +40,11 @@ export type Node =
   | VariationsNode
   | CombineNode
   | PickNode
-  | PivotNode;
+  | PivotNode
+  | FormatNode;
+
+/** Sets the frame of the images after it; Variations of Format make Format a dimension. */
+export type FormatNode = { kind: 'format', id: NodeId, format: Format };
 
 /**
  * An Effect (image → image) or a Separate (image → parts), depending on the operation.
@@ -60,12 +85,48 @@ export type Spread =
 export type CombineNode = { kind: 'combine', id: NodeId, method: CombineMethod, by?: DimensionId[] };
 
 export type CombineMethod = Layout | Blend;
-export type Layout = Tile | Line | Crosstab;
 export type Blend = Stack;
 export type CombineKind = 'layout' | 'blend';
 
-/** A labeled grid: one dimension down the rows, another across the columns. */
-export type Crosstab = { type: 'crosstab', rows: DimensionId, columns: DimensionId, labels: boolean };
+/**
+ * Images placed into a grid of layout cells (ADR 0003, Layout): Tile, Line, Crosstab and Sheet
+ * are all Layouts. Positions come from cube order (flow) or from dimensions (a crosstab).
+ */
+export type Layout = {
+  type: 'layout',
+  placement: Placement,
+  size: LayoutSize,
+  fit: Fit,
+  align: Align,
+  pattern: Pattern,
+  gutter: Size,
+  labels: 'none' | 'captions' | 'headers',
+  frame: LayoutFrame,
+};
+
+export type Placement =
+  | { type: 'flow' }
+  | { type: 'by-dimensions', rows: DimensionId[], columns: DimensionId[] };
+
+/** How big each cell is: so many across or down (all: one line), or a width or height. */
+export type LayoutSize =
+  | { type: 'across', n: number | 'all' }
+  | { type: 'down', n: number | 'all' }
+  | { type: 'width', size: Size }
+  | { type: 'height', size: Size };
+
+/** When an image's shape differs from its cell's. Justified: equal heights per row filling the width (Across). */
+export type Fit = 'contain' | 'cover' | 'natural' | 'justified';
+export type Align = 'start' | 'center' | 'end';
+export type Pattern = 'normal' | 'half-drop' | 'half-brick' | 'mirror' | 'wacky';
+
+/** Free: grows with its content. Page: the images' format, filled by a distribution. */
+export type LayoutFrame = { type: 'free' } | { type: 'page', distribution: LayoutDistribution };
+
+/** Mirrors VariationDistribution (ADR 0003): images and cells instead of variants and images. */
+export type LayoutDistribution =
+  | { type: 'one-cell-per-image', overflow: 'spill' | 'shrink' }
+  | { type: 'one-image-per-cell', order: Order, edges: 'whole-copies' | 'bleed' };
 
 /** One member removes the dimension (slice); a list keeps it (dice). */
 export type PickNode = { kind: 'pick', id: NodeId, dimension: DimensionId, members: MemberKey | MemberKey[] };
@@ -84,7 +145,7 @@ export type Dimension = { id: DimensionId, name: string, members: Member[] };
  * the image's pixels per original photo pixel (below 1 in previews; 1 when absent), so sizes
  * resolve the same at every resolution.
  */
-export type Cell<Img> = { coords: Record<DimensionId, MemberKey>, image: Img, scale?: number };
+export type Cell<Img> = { coords: Record<DimensionId, MemberKey>, image: Img, scale?: number, frame?: Format };
 
 export type Cube<Img> = { dimensions: Dimension[], cells: Cell<Img>[] };
 
