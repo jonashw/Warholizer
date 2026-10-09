@@ -27,7 +27,7 @@
   overflow: hidden;
 }
 @media (prefers-color-scheme: dark) {
-  .composer {
+  .composer:not(.composer-embedded) {
     --c-accent: #ff4f98;
     --c-accent-ink: #ff7ab0;
     --c-accent-soft: #3a1426;
@@ -227,3 +227,9 @@
 .composer-guide { position: absolute; }
 .composer-guide.trim { border: 1px solid rgba(214, 0, 92, 0.85); }
 .composer-guide.safe { border: 1px dashed rgba(11, 110, 79, 0.9); }
+
+/* Composer's settings editor inside the older, light-themed editors. */
+.composer.composer-embedded {
+  height: auto; max-width: none; margin: 4px 0; display: flex; flex-direction: column; gap: 4px;
+  overflow: visible; background: transparent; font-size: 13px;
+}

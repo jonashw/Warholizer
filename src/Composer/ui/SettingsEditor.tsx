@@ -8,6 +8,7 @@ import { byte } from "../../NumberTypes";
 import { numericParamOf, paramLabel } from "../spread";
 import { convertSize, isLengthParam, sizeOf, unitOf, unitsFor, valueOf } from "../../Warholizer/RasterOperations/PureRasterOperation/length";
 import { Segmented } from "./Segmented";
+import "./Composer.css";
 
 /** How one setting is edited. */
 type ParamSpec =

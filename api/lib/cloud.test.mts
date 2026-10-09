@@ -52,6 +52,22 @@ describe('image library', () => {
   });
 });
 
+describe('limits', () => {
+  it('refuses files over the size limit and uploads past the library quota', async () => {
+    const ctx = setup();
+    const sha = await sha256Hex(bytes('big'));
+    expect((await prepareUpload(ctx, ada, { sha256: sha, variant: 'original', contentType: 'image/jpeg', byteSize: 200 * 1024 * 1024 })).status).toBe(413);
+    process.env.LIBRARY_QUOTA_BYTES = '10';
+    try {
+      await upload(ctx, ada, bytes('12345678'));
+      const next = await sha256Hex(bytes('more'));
+      expect((await prepareUpload(ctx, ada, { sha256: next, variant: 'original', contentType: 'image/jpeg', byteSize: 4 })).status).toBe(413);
+    } finally {
+      delete process.env.LIBRARY_QUOTA_BYTES;
+    }
+  });
+});
+
 describe('compositions', () => {
   it('saves revisions without changing earlier ones, and only for inputs in the library', async () => {
     const ctx = setup();

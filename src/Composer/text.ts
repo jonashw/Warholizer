@@ -32,8 +32,8 @@ const operation = (op: PureRasterOperation) => {
 const orderText = (o: Order) => o.type === 'in-turn' ? 'in-turn' : `shuffled(seed: ${o.seed})`;
 
 export const distributionText = (d: VariationDistribution): string =>
-  d.type === 'all-per-image' ? 'all-per-image'
-  : d.type === 'one-per-image' ? `one-per-image(${orderText(d.order)})`
+  d.type === 'all-variants-per-image' ? 'all-variants-per-image'
+  : d.type === 'one-variant-per-image' ? `one-variant-per-image(${orderText(d.order)})`
   : `one-image-per-variant(${orderText(d.order)}, ${d.overflow})`;
 
 const spreadText = (s: Spread) =>

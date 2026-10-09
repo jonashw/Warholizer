@@ -9,9 +9,9 @@ export const operationNode = (op: PureRasterOperation): Node => ({ kind: 'operat
 
 export const sequence = (...children: Node[]): Node & { kind: 'sequence' } => ({ kind: 'sequence', id: newId(), children });
 
-export const allPerImage: VariationDistribution = { type: 'all-per-image' };
-export const inTurn: VariationDistribution = { type: 'one-per-image', order: { type: 'in-turn' } };
-export const shuffled = (seed: number): VariationDistribution => ({ type: 'one-per-image', order: { type: 'shuffled', seed } });
+export const allPerImage: VariationDistribution = { type: 'all-variants-per-image' };
+export const inTurn: VariationDistribution = { type: 'one-variant-per-image', order: { type: 'in-turn' } };
+export const shuffled = (seed: number): VariationDistribution => ({ type: 'one-variant-per-image', order: { type: 'shuffled', seed } });
 
 export const variationsList = (distribution: VariationDistribution, ...children: Node[]): Node => ({
   kind: 'variations', id: newId(), distribution, variants: { type: 'list', children },

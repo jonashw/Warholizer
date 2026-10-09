@@ -3,11 +3,7 @@ import App from "./App";
 import Gallery from "./Gallery";
 import PureGallery from "./PureGallery";
 import PureEditor from "./PureEditor";
-import { GraphViewerDemo } from "./GraphViewerDemo";
 import { GraphEditorDemo } from "./GraphEditorDemo";
-import { OperatorEditorDemo } from "./OperatorEditorDemo";
-import { ProgressiveApplicationDemo } from "./ProgressiveApplicationDemo";
-import { ImmersiveEditorDemo } from "./ImmersiveEditorDemo";
 import GoogleLoginPage from "./GoogleLoginPage";
 import GoogleLoginComplete from "./GoogleLoginComplete";
 import FileUploadPage from "./FileUploadPage";
@@ -41,11 +37,7 @@ export const routeConfig: RouteObject[] = [
           {href:'/pure-editor',label:'Pure Editor'},
           {href:'/composer',label:'Composer'},
           {href:'/filter-gallery',label:'Filter Gallery'},
-          {href:'/graph-viewer-demo',label:'Graph Viewer'},
           {href:'/graph-editor',label:'Graph Editor'},
-          {href:'/operator-editor-demo',label:'Op Editor Demo'},
-          {href:'/progressive-application-demo',label:'Progressive App Demo'},
-          {href:'/immersive-editor-demo',label:'Immersive Editor Demo'}
         ].map(route => (
           <li className="nav-item" key={route.label}>
             <a 
@@ -97,24 +89,8 @@ export const routeConfig: RouteObject[] = [
         element: <PureEditor/>
       },
       {
-        path: 'graph-viewer-demo',
-        element: <GraphViewerDemo/>
-      },
-      {
         path: 'graph-editor',
         element: <GraphEditorDemo/>
-      },
-      {
-        path: 'operator-editor-demo',
-        element: <OperatorEditorDemo/>
-      },
-      {
-        path: 'progressive-application-demo',
-        element: <ProgressiveApplicationDemo/>
-      },
-      {
-        path: 'immersive-editor-demo',
-        element: <ImmersiveEditorDemo/>
       }
     ]
   }

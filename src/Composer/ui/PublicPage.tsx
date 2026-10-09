@@ -4,6 +4,7 @@ import AuthContext from "../../AuthContext";
 import { openPublic, PublicComposition, publicImageUrl, remix, SignInNeeded } from "../cloud/client";
 import { kindLabel, nodeSummary, nodeTitle } from "./summaries";
 import { SignInButton } from "./CloudSheets";
+import { migrateComposition } from "../migrate";
 import "./Composer.css";
 
 /** What someone sees when they open a shared link (wireframe B5): the result and how it's made. */
@@ -16,7 +17,7 @@ export default function PublicPage() {
   const [remixing, setRemixing] = React.useState(false);
 
   React.useEffect(() => {
-    openPublic(slug).then(setShared).catch(e => setProblem(String(e.message ?? e)));
+    openPublic(slug).then(p => setShared({ ...p, document: migrateComposition(p.document) })).catch(e => setProblem(String(e.message ?? e)));
   }, [slug]);
 
   const doRemix = async () => {

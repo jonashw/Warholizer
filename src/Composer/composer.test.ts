@@ -362,7 +362,7 @@ describe('text view', () => {
     expect(text.split('\n')).toEqual([
       'sequence',
       '  levels black: 0 white: 245 gamma: 1',
-      '  variations all-per-image',
+      '  variations all-variants-per-image',
       '    gradient-map stops: [#183a65 #ff4137]',
       '    gradient-map stops: [#850564 #f3dd6d]',
       '    gradient-map stops: [#012be5 #00fcff]',
@@ -581,5 +581,17 @@ describe('v1.1: blends, animation, zines, shared palettes', () => {
     const each = await evaluate({ ...op, op: { type: 'quantize', colors: 2, replacements: [], palette: 'each' } } as Node,
       photoCube([bands(2, 1, [gray(10), gray(60)]), bands(2, 1, [gray(200), gray(250)])]), canvasOps);
     expect(new Set(each.cells.flatMap(c => [pixel(c.image, 0, 0)[0], pixel(c.image, 1, 0)[0]])).size).toBe(4);
+  });
+});
+
+describe('distribution rename', () => {
+  it('migrates all-per-image and one-per-image to their both-noun names', () => {
+    const old = { version: 1, name: 'old', root: { kind: 'sequence', id: 'r', children: [
+      { kind: 'variations', id: 'v', distribution: { type: 'all-per-image' }, variants: { type: 'list', children: [] } },
+      { kind: 'variations', id: 'w', distribution: { type: 'one-per-image', order: { type: 'in-turn' } }, variants: { type: 'list', children: [] } },
+    ] } } as unknown as Composition;
+    const [a, b] = migrateComposition(old).root.children as Extract<Node, { kind: 'variations' }>[];
+    expect(a.distribution).toEqual({ type: 'all-variants-per-image' });
+    expect(b.distribution).toEqual({ type: 'one-variant-per-image', order: { type: 'in-turn' } });
   });
 });

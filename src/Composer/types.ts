@@ -80,8 +80,8 @@ export type VariationsNode = {
  * nouns: all variants per image, one variant per image, one image per variant.
  */
 export type VariationDistribution =
-  | { type: 'all-per-image' }
-  | { type: 'one-per-image', order: Order }
+  | { type: 'all-variants-per-image' }
+  | { type: 'one-variant-per-image', order: Order }
   /** Each variant used once per round; images beyond one round spill into a Round dimension, are dropped, or pass through unchanged. */
   | { type: 'one-image-per-variant', order: Order, overflow: 'spill' | 'drop' | 'keep' };
 

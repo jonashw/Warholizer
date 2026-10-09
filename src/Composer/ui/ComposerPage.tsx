@@ -144,14 +144,14 @@ const save = (composition: Composition) => {
 
 /** The pill's quick toggle: all variants per image → one variant per image (in turn, shuffled) → one image per variant. */
 const nextDistribution = (d: VariationDistribution): VariationDistribution =>
-  d.type === 'all-per-image' ? { type: 'one-per-image', order: { type: 'in-turn' } }
-  : d.type === 'one-per-image' && d.order.type === 'in-turn' ? { type: 'one-per-image', order: { type: 'shuffled', seed: newSeed() } }
-  : d.type === 'one-per-image' ? { type: 'one-image-per-variant', order: { type: 'in-turn' }, overflow: 'spill' }
-  : { type: 'all-per-image' };
+  d.type === 'all-variants-per-image' ? { type: 'one-variant-per-image', order: { type: 'in-turn' } }
+  : d.type === 'one-variant-per-image' && d.order.type === 'in-turn' ? { type: 'one-variant-per-image', order: { type: 'shuffled', seed: newSeed() } }
+  : d.type === 'one-variant-per-image' ? { type: 'one-image-per-variant', order: { type: 'in-turn' }, overflow: 'spill' }
+  : { type: 'all-variants-per-image' };
 
 const shortDistribution = (d: VariationDistribution) =>
-  d.type === 'all-per-image' ? 'all per image'
-  : d.type === 'one-per-image' ? (d.order.type === 'in-turn' ? 'in turn' : 'shuffled')
+  d.type === 'all-variants-per-image' ? 'all per image'
+  : d.type === 'one-variant-per-image' ? (d.order.type === 'in-turn' ? 'in turn' : 'shuffled')
   : 'one image each';
 
 const cellLabel = <Img,>(cube: Cube<Img>, i: number) => cube.dimensions

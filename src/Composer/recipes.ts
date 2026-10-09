@@ -31,7 +31,7 @@ const sharedSeed = (): Composition => ({
   name: 'Shared seed',
   root: sequence(
     operationNode({ type: 'levels', black: byte(0), white: byte(245), gamma: 1 }),
-    variationsList({ type: 'one-per-image', order: { type: 'shuffled', seed: 7 } }, ...duotones()),
+    variationsList({ type: 'one-variant-per-image', order: { type: 'shuffled', seed: 7 } }, ...duotones()),
     combine(layout({
       size: { type: 'width', size: { value: 1.5, unit: 'in' } },
       fit: 'cover',

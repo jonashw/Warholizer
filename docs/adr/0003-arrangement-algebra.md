@@ -233,7 +233,7 @@ VariantOverflow = Spill | Drop | Keep               (* Spill adds a Round dimens
 
 - Mismatched counts mirror too: extra cells stay empty; extra variants go unused.
 - The shared vocabulary is meant to inspire work as well as describe it: one seed can drive both a palette assignment and a sheet's arrangement, and a composition can swap roles, laying out what another varies.
-- Status: `one-image-per-variant` is built. The editor shows the both-noun names; the stored names `all-per-image` and `one-per-image` are unchanged until a rename is decided.
+- Status: built. Stored names are the both-noun forms since 2026-10-09; saved documents with `all-per-image` or `one-per-image` migrate when loaded.
 
 ### Export and addresses
 

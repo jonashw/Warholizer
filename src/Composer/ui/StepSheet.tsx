@@ -168,24 +168,24 @@ function SpreadPeek({ op, spread, sampleInput, sampleScale = 1, onSpread }: {
 }
 
 function DistributionEditor({ value, onChange }: { value: VariationDistribution, onChange: (d: VariationDistribution) => void }) {
-  const order = value.type === 'all-per-image' ? undefined : value.order;
+  const order = value.type === 'all-variants-per-image' ? undefined : value.order;
   const withOrder = (o: Order): VariationDistribution =>
-    value.type === 'one-per-image' ? { ...value, order: o } : value.type === 'one-image-per-variant' ? { ...value, order: o } : value;
+    value.type === 'one-variant-per-image' ? { ...value, order: o } : value.type === 'one-image-per-variant' ? { ...value, order: o } : value;
   return (
     <div className="composer-card">
       <span className="composer-section-label">Distribution</span>
       <Segmented label="Distribution" value={value.type} onChange={type => onChange(
-        type === 'all-per-image' ? { type }
-        : type === 'one-per-image' ? { type, order: order ?? { type: 'in-turn' } }
+        type === 'all-variants-per-image' ? { type }
+        : type === 'one-variant-per-image' ? { type, order: order ?? { type: 'in-turn' } }
         : { type, order: order ?? { type: 'in-turn' }, overflow: 'spill' })}
         options={[
-          { value: 'all-per-image', label: 'All variants per image' },
-          { value: 'one-per-image', label: 'One variant per image' },
+          { value: 'all-variants-per-image', label: 'All variants per image' },
+          { value: 'one-variant-per-image', label: 'One variant per image' },
           { value: 'one-image-per-variant', label: 'One image per variant' },
         ]} />
       <span className="composer-hint">
-        {value.type === 'all-per-image' ? 'Every image goes through every variant.'
-          : value.type === 'one-per-image' ? 'Each image goes through one variant; variants are reused as needed.'
+        {value.type === 'all-variants-per-image' ? 'Every image goes through every variant.'
+          : value.type === 'one-variant-per-image' ? 'Each image goes through one variant; variants are reused as needed.'
           : 'Each variant is used once per round of images; mirrors a Sheet that places each image once.'}
       </span>
       {order && (

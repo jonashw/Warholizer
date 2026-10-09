@@ -31,6 +31,15 @@ const randomId = (length: number) => {
 
 export type PrepareRequest = { sha256: string, variant: Variant, contentType: string, byteSize: number };
 
+/**
+ * Limits that keep storage costs bounded (Cloudflare has no hard spending cap for R2): the largest
+ * single file, and each person's library total. Set MAX_UPLOAD_BYTES and LIBRARY_QUOTA_BYTES to change them.
+ */
+export const limits = () => ({
+  maxUploadBytes: Number(process.env.MAX_UPLOAD_BYTES ?? 60 * 1024 * 1024),
+  libraryQuotaBytes: Number(process.env.LIBRARY_QUOTA_BYTES ?? 5 * 1024 * 1024 * 1024),
+});
+
 /** Where to upload an original or thumbnail; nothing to upload if the store already has it. */
 export const prepareUpload = async ({ repo, store }: Context, user: User, req: PrepareRequest): Promise<Result> => {
   if (!isSha256(req.sha256)) return error(400, 'sha256 must be 64 hex characters');
@@ -42,6 +51,15 @@ export const prepareUpload = async ({ repo, store }: Context, user: User, req: P
   }
   const key = keyOf(req.sha256, req.variant);
   if (await store.has(key)) return ok({ exists: true });
+  const { maxUploadBytes, libraryQuotaBytes } = limits();
+  if (!(req.byteSize > 0)) return error(400, 'byteSize is required');
+  if (req.byteSize > maxUploadBytes) return error(413, `Files can be up to ${Math.round(maxUploadBytes / 1024 / 1024)} MB`);
+  if (req.variant === 'original') {
+    const used = (await repo.library(user.id)).reduce((total, image) => total + image.byte_size, 0);
+    if (used + req.byteSize > libraryQuotaBytes) {
+      return error(413, `Your library is full (${(used / 1024 ** 3).toFixed(1)} of ${(libraryQuotaBytes / 1024 ** 3).toFixed(0)} GB)`);
+    }
+  }
   const contentType = req.variant === 'thumbnail' ? 'image/jpeg' : req.contentType || 'application/octet-stream';
   return ok({ exists: false, upload: await store.uploadTarget(key, contentType, `/api/images/${req.sha256}/${req.variant}/bytes`) });
 };

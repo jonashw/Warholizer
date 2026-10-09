@@ -181,10 +181,10 @@ const assignments = (node: VariationsNode, cellCount: number, variantCount: numb
   const d = node.distribution;
   const byVariant = (dealt: (number | undefined)[]) => Array.from({ length: variantCount }, (_, v) =>
     dealt.flatMap((assigned, cell) => assigned === v ? [cell] : []));
-  if (d.type === 'all-per-image') {
+  if (d.type === 'all-variants-per-image') {
     return { cells: Array.from({ length: variantCount }, () => Array.from({ length: cellCount }, (_, i) => i)), kept: [] };
   }
-  if (d.type === 'one-per-image') {
+  if (d.type === 'one-variant-per-image') {
     const dealt = d.order.type === 'in-turn'
       ? Array.from({ length: cellCount }, (_, i) => i % variantCount)
       : dealShuffled(cellCount, variantCount, d.order.seed);

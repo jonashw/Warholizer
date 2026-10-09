@@ -59,7 +59,7 @@ const repeatedVariants = (node: VariationsNode): Suggestion | undefined => {
   const unique: OperationNode[] = [];
   children.forEach(c => { if (!unique.some(u => sameOp(u.op, (c as OperationNode).op))) unique.push(c as OperationNode); });
   if (unique.length === children.length) return undefined;
-  const cycling = node.distribution.type === 'one-per-image' && node.distribution.order.type === 'in-turn';
+  const cycling = node.distribution.type === 'one-variant-per-image' && node.distribution.order.type === 'in-turn';
   return {
     id: `repeats:${node.id}`, nodeId: node.id, kind: 'suggestion',
     title: 'Variants repeat',
@@ -68,7 +68,7 @@ const repeatedVariants = (node: VariationsNode): Suggestion | undefined => {
       : `${children.length} variants, ${unique.length} different. To reuse variants across images, keep one of each and use one variant per image, in turn.`,
     apply: root => updateNode(root, node.id, n => ({
       ...(n as VariationsNode),
-      distribution: { type: 'one-per-image', order: { type: 'in-turn' } },
+      distribution: { type: 'one-variant-per-image', order: { type: 'in-turn' } },
       variants: { type: 'list', children: unique },
     })) as SequenceNode,
   };

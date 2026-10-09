@@ -37,8 +37,14 @@ const migrateNode = (node: Node): Node => {
     return node;
   }
   if (node.kind === 'sequence') return { ...node, children: node.children.map(migrateNode) };
-  if (node.kind === 'variations' && node.variants.type === 'list') {
-    return { ...node, variants: { type: 'list', children: node.variants.children.map(migrateNode) } };
+  if (node.kind === 'variations') {
+    // Distributions were renamed with both nouns (ADR 0003): all-per-image, one-per-image.
+    const type = node.distribution.type as string;
+    const distribution = type === 'all-per-image' ? { type: 'all-variants-per-image' as const }
+      : type === 'one-per-image' ? { ...node.distribution, type: 'one-variant-per-image' as const } as typeof node.distribution
+      : node.distribution;
+    const variants = node.variants.type === 'list' ? { type: 'list' as const, children: node.variants.children.map(migrateNode) } : node.variants;
+    return { ...node, distribution, variants };
   }
   return node;
 };
