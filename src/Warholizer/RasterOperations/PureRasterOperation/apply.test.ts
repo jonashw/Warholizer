@@ -222,9 +222,9 @@ describe('filter operations (1→1, same size, neighborhood)', () => {
     expect(r).toBeLessThan(255);
   });
 
-  it.each([false, true])('halftone (invert=%s) keeps size and is pure black/white', async (invert) => {
+  it.each([false, true])('classic halftone (invert=%s) keeps size and is pure black/white', async (invert) => {
     const input = bands(32, 16, [RED, BLUE, WHITE]);
-    const out = await one({ type: 'halftone', angle: angle(45), dotDiameter: 4, blurPixels: 1, invert }, input);
+    const out = await one({ type: 'halftone', style: 'classic', angle: angle(45), dotDiameter: 4, blurPixels: 1, invert }, input);
     expect(size(out)).toEqual(size(input));
     allPixels(out).forEach(p => {
       expect([0, 255]).toContain(p[0]);
@@ -306,6 +306,46 @@ describe('geometry operations (1→1, size changes)', () => {
   it('slideWrap y shifts up and wraps', async () => {
     const out = await one({ type: 'slideWrap', dimension: 'y', amount: 25 }, rows(1, 4, [RED, GREEN, BLUE, WHITE]));
     expect(allPixels(out)).toEqual([GREEN, BLUE, WHITE, RED]);
+  });
+});
+
+describe('smooth halftone (AM screen)', () => {
+  const gray = (v: number): RGBA => [v, v, v, 255];
+  const meanInk = (c: OffscreenCanvas) => allPixels(c).reduce((s, p) => s + (255 - p[0]) / 255, 0) / (c.width * c.height);
+
+  it.each(['round', 'ellipse', 'line', 'diamond'] as const)('%s dots reproduce tone (coverage ≈ darkness)', async (shape) => {
+    for (const v of [51, 128, 204]) {
+      const out = await one({ type: 'halftone', style: 'smooth', shape, angle: angle(15), dotDiameter: 8, blurPixels: 0, scale: 2 }, solid(64, 64, gray(v)));
+      expect(Math.abs(meanInk(out) - (1 - v / 255)), `${shape} @ ${v}`).toBeLessThan(0.05);
+    }
+  });
+
+  it('white stays paper and black is fully inked', async () => {
+    const op: PureRasterOperation = { type: 'halftone', dotDiameter: 6, blurPixels: 0, angle: angle(45) };
+    expect(new Set(allPixels(await one(op, solid(24, 24, WHITE))).map(p => p[0]))).toEqual(new Set([255]));
+    expect(new Set(allPixels(await one(op, solid(24, 24, BLACK))).map(p => p[0]))).toEqual(new Set([0]));
+  });
+
+  it('anti-aliases dot edges (intermediate grays, not only black and white)', async () => {
+    const out = await one({ type: 'halftone', dotDiameter: 8, blurPixels: 0, angle: angle(30) }, solid(48, 48, gray(128)));
+    const values = new Set(allPixels(out).map(p => p[0]));
+    expect([...values].filter(v => v > 10 && v < 245).length).toBeGreaterThan(10);
+  });
+
+  it('scale renders a larger output', async () => {
+    const out = await one({ type: 'halftone', dotDiameter: 6, blurPixels: 0, angle: angle(45), scale: 3 }, solid(20, 10, gray(128)));
+    expect(size(out)).toEqual([60, 30]);
+  });
+
+  it('invert draws light as white dots on black', async () => {
+    const op: PureRasterOperation = { type: 'halftone', dotDiameter: 6, blurPixels: 0, angle: angle(0), invert: true };
+    expect(new Set(allPixels(await one(op, solid(24, 24, BLACK))).map(p => p[0]))).toEqual(new Set([0]));
+    expect(new Set(allPixels(await one(op, solid(24, 24, WHITE))).map(p => p[0]))).toEqual(new Set([255]));
+  });
+
+  it('color halftone honors scale', async () => {
+    const out = await one({ type: 'colorHalftone', dotDiameter: 6, blurPixels: 0, scale: 2 }, solid(20, 10, RED));
+    expect(size(out)).toEqual([40, 20]);
   });
 });
 

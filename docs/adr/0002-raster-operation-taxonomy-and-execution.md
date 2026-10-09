@@ -144,3 +144,9 @@ Classifying current operations by signature (input count → output count, wheth
 - Execution hints can depend on parameters (`executionOf`): color key is GPU when global, worker when connected.
 - WebAssembly evaluated and deferred: [docs/benchmarks/2026-10-08-new-operations.md](../benchmarks/2026-10-08-new-operations.md). GPU kernels are 50–170× faster than CPU JavaScript for per-pixel work (WebAssembly would be a regression there); sequential algorithms take 16–61 ms at 1024² in workers.
 
+### 2026-10-09: smooth (AM screen) halftone is the default
+
+- The original halftone was grainy: fixed-size dots from a resampled pattern tile, color-burned, then thresholded to pure black and white, so dot size barely tracked tone and edges aliased. It is kept as `style: 'classic'`.
+- New default `style: 'smooth'` (`halftone.ts`, CPU reference + WebGL2 kernel `amHalftone`): rotated screen of cells (`dotDiameter` = cell size); each cell's tone is averaged over a 4 × 4 sample grid; spot functions per `shape` (round, ellipse, line, diamond) with a per-shape tone table so ink coverage matches darkness (tested within 5%); analytic anti-aliasing (`fwidth` on the GPU, finite differences on the CPU); optional output `scale` (1–4×) for crisp print-resolution dots.
+- Color halftone uses it, with `shape` and `scale`. Comparison (top left classic; top right smooth round ×2; bottom left line screen ×2; bottom right color halftone ×2): [2026-10-09-halftone-compare.png](../benchmarks/2026-10-09-halftone-compare.png). Smooth runs in 6–24 ms at 824² on the GPU versus 180 ms for classic.
+

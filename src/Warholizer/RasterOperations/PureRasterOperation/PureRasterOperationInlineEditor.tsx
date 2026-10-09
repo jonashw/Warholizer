@@ -14,7 +14,8 @@ import { Add, Remove } from "@mui/icons-material";
 import { PaletteReplacementsInput } from "./editors/PaletteReplacementsInput";
 import { VisualCropModal } from "./editors/VisualCropModal";
 import { ColorStopsInput } from "./editors/ColorStopsInput";
-import { BayerSize, DiffusionMethod } from "./types";
+import { BayerSize, DiffusionMethod, DotShape, HalftoneStyle } from "./types";
+import { dotShapes } from "./halftone";
 
 const toPrecision = (n: number, fractionalDigits: number) => 
     parseFloat(n.toFixed(fractionalDigits));
@@ -235,40 +236,38 @@ export const PureRasterOperationInlineEditor = ({
                     );
                     case 'halftone': return (
                         <>
-                            <NumberSpinnerInput
-                                value={op.dotDiameter}
-                                min={0}
-                                max={100}
-                                step={0.5}
-                                sanitize={n => n}
-                                onChange={dotDiameter => {
-                                    onChange({...op, dotDiameter });
-                                }}
-                            />
-                            <AngleDialInput 
+                            <ButtonRadiosInput<HalftoneStyle>
+                                value={op.style ?? 'smooth'}
+                                options={(['smooth', 'classic'] as HalftoneStyle[]).map(value => ({ value, label: value === 'smooth' ? 'Smooth' : 'Classic' }))}
+                                onChange={style => onChange({ ...op, style })} />
+                            {(op.style ?? 'smooth') === 'smooth' && (
+                                <DropdownSelector<DotShape>
+                                    value={op.shape ?? 'round'}
+                                    options={dotShapes.map(value => ({ value, label: value }))}
+                                    onChange={shape => onChange({ ...op, shape })} />
+                            )}
+                            <span title={(op.style ?? 'smooth') === 'smooth' ? 'Cell size (dot pitch), px' : 'Dot diameter, px'}>
+                                <NumberSpinnerInput value={op.dotDiameter} min={1} max={100} step={0.5}
+                                    sanitize={n => Math.min(100, Math.max(1, n))}
+                                    onChange={dotDiameter => onChange({ ...op, dotDiameter })} />
+                            </span>
+                            <AngleDialInput
                                 value={op.angle}
                                 step={angleStep}
                                 onChange={angle => onChange({...op, angle})}
                             />
-                            <NumberSpinnerInput
-                                value={op.blurPixels}
-                                min={0}
-                                max={10}
-                                step={0.5}
-                                sanitize={n => n}
-                                onChange={blurPixels => {
-                                    onChange({...op, blurPixels });
-                                }}
-                            />
-                            <span className="frm-check">
-                                <input
-                                    type="checkbox"
-                                    checked={op.invert}
-                                    className="form-check-input" id="halftone_invert" 
-                                    onChange={e => onChange({...op, invert:e.target.checked})}
-                                />{' '}
-                                <label htmlFor="halftone_invert" className="form-check-label">Invert</label>
+                            <span title="Extra blur (px)">
+                                <NumberSpinnerInput value={op.blurPixels} min={0} max={10} step={0.5}
+                                    sanitize={n => Math.min(10, Math.max(0, n))}
+                                    onChange={blurPixels => onChange({ ...op, blurPixels })} />
                             </span>
+                            {(op.style ?? 'smooth') === 'smooth' && (
+                                <span title="Output scale (crisp dots at higher resolution, e.g. for printing)">
+                                    <NumberSpinnerInput<number> value={op.scale ?? 1} min={1} max={4} step={1}
+                                        sanitize={clampInt(1, 4)} onChange={scale => onChange({ ...op, scale })} />
+                                </span>
+                            )}
+                            <Checkbox label="Invert" checked={!!op.invert} onChange={invert => onChange({ ...op, invert })} />
                         </>
                     );
                     case 'noop': return;
@@ -549,6 +548,14 @@ export const PureRasterOperationInlineEditor = ({
                     case 'cmykChannels': return <></>;
                     case 'colorHalftone': return (
                         <>
+                            <DropdownSelector<DotShape>
+                                value={op.shape ?? 'round'}
+                                options={dotShapes.map(value => ({ value, label: value }))}
+                                onChange={shape => onChange({ ...op, shape })} />
+                            <span title="Output scale">
+                                <NumberSpinnerInput<number> value={op.scale ?? 1} min={1} max={4} step={1}
+                                    sanitize={clampInt(1, 4)} onChange={scale => onChange({ ...op, scale })} />
+                            </span>
                             <span title="Dot diameter (px)"><NumberSpinnerInput<number> value={op.dotDiameter} min={2} max={40} step={1}
                                 sanitize={n => Math.min(40, Math.max(2, n))} onChange={dotDiameter => onChange({ ...op, dotDiameter })} /></span>
                             <span title="Blur (px)"><NumberSpinnerInput<number> value={op.blurPixels} min={0} max={10} step={1}

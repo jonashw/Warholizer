@@ -126,9 +126,16 @@ export const operationRegistry: { [T in OperationType]: OperationRegistration<T>
   },
   halftone: {
     kind: 'filter', label: 'Halftone', execution: 'gpu',
-    description: 'Renders the image as a pattern of dots.',
-    defaults: { type: 'halftone', dotDiameter: 3.5, blurPixels: 1, angle: angle(0), dotsOnly: false, invert: true },
-    sweeps: [{ param: 'dotDiameter', values: [2, 3, 4, 6, 8, 12] }, { param: 'angle', values: range(0, 75, 15).map(angle) }, { param: 'blurPixels', values: [0, 1, 2, 4] }, { param: 'invert', values: [false, true] }],
+    description: 'Renders tones as a screen of dots sized by darkness (smooth), or the original thresholded look (classic).',
+    defaults: { type: 'halftone', style: 'smooth', shape: 'round', dotDiameter: 5, blurPixels: 0, angle: angle(45), invert: false, scale: 1 },
+    sweeps: [
+      { param: 'dotDiameter', values: [3, 4, 6, 8, 12, 16] },
+      { param: 'shape', values: ['round', 'ellipse', 'line', 'diamond'] },
+      { param: 'angle', values: range(0, 75, 15).map(angle) },
+      { param: 'scale', values: [1, 2, 3, 4] },
+      { param: 'style', values: ['smooth', 'classic'] },
+      { param: 'invert', values: [false, true] },
+    ],
   },
   orderedDither: {
     kind: 'filter', label: 'Ordered dither', execution: 'gpu',
@@ -151,8 +158,8 @@ export const operationRegistry: { [T in OperationType]: OperationRegistration<T>
   colorHalftone: {
     kind: 'filter', label: 'Color halftone', execution: 'gpu',
     description: 'Comic-book CMYK dots: each ink halftoned at its own screen angle.',
-    defaults: { type: 'colorHalftone', dotDiameter: 6, blurPixels: 1 },
-    sweeps: [{ param: 'dotDiameter', values: [3, 4, 6, 8, 12, 16] }, { param: 'blurPixels', values: [0, 1, 2, 4] }],
+    defaults: { type: 'colorHalftone', dotDiameter: 6, blurPixels: 0, shape: 'round', scale: 1 },
+    sweeps: [{ param: 'dotDiameter', values: [3, 4, 6, 8, 12, 16] }, { param: 'shape', values: ['round', 'ellipse', 'line', 'diamond'] }, { param: 'scale', values: [1, 2, 3, 4] }, { param: 'blurPixels', values: [0, 1, 2, 4] }],
   },
   stickerBorder: {
     kind: 'geometry', label: 'Sticker border', execution: 'worker',

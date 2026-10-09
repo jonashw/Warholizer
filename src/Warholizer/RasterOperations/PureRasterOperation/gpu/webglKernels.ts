@@ -1,5 +1,6 @@
 import { PixelKernels, bayerMatrix, cpuKernels, inks } from "../kernels";
 import { RGB } from "../palette";
+import { HalftoneScreen, cellSamples, dotShapeIndex, toneTable, toneTableSize } from "../halftone";
 
 /** Largest palette the GPU kernel supports; larger palettes fall back to the CPU. */
 export const maxGpuPaletteSize = 64;
@@ -210,6 +211,53 @@ void main() {
   outColor = vec4(v / 255.0, c.a / 255.0);
 }`;
 
+const halftoneShader = fragmentPrelude + `
+uniform vec2 u_outSize;
+uniform float u_scale;
+uniform float u_cell;
+uniform float u_angle;
+uniform int u_shape;
+uniform bool u_invert;
+uniform float u_lut[${toneTableSize}];
+// Spot functions, in sync with halftone.ts.
+float spot(vec2 f) {
+  if (u_shape == 1) return (f.x * f.x + 1.7 * f.y * f.y) / 2.7;
+  if (u_shape == 2) return abs(f.y);
+  if (u_shape == 3) return (abs(f.x) + abs(f.y)) / 2.0;
+  return (f.x * f.x + f.y * f.y) / 2.0;
+}
+float thresholdFor(float d) {
+  float t = clamp(d, 0.0, 1.0) * float(${toneTableSize - 1});
+  int i = min(${toneTableSize - 2}, int(floor(t)));
+  return mix(u_lut[i], u_lut[i + 1], t - float(i));
+}
+void main() {
+  // Output pixel center in canvas coordinates (y down), then in input pixels.
+  vec2 p = vec2(gl_FragCoord.x, u_outSize.y - gl_FragCoord.y) / u_scale;
+  float c = cos(radians(u_angle)), s = sin(radians(u_angle));
+  vec2 q = vec2(c * p.x + s * p.y, -s * p.x + c * p.y) / u_cell;
+  vec2 k = floor(q);
+  vec2 f = (q - k - 0.5) * 2.0;
+  // Mean darkness over the cell (bilinear samples on a grid, clamped to edges), transparent as white.
+  float d = 0.0;
+  for (int j = 0; j < ${cellSamples}; j++) {
+    for (int i = 0; i < ${cellSamples}; i++) {
+      vec2 cq = (k + (vec2(float(i), float(j)) + 0.5) / float(${cellSamples})) * u_cell;
+      vec2 cp = vec2(c * cq.x - s * cq.y, s * cq.x + c * cq.y);
+      vec4 px = texture(u_input, clamp(cp, vec2(0.5), vec2(u_size) - 0.5) / vec2(u_size)) * 255.0;
+      float a = px.a / 255.0;
+      d += 1.0 - (lum(px.rgb) * a + 255.0 * (1.0 - a)) / 255.0;
+    }
+  }
+  d /= float(${cellSamples * cellSamples});
+  if (u_invert) d = 1.0 - d;
+  float v = spot(f);
+  float coverage = clamp((thresholdFor(d) - v) / max(fwidth(v), 1e-4) + 0.5, 0.0, 1.0);
+  float ink = u_invert ? 1.0 : 0.0;
+  float paper = 1.0 - ink;
+  outColor = vec4(vec3(roundJs(255.0 * mix(paper, ink, coverage)) / 255.0), 1.0);
+}`;
+
 type Program = {
   program: WebGLProgram,
   uniform: (name: string) => WebGLUniformLocation | null
@@ -248,7 +296,8 @@ type GpuContext = {
   texture: WebGLTexture,
   programs: {
     threshold: Program, rgbChannels: Program, noise: Program, palette: Program, levels: Program,
-    gradientMap: Program, posterize: Program, orderedDither: Program, edges: Program, colorKey: Program, cmyk: Program
+    gradientMap: Program, posterize: Program, orderedDither: Program, edges: Program, colorKey: Program, cmyk: Program,
+    halftone: Program
   },
   lost: boolean
 };
@@ -293,6 +342,7 @@ const createContext = (): GpuContext | undefined => {
       edges: compile(gl, edgesShader),
       colorKey: compile(gl, colorKeyShader),
       cmyk: compile(gl, cmykShader),
+      halftone: compile(gl, halftoneShader),
     },
     lost: false,
   };
@@ -300,23 +350,31 @@ const createContext = (): GpuContext | undefined => {
   return ctx;
 };
 
-/** Uploads `input`, runs `program` over it, and returns the result as a new 2D canvas. */
+/**
+ * Uploads `input`, runs `program` over it, and returns the result as a new 2D canvas
+ * (input-sized unless `output` says otherwise; `linear` enables bilinear sampling).
+ */
 const run = (
   ctx: GpuContext,
   input: OffscreenCanvas,
   program: Program,
-  setUniforms: (p: Program) => void
+  setUniforms: (p: Program) => void,
+  output?: { width: number, height: number, linear?: boolean }
 ): OffscreenCanvas => {
   const { gl, canvas } = ctx;
-  const { width, height } = input;
+  const { width: inWidth, height: inHeight } = input;
+  const width = output?.width ?? inWidth, height = output?.height ?? inHeight;
   canvas.width = width;
   canvas.height = height;
   gl.viewport(0, 0, width, height);
   gl.bindTexture(gl.TEXTURE_2D, ctx.texture);
+  const filter = output?.linear ? gl.LINEAR : gl.NEAREST;
+  gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, filter);
+  gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, filter);
   gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, gl.RGBA, gl.UNSIGNED_BYTE, input);
   gl.useProgram(program.program);
   gl.uniform1i(program.uniform('u_input'), 0);
-  gl.uniform2i(program.uniform('u_size'), width, height);
+  gl.uniform2i(program.uniform('u_size'), inWidth, inHeight);
   setUniforms(program);
   gl.drawArrays(gl.TRIANGLES, 0, 3);
   const out = new OffscreenCanvas(width, height);
@@ -424,6 +482,23 @@ export const createWebglKernels = (): PixelKernels | undefined => {
         gpu.gl.uniform1f(p.uniform('u_tolerance'), tolerance);
         gpu.gl.uniform1f(p.uniform('u_softness'), softness);
       }),
+
+    amHalftone: async (blurred, screen: HalftoneScreen) => {
+      if (!usable(blurred)) {
+        return cpuKernels.amHalftone(blurred, screen);
+      }
+      const width = Math.max(1, Math.round(blurred.width * screen.scale));
+      const height = Math.max(1, Math.round(blurred.height * screen.scale));
+      return run(gpu, blurred, gpu.programs.halftone, p => {
+        gpu.gl.uniform2f(p.uniform('u_outSize'), width, height);
+        gpu.gl.uniform1f(p.uniform('u_scale'), screen.scale);
+        gpu.gl.uniform1f(p.uniform('u_cell'), screen.cell);
+        gpu.gl.uniform1f(p.uniform('u_angle'), screen.angle);
+        gpu.gl.uniform1i(p.uniform('u_shape'), dotShapeIndex(screen.shape));
+        gpu.gl.uniform1i(p.uniform('u_invert'), screen.invert ? 1 : 0);
+        gpu.gl.uniform1fv(p.uniform('u_lut'), toneTable(screen.shape));
+      }, { width, height, linear: true });
+    },
 
     cmykChannels: async (input, mode) =>
       !usable(input)

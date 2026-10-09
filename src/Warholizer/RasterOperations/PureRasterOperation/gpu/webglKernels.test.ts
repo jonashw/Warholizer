@@ -91,9 +91,18 @@ describe('WebGL2 kernels', () => {
       expect(mean).toBeLessThan(155);
     });
 
-    it('halftone through the shared composition code', async () => {
+    it.each(['round', 'ellipse', 'line', 'diamond'] as const)('amHalftone (%s)', async (shape) => {
+      const input = testImage(64, 48);
+      const screen = { cell: 7, angle: 25, shape, invert: false, scale: 2 };
+      const [e, a] = await Promise.all([cpuKernels.amHalftone(input, screen), gpu.amHalftone(input, screen)]);
+      expect(size(a)).toEqual(size(e));
+      // Derivative estimates differ slightly (fwidth vs finite differences), so compare edges loosely.
+      expect(mismatchRate(a, e, 64)).toBeLessThan(0.02);
+    });
+
+    it('classic halftone through the shared composition code', async () => {
       const input = testImage(96, 64);
-      const op: PureRasterOperation = { type: 'halftone', angle: angle(15), dotDiameter: 4, blurPixels: 1, invert: false };
+      const op: PureRasterOperation = { type: 'halftone', style: 'classic', angle: angle(15), dotDiameter: 4, blurPixels: 1, invert: false };
       const [[expected], [actual]] = await Promise.all([createApply(cpuKernels)(op, [input]), createApply(gpu)(op, [input])]);
       expect(mismatchRate(actual, expected, 0)).toBeLessThan(0.01);
     });

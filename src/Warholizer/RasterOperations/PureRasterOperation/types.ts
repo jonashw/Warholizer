@@ -62,7 +62,7 @@ export type StickerBorder = { type: "stickerBorder", width: number, color: strin
 export type ColorKey = { type: "colorKey", color: string | null, tolerance: number, softness: number, connected: boolean };
 export type CmykChannels = { type: "cmykChannels" };
 /** Ben-Day style CMYK halftone: each ink halftoned at its traditional screen angle, multiplied together. */
-export type ColorHalftone = { type: "colorHalftone", dotDiameter: number, blurPixels: number };
+export type ColorHalftone = { type: "colorHalftone", dotDiameter: number, blurPixels: number, shape?: DotShape, scale?: number };
 export type Void = { type: "void" };
 export type Fill = { type: "fill", color: CSSProperties["color"], blendingMode: BlendingMode};
 export type Noop = { type: "noop" };
@@ -71,7 +71,17 @@ export type Threshold = { type: "threshold", value: Byte };
 export type Copies = { type: "copies", n: number };
 export type Split = { type: "split", dimension: Dimension, amount: Percentage };
 export type SlideWrap = { type: "slideWrap", dimension: Dimension, amount: Percentage };
-export type Halftone = { type: "halftone", angle: Angle, dotDiameter: number, blurPixels: number, dotsOnly?: boolean, invert?: boolean };
+export type DotShape = 'round' | 'ellipse' | 'line' | 'diamond';
+export type HalftoneStyle = 'smooth' | 'classic';
+/**
+ * `smooth` (default): AM screen with cell size `dotDiameter`, dot area proportional to tone,
+ * anti-aliased edges, optional `shape` and output `scale`. `classic`: the original fixed-dot,
+ * thresholded look (`dotsOnly` applies only here).
+ */
+export type Halftone = {
+  type: "halftone", angle: Angle, dotDiameter: number, blurPixels: number, dotsOnly?: boolean, invert?: boolean,
+  style?: HalftoneStyle, shape?: DotShape, scale?: number
+};
 export type Blur = { type: "blur", pixels: number };
 export type Grayscale = { type: "grayscale", percent: Percentage };
 export type RotationOrigin = "center"|"top-right"|"top-left"|"bottom-left"|"bottom-right";

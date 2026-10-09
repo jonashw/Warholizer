@@ -3,7 +3,9 @@ import { PureRasterOperation } from "./types";
 export const stringRepresentation = (op: PureRasterOperation): string => {
   const opType = op.type;
   switch(opType){
-    case 'halftone'  : return `halftone(${op.dotDiameter}px, ${op.angle}deg, ${op.blurPixels}px${!op.invert ? '' : ', invert'}${!op.dotsOnly ? '' : ', dotsOnly'})`;
+    case 'halftone'  : return op.style === 'classic'
+      ? `halftone(classic, ${op.dotDiameter}px, ${op.angle}deg, ${op.blurPixels}px${!op.invert ? '' : ', invert'}${!op.dotsOnly ? '' : ', dotsOnly'})`
+      : `halftone(${op.shape ?? 'round'}, ${op.dotDiameter}px, ${op.angle}deg${op.blurPixels ? `, blur ${op.blurPixels}px` : ''}${(op.scale ?? 1) > 1 ? `, ×${op.scale}` : ''}${!op.invert ? '' : ', invert'})`;
     case 'stack'     : return `stack(${op.blendingMode})`;
     case 'noop'      : return "noop";
     case 'copies'    : return `copies(${op.n})`;
@@ -37,7 +39,7 @@ export const stringRepresentation = (op: PureRasterOperation): string => {
     case 'stickerBorder': return `stickerBorder(${op.width}px, ${op.color}${op.cutLine ? ', cut line' : ''})`;
     case 'colorKey'  : return `colorKey(${op.color ?? 'edge color'}, ±${op.tolerance}${op.softness > 0 ? `~${op.softness}` : ''}${op.connected ? ', connected' : ''})`;
     case 'cmykChannels': return `cmykChannels()`;
-    case 'colorHalftone': return `colorHalftone(${op.dotDiameter}px, ${op.blurPixels}px)`;
+    case 'colorHalftone': return `colorHalftone(${op.shape ?? 'round'}, ${op.dotDiameter}px${op.blurPixels ? `, blur ${op.blurPixels}px` : ''}${(op.scale ?? 1) > 1 ? `, ×${op.scale}` : ''})`;
     default: {
       throw new Error(`Unexpected operation type: ${opType}`);
     }

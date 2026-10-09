@@ -1,4 +1,4 @@
-import { Line, PaperSizeById, PureRasterOperation, SlideWrap, Tile } from "./types";
+import { Halftone, Line, PaperSizeById, PureRasterOperation, SlideWrap, Tile } from "./types";
 import { PixelKernels, cpuKernels, inks } from "./kernels";
 import { RGB, medianCutPalette, paintColors, parseHexColor, toHexColor } from "./palette";
 import { borderColor, connectedColorKey, errorDiffusion, stickerBorder } from "./sequential";
@@ -64,6 +64,85 @@ const line = async (inputs: OffscreenCanvas[], op: Line): Promise<OffscreenCanva
  * shared Canvas 2D code; only the per-pixel loops differ between CPU and GPU implementations.
  */
 const createApply = (kernels: PixelKernels) => {
+/** The original halftone: a rotated pattern of fixed dots, color-burned and thresholded (style 'classic'). */
+const classicHalftone = async (input: OffscreenCanvas, op: Halftone): Promise<OffscreenCanvas> => {
+        const patternSpacingRatio = 2;
+        const patternSideLength = op.dotDiameter * patternSpacingRatio;
+        const patternImage = await offscreenCanvasOperation(patternSideLength, patternSideLength, (ctx) => {
+          ctx.fillStyle = "white";
+          ctx.fillRect(0,0,patternSideLength,patternSideLength);
+
+          ctx.fillStyle = "black";
+          const s = patternSideLength;
+          const h = s/2;
+          for(const [x,y] of [ [h,h], [0,0], [0,s], [s,0], [s,s] ]){
+            ctx.beginPath();
+            ctx.arc(x,y,op.dotDiameter/2,0,Math.PI*2);
+            ctx.fill();
+          }
+        });
+        const patternAreaW = input.width*patternSpacingRatio;
+        const patternAreaH = input.height*patternSpacingRatio;
+        const dotsImage = await offscreenCanvasOperation(patternAreaW,patternAreaH,(ctx) => {
+          //this image is bigger than it needs to be to account for rotation.
+          const w = patternAreaW;
+          const h = patternAreaH;
+          ctx.fillStyle = ctx.createPattern(patternImage,'repeat')!;
+          ctx.translate(w/2,h/2);
+          ctx.rotate(op.angle * Math.PI / 180);
+          ctx.translate(-w/2,-h/2);
+          ctx.fillRect(0,0,w,h);
+        });
+        if(op.dotsOnly){
+          return offscreenCanvasOperation(input.width,input.height,(ctx) => {
+            ctx.translate(-input.width/2,-input.height/2);
+            ctx.drawImage(dotsImage,0,0);
+          });
+        }
+        const halftoned = await offscreenCanvasOperation(input.width,input.height,(ctx) => {
+          ctx.save();
+          ctx.fillRect(0,0,input.width,input.height);
+          ctx.filter=`grayscale(100%)`;
+          if(op.invert){
+            ctx.filter+=" invert()";
+          }
+          ctx.drawImage(input,0,0); 
+          ctx.filter=`blur(${op.blurPixels}px)`;
+          ctx.fillStyle='black';
+          ctx.globalCompositeOperation = 'color-burn';
+          ctx.translate(-input.width/2,-input.height/2); //use the good parts of the dots image
+          ctx.drawImage(dotsImage,0,0);
+          ctx.restore();
+        }).then(burned => kernels.threshold(burned, 1));
+        if(!op.invert){
+          return halftoned;
+        }
+
+        return offscreenCanvasOperation(input.width,input.height,(ctx) => {
+           ctx.filter="invert()";
+           ctx.drawImage(halftoned,0,0);
+          });
+      };
+
+/** AM screen halftone (style 'smooth'): each cell's dot is sized by the cell's mean tone. */
+const smoothHalftone = async (input: OffscreenCanvas, op: Halftone): Promise<OffscreenCanvas> => {
+  const cell = Math.max(1, op.dotDiameter);
+  // Optional extra softening; the screen itself averages each cell's tone.
+  const blurred = op.blurPixels > 0
+    ? await offscreenCanvasOperation(input.width, input.height, ctx => {
+      ctx.filter = `blur(${op.blurPixels}px)`;
+      ctx.drawImage(input, 0, 0);
+    })
+    : input;
+  return kernels.amHalftone(blurred, {
+    cell,
+    angle: op.angle,
+    shape: op.shape ?? 'round',
+    invert: !!op.invert,
+    scale: Math.min(8, Math.max(1, op.scale ?? 1)),
+  });
+};
+
 const applyOp = async (op: PureRasterOperation, inputs: OffscreenCanvas[]): Promise<OffscreenCanvas[]> => {
   const opType = op.type;
   switch(opType){
@@ -135,65 +214,8 @@ const applyOp = async (op: PureRasterOperation, inputs: OffscreenCanvas[]): Prom
           }
         });
       }));
-    case 'halftone': 
-      return Promise.all(inputs.map(async input => {
-        const patternSpacingRatio = 2;
-        const patternSideLength = op.dotDiameter * patternSpacingRatio;
-        const patternImage = await offscreenCanvasOperation(patternSideLength, patternSideLength, (ctx) => {
-          ctx.fillStyle = "white";
-          ctx.fillRect(0,0,patternSideLength,patternSideLength);
-
-          ctx.fillStyle = "black";
-          const s = patternSideLength;
-          const h = s/2;
-          for(const [x,y] of [ [h,h], [0,0], [0,s], [s,0], [s,s] ]){
-            ctx.beginPath();
-            ctx.arc(x,y,op.dotDiameter/2,0,Math.PI*2);
-            ctx.fill();
-          }
-        });
-        const patternAreaW = input.width*patternSpacingRatio;
-        const patternAreaH = input.height*patternSpacingRatio;
-        const dotsImage = await offscreenCanvasOperation(patternAreaW,patternAreaH,(ctx) => {
-          //this image is bigger than it needs to be to account for rotation.
-          const w = patternAreaW;
-          const h = patternAreaH;
-          ctx.fillStyle = ctx.createPattern(patternImage,'repeat')!;
-          ctx.translate(w/2,h/2);
-          ctx.rotate(op.angle * Math.PI / 180);
-          ctx.translate(-w/2,-h/2);
-          ctx.fillRect(0,0,w,h);
-        });
-        if(op.dotsOnly){
-          return offscreenCanvasOperation(input.width,input.height,(ctx) => {
-            ctx.translate(-input.width/2,-input.height/2);
-            ctx.drawImage(dotsImage,0,0);
-          });
-        }
-        const halftoned = await offscreenCanvasOperation(input.width,input.height,(ctx) => {
-          ctx.save();
-          ctx.fillRect(0,0,input.width,input.height);
-          ctx.filter=`grayscale(100%)`;
-          if(op.invert){
-            ctx.filter+=" invert()";
-          }
-          ctx.drawImage(input,0,0); 
-          ctx.filter=`blur(${op.blurPixels}px)`;
-          ctx.fillStyle='black';
-          ctx.globalCompositeOperation = 'color-burn';
-          ctx.translate(-input.width/2,-input.height/2); //use the good parts of the dots image
-          ctx.drawImage(dotsImage,0,0);
-          ctx.restore();
-        }).then(burned => kernels.threshold(burned, 1));
-        if(!op.invert){
-          return halftoned;
-        }
-
-        return offscreenCanvasOperation(input.width,input.height,(ctx) => {
-           ctx.filter="invert()";
-           ctx.drawImage(halftoned,0,0);
-          });
-      }));
+    case 'halftone':
+      return Promise.all(inputs.map(input => op.style === 'classic' ? classicHalftone(input, op) : smoothHalftone(input, op)));
     case 'stack':
       {
         if(inputs.length === 0){
@@ -293,25 +315,27 @@ const applyOp = async (op: PureRasterOperation, inputs: OffscreenCanvas[]): Prom
       return Promise.all(inputs.map(async input => {
         // Traditional screen angles keep the four dot grids from forming moiré.
         const angles = [15, 75, 0, 45];
+        const scale = Math.min(8, Math.max(1, op.scale ?? 1));
+        const [w, h] = [Math.max(1, Math.round(input.width * scale)), Math.max(1, Math.round(input.height * scale))];
         const amounts = await kernels.cmykChannels(input, 'amount');
         const layers = await Promise.all(amounts.map(async (amount, k) => {
-          const [dots] = await applyOp({ type: 'halftone', angle: angle(angles[k]), dotDiameter: op.dotDiameter, blurPixels: op.blurPixels, invert: false }, [amount]);
-          // Black dots become ink; white stays white.
-          return offscreenCanvasOperation(input.width, input.height, ctx => {
+          const [dots] = await applyOp({ type: 'halftone', angle: angle(angles[k]), dotDiameter: op.dotDiameter, blurPixels: op.blurPixels, invert: false, shape: op.shape, scale }, [amount]);
+          // Black dots become ink; white stays white; anti-aliased edges blend toward ink.
+          return offscreenCanvasOperation(w, h, ctx => {
             ctx.drawImage(dots, 0, 0);
             ctx.globalCompositeOperation = 'lighten';
             ctx.fillStyle = toHexColor(inks[k]);
-            ctx.fillRect(0, 0, input.width, input.height);
+            ctx.fillRect(0, 0, w, h);
           });
         }));
-        return offscreenCanvasOperation(input.width, input.height, ctx => {
+        return offscreenCanvasOperation(w, h, ctx => {
           ctx.fillStyle = 'white';
-          ctx.fillRect(0, 0, input.width, input.height);
+          ctx.fillRect(0, 0, w, h);
           ctx.globalCompositeOperation = 'multiply';
           layers.forEach(layer => ctx.drawImage(layer, 0, 0));
           // Keep the input's transparency.
           ctx.globalCompositeOperation = 'destination-in';
-          ctx.drawImage(input, 0, 0);
+          ctx.drawImage(input, 0, 0, w, h);
         });
       }));
     case 'levels':

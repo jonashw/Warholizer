@@ -1,6 +1,7 @@
 import { Byte } from "../../../NumberTypes";
 import { Noise } from "./types";
 import { RGB } from "./palette";
+import { HalftoneScreen, renderHalftone } from "./halftone";
 
 /**
  * The per-pixel steps of operations. Everything else in `apply` is composition that the browser
@@ -33,6 +34,8 @@ export type PixelKernels = {
   colorKey: (input: OffscreenCanvas, key: RGB, tolerance: number, softness: number) => Promise<OffscreenCanvas>,
   /** Cyan, magenta, yellow, black: as ink on white (`ink`), or as gray darkness maps (`amount`). */
   cmykChannels: (input: OffscreenCanvas, mode: 'ink' | 'amount') => Promise<OffscreenCanvas[]>,
+  /** AM halftone screen over an already pre-blurred input; output is `scale` times the input size. */
+  amHalftone: (blurred: OffscreenCanvas, screen: HalftoneScreen) => Promise<OffscreenCanvas>,
 };
 
 /** Bayer threshold matrix of size n (a power of two), row-major, values 0..n²-1. */
@@ -313,6 +316,8 @@ export const cpuKernels: PixelKernels = {
     }
     return canvasFrom(imgData);
   },
+
+  amHalftone: async (blurred, screen) => renderHalftone(blurred, screen),
 
   cmykChannels: async (input, mode) => {
     if (isEmpty(input)) {
