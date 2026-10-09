@@ -4,6 +4,7 @@ import fileToDataUrl from "../../fileToDataUrl";
 import { loadSampleImages, sampleImageUrls } from "../../sampleImageUrls";
 import ImageUtil from "../../Warholizer/ImageUtil";
 import { combine, emptyComposition, layout, newSeed, warholDuotoneGrid } from "../build";
+import { composerRecipes } from "../recipes";
 import { defaultFormat } from "../formats";
 import { migrateComposition } from "../migrate";
 import { FormatEditor } from "./FormatEditor";
@@ -204,7 +205,7 @@ export default function ComposerPage() {
         {busy && <span className="composer-busy">rendering</span>}
         <button type="button" className="composer-icon-button" onClick={() => setSheet({ type: 'format' })} title="The composition's format">{format.name}</button>
         <button type="button" className="composer-icon-button" onClick={undo} disabled={history.length === 0}>Undo</button>
-        <button type="button" className="composer-icon-button" onClick={() => setSheet({ type: 'text' })}>Text</button>
+        <button type="button" className="composer-icon-button" onClick={() => setSheet({ type: 'text' })}>More</button>
       </div>
 
       <div className={'composer-flow' + (sheet && sheet.type !== 'viewer' ? ' compressed' : '')}>
@@ -328,15 +329,21 @@ export default function ComposerPage() {
               <>
                 <div className="composer-handle" />
                 <div className="composer-sheet-header">
-                  <div className="composer-sheet-title"><strong>Text view</strong><span>Read-only; one step per line</span></div>
+                  <div className="composer-sheet-title"><strong>More</strong><span>Text view (read-only), recipes</span></div>
                   <button type="button" className="composer-icon-button" onClick={() => navigator.clipboard?.writeText(JSON.stringify(composition, null, 2))}>Copy JSON</button>
                   <button type="button" className="composer-icon-button" onClick={() => setSheet(undefined)}>Done</button>
                 </div>
                 <pre className="composer-text">{compositionText(composition)}</pre>
-                <div className="composer-row">
-                  <button type="button" className="composer-secondary" onClick={() => { setComposition(warholDuotoneGrid()); setSheet(undefined); }}>Load the Warhol sample</button>
-                  <button type="button" className="composer-secondary composer-danger" onClick={() => { setComposition(emptyComposition()); setSheet(undefined); }}>Start empty</button>
+                <span className="composer-section-label">Start from a recipe</span>
+                <div className="composer-recipes">
+                  {composerRecipes.map(r => (
+                    <button key={r.id} type="button" className="composer-recipe" onClick={() => { setComposition(r.build()); setSheet(undefined); }}>
+                      <strong>{r.name}</strong>
+                      <span>{r.description}</span>
+                    </button>
+                  ))}
                 </div>
+                <button type="button" className="composer-secondary composer-danger" onClick={() => { setComposition(emptyComposition()); setSheet(undefined); }}>Start empty</button>
               </>
             )}
           </div>
@@ -458,7 +465,7 @@ function Viewer({ cube, root, photos, composition, options, onSettings, onClose 
   return (
     <div className="composer-viewer" role="dialog" aria-modal="true" aria-label="Output">
       <div className="composer-row" style={{ flexWrap: 'nowrap' }}>
-        <strong style={{ flexGrow: 1 }}>{cube.cells.length} results</strong>
+        <strong style={{ flexGrow: 1 }}>{cube.cells.length} {cube.cells.length === 1 ? 'result' : 'results'}</strong>
         <button type="button" className="composer-icon-button" style={{ background: '#23262e', color: '#fff' }} onClick={onClose}>Close</button>
       </div>
       <div className="composer-export">

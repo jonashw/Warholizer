@@ -197,3 +197,6 @@
 .composer-export .composer-segmented { background: #23262e; }
 .composer-export .composer-segmented button { color: #b9bdc6; }
 .composer-export .composer-segmented button[aria-pressed="true"] { background: #f2f3f5; color: #111318; }
+.composer-recipes { display: flex; flex-direction: column; gap: 8px; }
+.composer-recipe { border: none; background: var(--c-raised); border-radius: 14px; padding: 10px 12px; text-align: left; display: flex; flex-direction: column; gap: 2px; }
+.composer-recipe span { font-size: 12px; color: var(--c-muted); }

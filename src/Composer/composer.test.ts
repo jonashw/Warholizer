@@ -410,3 +410,20 @@ describe('export', () => {
     expect(pointsOf(out.cells[0]).map(Math.round)).toEqual([612, 792]);
   });
 });
+
+describe('recipes', () => {
+  it('each recipe has the shape it promises', async () => {
+    const { composerRecipes } = await import('./recipes');
+    const byId = Object.fromEntries(composerRecipes.map(r => [r.id, r.build()]));
+    const merch = (await inferComposition(byId['merch-pack'], squares(2))).output;
+    expect(merch.dimensions.map(d => d.name)).toEqual(['Photo', 'Format']);
+    expect(merch.cells).toHaveLength(10);
+    expect(merch.cells.slice(0, 5).map(c => c.frame?.name)).toEqual(['T-shirt', 'Mug wrap', 'Mouse pad', 'Sticker 3 in', 'Poster 18 × 24']);
+    const shared = (await inferComposition(byId['shared-seed'], squares(3))).output;
+    expect(shared.cells).toHaveLength(1);
+    expect(shared.cells[0].image).toMatchObject({ width: 2550, height: 3300 });
+    const swap = (await inferComposition(byId['role-swap'], squares(3))).output;
+    expect(swap.dimensions.map(d => d.name)).toEqual(['Gradient map']);
+    expect(swap.cells).toHaveLength(6);
+  });
+});

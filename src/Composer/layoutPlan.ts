@@ -119,13 +119,14 @@ const planAcross = (input: FlowInput): PagePlan[] => {
   const flipColumns = pattern === 'mirror' || pattern === 'wacky';
   const flipRows = pattern === 'mirror';
 
+  const odd = (n: number) => Math.abs(n % 2) === 1;
   const gridSlot = (row: number, col: number, cw: number, ch: number, index: number): Slot => ({
     index,
-    x: col * (cw + g) + (halfBrick && row % 2 === 1 ? (cw + g) / 2 : 0),
-    y: row * (ch + g) + (halfDrop && col % 2 === 1 ? (ch + g) / 2 : 0),
+    x: col * (cw + g) + (halfBrick && odd(row) ? (cw + g) / 2 : 0),
+    y: row * (ch + g) + (halfDrop && odd(col) ? (ch + g) / 2 : 0),
     w: cw, h: ch,
-    flipX: flipColumns && col % 2 === 1,
-    flipY: flipRows && row % 2 === 1,
+    flipX: flipColumns && odd(col),
+    flipY: flipRows && odd(row),
   });
 
   const bounds = (slots: Slot[]) => ({
@@ -216,8 +217,10 @@ const planAcross = (input: FlowInput): PagePlan[] => {
     const rows = bleed ? Math.ceil(content.h / (ch + g)) + 1 : rowsThatFit(ch);
     const cols = bleed ? Math.ceil(content.w / (cw + g)) + 1 : per;
     const positions: [number, number][] = [];
-    for (let r = 0; r < rows; r++) {
-      for (let c = 0; c < cols; c++) {
+    // Bleeding patterns start a row and column early so offset rows and columns reach the edge.
+    const first = bleed && pattern !== 'normal' ? -1 : 0;
+    for (let r = first; r < rows; r++) {
+      for (let c = first; c < cols; c++) {
         const slot = gridSlot(r, c, cw, ch, 0);
         const inside = slot.x + slot.w <= content.w + 0.5 && slot.y + slot.h <= content.h + 0.5;
         if (bleed || inside) positions.push([r, c]);
