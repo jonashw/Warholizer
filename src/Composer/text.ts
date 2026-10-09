@@ -1,3 +1,4 @@
+import { isLength } from "../Warholizer/RasterOperations/PureRasterOperation/length";
 import { PureRasterOperation } from "../Warholizer/RasterOperations/PureRasterOperation/types";
 import { Composition, Node, Spread, VariationDistribution } from "./types";
 
@@ -6,6 +7,7 @@ const kebab = (s: string) => s.replace(/([a-z0-9])([A-Z])/g, '$1-$2').toLowerCas
 
 const value = (v: unknown): string => {
   if (Array.isArray(v)) return `[${v.map(value).join(' ')}]`;
+  if (isLength(v)) return `${v.value} ${v.unit}`;
   if (v !== null && typeof v === 'object') {
     // A sum type: its tag, then its fields, e.g. match(reference: first).
     const { type, ...rest } = v as Record<string, unknown>;
@@ -33,7 +35,7 @@ export const distributionText = (d: VariationDistribution): string =>
   : `one-per-image(shuffled(seed: ${d.order.seed}))`;
 
 const spreadText = (s: Spread) =>
-  `${s.bind ? `${s.bind} <- ` : ''}${kebab(s.param)}: ${s.from}..${s.to} ${s.type === 'count' ? `count: ${s.n}` : `skip-by: ${s.by}`}`;
+  `${s.bind ? `${s.bind} <- ` : ''}${kebab(s.param)}: ${s.from}..${s.to}${s.unit && s.unit !== 'px' ? ` ${s.unit}` : ''} ${s.type === 'count' ? `count: ${s.n}` : `skip-by: ${s.by}`}`;
 
 const lines = (node: Node, depth: number): string[] => {
   const indent = '  '.repeat(depth);

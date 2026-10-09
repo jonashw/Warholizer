@@ -1,8 +1,9 @@
+import { defaultDpi, resolveLengths } from "../Warholizer/RasterOperations/PureRasterOperation/length";
 import { isGroupAware } from "../Warholizer/RasterOperations/PureRasterOperation/registry";
 import { PureRasterOperation } from "../Warholizer/RasterOperations/PureRasterOperation/types";
 import { dealShuffled, groupCells, normalize, unionDimensions, uniqueName } from "./cube";
 import { isSeparation, listDimension, operationLabel, separationDimension } from "./labels";
-import { formatParamValue, spreadValuesFor } from "./spread";
+import { formatSpreadValue, spreadSetting, spreadValuesFor } from "./spread";
 import {
   Cell, CombineNode, Cube, Dimension, DimensionId, MemberKey, Node, NodeId, OperationNode,
   PHOTO, PickNode, PivotNode, VariationsNode,
@@ -14,6 +15,8 @@ import {
  */
 export type ImageOps<Img> = {
   apply: (op: PureRasterOperation, inputs: Img[]) => Promise<Img[]>,
+  /** Width and height, for sizes relative to an image; absent for placeholders. */
+  size?: (image: Img) => [number, number],
   /** A labeled grid; `grid[row][column]` is undefined where no image has those coordinates. */
   crosstab: (grid: (Img | undefined)[][], rowLabels: string[], columnLabels: string[], labels: boolean) => Promise<Img>,
 };
@@ -45,6 +48,12 @@ const evaluateNode = <Img>(node: Node, input: Cube<Img>, ops: ImageOps<Img>, tra
   }
 };
 
+/** `op` with its sizes in this cell's pixels: preview scale, DPI and the image's short side. */
+const resolvedFor = <Img>(op: PureRasterOperation, cell: Cell<Img> | undefined, ops: ImageOps<Img>): PureRasterOperation => {
+  const [w, h] = cell && ops.size ? ops.size(cell.image) : [0, 0];
+  return resolveLengths(op, { dpi: defaultDpi, scale: cell?.scale ?? 1, shortSide: Math.min(w, h) }) as PureRasterOperation;
+};
+
 /** The group-aware operation with "Photo n" resolved: the reference image goes first, then the group. */
 const withReference = <Img>(op: PureRasterOperation, input: Cube<Img>): { op: PureRasterOperation, reference?: Img } => {
   if (op.type !== 'tone' || op.method.type !== 'match' || typeof op.method.reference !== 'object') return { op };
@@ -56,9 +65,10 @@ const withReference = <Img>(op: PureRasterOperation, input: Cube<Img>): { op: Pu
 /** Group-aware effects: one call per group of the `by` dimensions, so statistics stay within a group. */
 const evaluateGroupAware = async <Img>(node: OperationNode, input: Cube<Img>, ops: ImageOps<Img>): Promise<Cube<Img>> => {
   const by = (node.by ?? []).filter(id => input.dimensions.some(d => d.id === id));
-  const { op, reference } = withReference(node.op, input);
+  const { op: unresolved, reference } = withReference(node.op, input);
   const groups = groupCells(input, by);
   const results = await Promise.all(groups.map(async group => {
+    const op = resolvedFor(unresolved, group.cells[0], ops);
     const images = group.cells.map(c => c.image);
     const out = reference === undefined ? await ops.apply(op, images) : (await ops.apply(op, [reference, ...images])).slice(1);
     return group.cells.map((cell, i) => ({ ...cell, image: out[i] }));
@@ -71,7 +81,7 @@ const evaluateOperation = async <Img>(node: OperationNode, input: Cube<Img>, ops
   if (isGroupAware(op)) {
     return evaluateGroupAware(node, input, ops);
   }
-  const outputs = await Promise.all(input.cells.map(cell => ops.apply(op, [cell.image])));
+  const outputs = await Promise.all(input.cells.map(cell => ops.apply(resolvedFor(op, cell, ops), [cell.image])));
   if (!isSeparation(op)) {
     // Effects: one image per cell, coordinates unchanged. (Void leaves none.)
     const cells = input.cells.flatMap((cell, i) => outputs[i].slice(0, 1).map(image => ({ ...cell, image })));
@@ -88,6 +98,7 @@ const evaluateOperation = async <Img>(node: OperationNode, input: Cube<Img>, ops
   const cells = input.cells.flatMap((cell, i) => outputs[i].map((image, part) => ({
     coords: { ...cell.coords, [node.id]: `${part}` },
     image,
+    scale: cell.scale,
   })));
   return normalize([...input.dimensions, dimension], cells);
 };
@@ -107,6 +118,7 @@ export const variantsOf = (node: VariationsNode, existing: Dimension[]): { varia
   const { op, params } = node.variants;
   const axes = params.map(spread => ({
     id: `${node.id}:${spread.param}`,
+    spread,
     param: spread.param,
     bind: spread.bind,
     values: spreadValuesFor(op, spread),
@@ -116,13 +128,13 @@ export const variantsOf = (node: VariationsNode, existing: Dimension[]): { varia
     dimensions.push({
       id: axis.id,
       name: uniqueName(axis.bind ?? `${operationLabel(op)} ${axis.param}`, [...existing, ...dimensions]),
-      members: axis.values.map(v => ({ key: `${v}`, label: formatParamValue(axis.param, v) })),
+      members: axis.values.map(v => ({ key: `${v}`, label: formatSpreadValue(axis.spread, v) })),
     });
   }
   let combos: { op: PureRasterOperation, coords: Record<DimensionId, MemberKey> }[] = [{ op, coords: {} }];
   for (const axis of axes) {
     combos = combos.flatMap(c => axis.values.map(v => ({
-      op: { ...c.op, [axis.param]: v } as PureRasterOperation,
+      op: { ...c.op, [axis.param]: spreadSetting(axis.spread, v) } as PureRasterOperation,
       coords: { ...c.coords, [axis.id]: `${v}` },
     })));
   }
@@ -163,7 +175,7 @@ const evaluateVariations = async <Img>(node: VariationsNode, input: Cube<Img>, o
     ...childDimensions.filter(d => !inputIds.has(d.id)),
   ];
   const cells: Cell<Img>[] = outputs.flatMap((output, v) =>
-    output.cells.map(cell => ({ coords: { ...cell.coords, ...variants[v].coords }, image: cell.image })));
+    output.cells.map(cell => ({ ...cell, coords: { ...cell.coords, ...variants[v].coords } })));
   return normalize(dimensions, cells);
 };
 
@@ -198,7 +210,7 @@ const evaluateCombine = async <Img>(node: CombineNode, input: Cube<Img>, ops: Im
     const grid = rowMembers.map(r => columnMembers.map(c => at(r.key, c.key)));
     return ops.crosstab(grid, rowMembers.map(m => m.label), columnMembers.map(m => m.label), method.labels);
   }));
-  const cells = groups.flatMap((group, i) => images[i] === undefined ? [] : [{ coords: group.coords, image: images[i] }]);
+  const cells = groups.flatMap((group, i) => images[i] === undefined ? [] : [{ coords: group.coords, image: images[i], scale: group.cells[0]?.scale }]);
   return normalize(input.dimensions.filter(d => by.includes(d.id)), cells);
 };
 

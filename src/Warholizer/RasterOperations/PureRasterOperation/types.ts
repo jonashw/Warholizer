@@ -40,6 +40,16 @@ export type PureRasterOperation =
   | ColorHalftone;
 
 export type Dimension = 'x'|'y';
+
+/** Units for a length; `lpi` (lines per inch) is a screen frequency, for halftone cell sizes. */
+export type LengthUnit = 'px' | '%' | 'in' | 'mm' | 'pt' | 'lpi';
+export const LengthUnits: LengthUnit[] = ['px', '%', 'in', 'mm', 'pt', 'lpi'];
+/** A size with a unit (ADR 0003, Lengths): `%` is of the image's short side; physical units resolve through the DPI. */
+export type Length = { value: number, unit: LengthUnit };
+/** A size setting. A plain number is pixels of the original photo (so previews scale it). */
+export type Size = number | Length;
+/** An operation with every size resolved to pixels, as the engine runs it. */
+export type Resolved<T> = { [K in keyof T]: Exclude<T[K], Length> };
 export type Direction = 'up' | 'down' | 'left' | 'right';
 export type Invert = { type: "invert" };
 /** Reduce to a median-cut palette; `replacements[i]` (hex or null to keep) recolors the i-th darkest color. */
@@ -63,18 +73,18 @@ export type Tone = { type: "tone", method: ToneMethod };
 export type GradientMap = { type: "gradientMap", stops: string[] };
 export type Posterize = { type: "posterize", levels: number };
 export type BayerSize = 2 | 4 | 8;
-export type OrderedDither = { type: "orderedDither", matrixSize: BayerSize, levels: number, monochrome: boolean, pixelSize: number };
+export type OrderedDither = { type: "orderedDither", matrixSize: BayerSize, levels: number, monochrome: boolean, pixelSize: Size };
 export type DiffusionMethod = 'floyd-steinberg' | 'atkinson';
 export type ErrorDiffusion = { type: "errorDiffusion", method: DiffusionMethod, levels: number, monochrome: boolean };
 /** Line art from edges: `strength` scales line darkness; `threshold` > 0 makes lines solid. */
 export type Edges = { type: "edges", strength: number, threshold: Byte, invert: boolean };
 /** A die-cut style border of `width` px around the opaque shape, optionally with a cut line. */
-export type StickerBorder = { type: "stickerBorder", width: number, color: string, cutLine: boolean };
+export type StickerBorder = { type: "stickerBorder", width: Size, color: string, cutLine: boolean };
 /** Makes a color transparent; `color` null keys the average edge color; `connected` keys only regions touching the edges. */
 export type ColorKey = { type: "colorKey", color: string | null, tolerance: number, softness: number, connected: boolean };
 export type CmykChannels = { type: "cmykChannels" };
 /** Ben-Day style CMYK halftone: each ink halftoned at its traditional screen angle, multiplied together. */
-export type ColorHalftone = { type: "colorHalftone", dotDiameter: number, blurPixels: number, shape?: DotShape, scale?: number };
+export type ColorHalftone = { type: "colorHalftone", dotDiameter: Size, blurPixels: Size, shape?: DotShape, scale?: number };
 export type Void = { type: "void" };
 export type Fill = { type: "fill", color: CSSProperties["color"], blendingMode: BlendingMode};
 export type Noop = { type: "noop" };
@@ -91,10 +101,10 @@ export type HalftoneStyle = 'smooth' | 'classic';
  * thresholded look (`dotsOnly` applies only here).
  */
 export type Halftone = {
-  type: "halftone", angle: Angle, dotDiameter: number, blurPixels: number, dotsOnly?: boolean, invert?: boolean,
+  type: "halftone", angle: Angle, dotDiameter: Size, blurPixels: Size, dotsOnly?: boolean, invert?: boolean,
   style?: HalftoneStyle, shape?: DotShape, scale?: number
 };
-export type Blur = { type: "blur", pixels: number };
+export type Blur = { type: "blur", pixels: Size };
 export type Grayscale = { type: "grayscale", percent: Percentage };
 export type RotationOrigin = "center"|"top-right"|"top-left"|"bottom-left"|"bottom-right";
 export const RotationOrigins: RotationOrigin[] = ["center","top-right","top-left","bottom-left","bottom-right"];

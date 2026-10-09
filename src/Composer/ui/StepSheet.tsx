@@ -1,12 +1,13 @@
 import React from "react";
 import { CanvasView } from "../../CanvasView";
 import { isGroupAware } from "../../Warholizer/RasterOperations/PureRasterOperation/registry";
-import { BlendingModes, Direction, PureRasterOperation } from "../../Warholizer/RasterOperations/PureRasterOperation/types";
+import { BlendingModes, Direction, LengthUnit, PureRasterOperation } from "../../Warholizer/RasterOperations/PureRasterOperation/types";
 import { allPerImage, newId, newSeed, operationNode, variationsSpread } from "../build";
 import { canvasOps } from "../canvasOps";
 import { variantsOf } from "../evaluate";
 import { nodeLabel } from "../labels";
-import { defaultSpread, formatParamValue, numericParamOf, numericParamsOf, paramLabel, spreadValuesFor } from "../spread";
+import { defaultSpread, formatSpreadValue, numericParamOf, numericParamsOf, paramLabel, spreadSetting, spreadValuesFor } from "../spread";
+import { convertSize, defaultDpi, isLengthParam, resolveLengths, sizeOf, unitsFor, valueOf } from "../../Warholizer/RasterOperations/PureRasterOperation/length";
 import {
   CombineMethod, CombineNode, Dimension, Node, OperationNode, PickNode, PivotNode, Spread, VariationDistribution, VariationsNode, combineKindOf,
 } from "../types";
@@ -20,6 +21,8 @@ export type StepSheetProps = {
   inputDimensions: Dimension[],
   /** The first image arriving at this step, once rendered; used for previews. */
   sampleInput?: OffscreenCanvas,
+  /** That image's pixels per original photo pixel, so previews resolve sizes as the render does. */
+  sampleScale?: number,
   /** All rendered images arriving at this step, for visual editors (crop, palettes). */
   inputs?: () => Promise<OffscreenCanvas[]>,
   photoCount: number,
@@ -68,7 +71,7 @@ function StepEditor(props: StepSheetProps) {
 }
 
 function OperationEditor(props: StepSheetProps & { node: OperationNode }) {
-  const { node, onChange, sampleInput, inputs, photoCount, inputDimensions } = props;
+  const { node, onChange, sampleInput, sampleScale, inputs, photoCount, inputDimensions } = props;
   const [spreading, setSpreading] = React.useState<string>();
   const peek = spreading !== undefined && numericParamOf(node.op.type, spreading) !== undefined;
   return (
@@ -85,8 +88,9 @@ function OperationEditor(props: StepSheetProps & { node: OperationNode }) {
             <SpreadPeek
               key={spreading}
               op={node.op}
-              spread={defaultSpread(node.op.type, spreading!)}
+              spread={defaultSpread(node.op.type, spreading!, (node.op as Record<string, unknown>)[spreading!])}
               sampleInput={sampleInput}
+              sampleScale={sampleScale}
               onSpread={spread => onChange({ ...variationsSpread(allPerImage, node.op, spread), id: node.id })}
             />
           </div>
@@ -127,8 +131,8 @@ function ByChips({ label, dimensions, by, autoLabel, onChange }: {
 }
 
 /** Live previews of a spread on one image: what "Spread this" would make. */
-function SpreadPeek({ op, spread, sampleInput, onSpread }: {
-  op: PureRasterOperation, spread: Spread, sampleInput?: OffscreenCanvas, onSpread: (spread: Spread) => void,
+function SpreadPeek({ op, spread, sampleInput, sampleScale = 1, onSpread }: {
+  op: PureRasterOperation, spread: Spread, sampleInput?: OffscreenCanvas, sampleScale?: number, onSpread: (spread: Spread) => void,
 }) {
   const values = spreadValuesFor(op, spread);
   const [images, setImages] = React.useState<{ key: string, images: OffscreenCanvas[] }>();
@@ -136,11 +140,14 @@ function SpreadPeek({ op, spread, sampleInput, onSpread }: {
   React.useEffect(() => {
     if (!sampleInput) return;
     let cancelled = false;
-    Promise.all(values.map(v => canvasOps.apply({ ...op, [spread.param]: v } as PureRasterOperation, [sampleInput]).then(r => r[0])))
+    const context = { dpi: defaultDpi, scale: sampleScale, shortSide: Math.min(sampleInput.width, sampleInput.height) };
+    Promise.all(values.map(v => canvasOps.apply(
+      resolveLengths({ ...op, [spread.param]: spreadSetting(spread, v) } as PureRasterOperation, context) as PureRasterOperation,
+      [sampleInput]).then(r => r[0])))
       .then(result => { if (!cancelled) setImages({ key, images: result }); });
     return () => { cancelled = true; };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [key, sampleInput]);
+  }, [key, sampleInput, sampleScale]);
   const current = images?.key === key ? images.images : undefined;
   return (
     <>
@@ -148,7 +155,7 @@ function SpreadPeek({ op, spread, sampleInput, onSpread }: {
         {values.map((v, i) => (
           <div key={v}>
             {current?.[i] ? <CanvasView osc={current[i]} /> : <div className="composer-tile-blank" style={{ aspectRatio: 1, borderRadius: 8, background: 'var(--c-surface)' }} />}
-            <div className="composer-grid-label">{formatParamValue(spread.param, v)}</div>
+            <div className="composer-grid-label">{formatSpreadValue(spread, v)}</div>
           </div>
         ))}
       </div>
@@ -245,16 +252,26 @@ function SpreadEditor({ node, onChange, inputs }: { node: VariationsNode & { var
     <>
       {params.map((spread, i) => {
         const values = spreadValuesFor(op, spread);
-        const integral = numericParamOf(op.type, spread.param)?.integral ?? false;
+        const integral = (!spread.unit || spread.unit === 'px') && (numericParamOf(op.type, spread.param)?.integral ?? false);
         const step = integral ? 1 : 0.1;
         return (
           <div key={spread.param} className="composer-card">
             <div className="composer-row">
               <select className="composer-select" aria-label="Setting to spread" value={spread.param}
-                onChange={e => setParam(i, { ...defaultSpread(op.type, e.target.value), bind: spread.bind })}>
+                onChange={e => setParam(i, { ...defaultSpread(op.type, e.target.value, (op as Record<string, unknown>)[e.target.value]), bind: spread.bind })}>
                 {available.filter(p => p.param === spread.param || !params.some(s => s.param === p.param)).map(p =>
                   <option key={p.param} value={p.param}>{paramLabel(p.param)}</option>)}
               </select>
+              {isLengthParam(op.type, spread.param) && (
+                <select className="composer-unit" aria-label="Unit" value={spread.unit ?? 'px'} onChange={e => {
+                  const unit = e.target.value as LengthUnit;
+                  const [a, b] = [spread.from, spread.to].map(v => valueOf(convertSize(sizeOf(v, spread.unit ?? 'px'), unit)));
+                  setParam(i, { ...spread, from: Math.min(a, b), to: Math.max(a, b), unit: unit === 'px' ? undefined : unit,
+                    ...(spread.type === 'skip-by' ? { by: Math.abs(b - a) / 4 || 1 } : {}) } as Spread);
+                }}>
+                  {unitsFor(op.type, spread.param).map(u => <option key={u} value={u}>{u}</option>)}
+                </select>
+              )}
               <span style={{ marginLeft: 'auto', fontSize: 12, color: 'var(--c-add)' }}>{values.length} members</span>
               {params.length > 1 && (
                 <button type="button" className="composer-icon-button composer-danger" onClick={() => setParams(params.filter((_, j) => j !== i))}>Remove</button>
@@ -277,7 +294,7 @@ function SpreadEditor({ node, onChange, inputs }: { node: VariationsNode & { var
                   onChange={e => setParam(i, spread.type === 'count' ? { ...spread, n: Number(e.target.value) } : { ...spread, by: Number(e.target.value) })} />
               </label>
             </div>
-            <div className="mono" style={{ fontSize: 12, color: 'var(--c-muted)' }}>{values.map(v => formatParamValue(spread.param, v)).join(' · ')}</div>
+            <div className="mono" style={{ fontSize: 12, color: 'var(--c-muted)' }}>{values.map(v => formatSpreadValue(spread, v)).join(' · ')}</div>
           </div>
         );
       })}

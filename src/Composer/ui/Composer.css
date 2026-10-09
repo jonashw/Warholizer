@@ -192,3 +192,4 @@
 .composer-switch[aria-checked="true"] { background: #d6005c; }
 .composer-switch[aria-checked="true"] span { transform: translateX(20px); }
 .composer-light { background: #ffffff; color: #111318; color-scheme: light; border-radius: 12px; padding: 8px; }
+.composer-unit { height: 32px; border-radius: 8px; border: 1px solid var(--c-line); background: var(--c-surface); padding: 0 4px; font: inherit; font-size: 12px; }

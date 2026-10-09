@@ -1,11 +1,12 @@
+import { formatSize, valueOf } from "./length";
 import { PureRasterOperation } from "./types";
 
 export const stringRepresentation = (op: PureRasterOperation): string => {
   const opType = op.type;
   switch(opType){
     case 'halftone'  : return op.style === 'classic'
-      ? `halftone(classic, ${op.dotDiameter}px, ${op.angle}deg, ${op.blurPixels}px${!op.invert ? '' : ', invert'}${!op.dotsOnly ? '' : ', dotsOnly'})`
-      : `halftone(${op.shape ?? 'round'}, ${op.dotDiameter}px, ${op.angle}deg${op.blurPixels ? `, blur ${op.blurPixels}px` : ''}${(op.scale ?? 1) > 1 ? `, ×${op.scale}` : ''}${!op.invert ? '' : ', invert'})`;
+      ? `halftone(classic, ${formatSize(op.dotDiameter)}, ${op.angle}deg, ${formatSize(op.blurPixels)}${!op.invert ? '' : ', invert'}${!op.dotsOnly ? '' : ', dotsOnly'})`
+      : `halftone(${op.shape ?? 'round'}, ${formatSize(op.dotDiameter)}, ${op.angle}deg${valueOf(op.blurPixels) ? `, blur ${formatSize(op.blurPixels)}` : ''}${(op.scale ?? 1) > 1 ? `, ×${op.scale}` : ''}${!op.invert ? '' : ', invert'})`;
     case 'stack'     : return `stack(${op.blendingMode})`;
     case 'noop'      : return "noop";
     case 'copies'    : return `copies(${op.n})`;
@@ -14,7 +15,7 @@ export const stringRepresentation = (op: PureRasterOperation): string => {
     case 'grayscale' : return `grayscale(${op.percent}%)`;
     case 'rotateHue' : return `rotateHue(${op.degrees}deg)`;
     case 'rotate'    : return `rotate(${op.degrees}deg, about ${op.about})`;
-    case 'blur'      : return `blur(${op.pixels}px)`;
+    case 'blur'      : return `blur(${formatSize(op.pixels)})`;
     case 'invert'    : return "invert";
     case 'crop'      : return `crop(${op.x},${op.y},${op.width},${op.height},${op.unit})`;
     case 'printSet'  : return `printSet(${op.paperSize},${op.orientation},${op.tilingPattern})`;
@@ -36,13 +37,13 @@ export const stringRepresentation = (op: PureRasterOperation): string => {
     case 'levels'    : return `levels(${op.black}, ${op.white}, γ${op.gamma})`;
     case 'gradientMap': return `gradientMap(${op.stops.join(' ')})`;
     case 'posterize' : return `posterize(${op.levels})`;
-    case 'orderedDither': return `orderedDither(${op.matrixSize}×${op.matrixSize}, ${op.levels}${op.monochrome ? ', mono' : ''}${op.pixelSize > 1 ? `, ${op.pixelSize}px` : ''})`;
+    case 'orderedDither': return `orderedDither(${op.matrixSize}×${op.matrixSize}, ${op.levels}${op.monochrome ? ', mono' : ''}${valueOf(op.pixelSize) > 1 || typeof op.pixelSize !== 'number' ? `, ${formatSize(op.pixelSize)}` : ''})`;
     case 'errorDiffusion': return `errorDiffusion(${op.method}, ${op.levels}${op.monochrome ? ', mono' : ''})`;
     case 'edges'     : return `edges(×${op.strength}${op.threshold > 0 ? `, ≥${op.threshold}` : ''}${op.invert ? ', invert' : ''})`;
-    case 'stickerBorder': return `stickerBorder(${op.width}px, ${op.color}${op.cutLine ? ', cut line' : ''})`;
+    case 'stickerBorder': return `stickerBorder(${formatSize(op.width)}, ${op.color}${op.cutLine ? ', cut line' : ''})`;
     case 'colorKey'  : return `colorKey(${op.color ?? 'edge color'}, ±${op.tolerance}${op.softness > 0 ? `~${op.softness}` : ''}${op.connected ? ', connected' : ''})`;
     case 'cmykChannels': return `cmykChannels()`;
-    case 'colorHalftone': return `colorHalftone(${op.shape ?? 'round'}, ${op.dotDiameter}px${op.blurPixels ? `, blur ${op.blurPixels}px` : ''}${(op.scale ?? 1) > 1 ? `, ×${op.scale}` : ''})`;
+    case 'colorHalftone': return `colorHalftone(${op.shape ?? 'round'}, ${formatSize(op.dotDiameter)}${valueOf(op.blurPixels) ? `, blur ${formatSize(op.blurPixels)}` : ''}${(op.scale ?? 1) > 1 ? `, ×${op.scale}` : ''})`;
     default: {
       throw new Error(`Unexpected operation type: ${opType}`);
     }

@@ -1,4 +1,4 @@
-import { Line, PureRasterOperation, Stack, Tile } from "../Warholizer/RasterOperations/PureRasterOperation/types";
+import { LengthUnit, Line, PureRasterOperation, Stack, Tile } from "../Warholizer/RasterOperations/PureRasterOperation/types";
 
 /**
  * Composer documents (ADR 0003). A Composition is a tree of nodes; every node takes a cube of
@@ -53,8 +53,8 @@ export type Variants =
 
 /** A numeric range of one parameter, divided by count or by step. Each adds one dimension. */
 export type Spread =
-  | { type: 'count', param: string, from: number, to: number, n: number, bind?: string }
-  | { type: 'skip-by', param: string, from: number, to: number, by: number, bind?: string };
+  | { type: 'count', param: string, from: number, to: number, n: number, unit?: LengthUnit, bind?: string }
+  | { type: 'skip-by', param: string, from: number, to: number, by: number, unit?: LengthUnit, bind?: string };
 
 /** Images grouped by the `by` dimensions (all but the newest when absent), one result per group. */
 export type CombineNode = { kind: 'combine', id: NodeId, method: CombineMethod, by?: DimensionId[] };
@@ -79,8 +79,12 @@ export type MemberKey = string;
 export type Member = { key: MemberKey, label: string };
 export type Dimension = { id: DimensionId, name: string, members: Member[] };
 
-/** One image at its coordinates; a dimension that does not apply to the cell is absent. */
-export type Cell<Img> = { coords: Record<DimensionId, MemberKey>, image: Img };
+/**
+ * One image at its coordinates; a dimension that does not apply to the cell is absent. `scale` is
+ * the image's pixels per original photo pixel (below 1 in previews; 1 when absent), so sizes
+ * resolve the same at every resolution.
+ */
+export type Cell<Img> = { coords: Record<DimensionId, MemberKey>, image: Img, scale?: number };
 
 export type Cube<Img> = { dimensions: Dimension[], cells: Cell<Img>[] };
 

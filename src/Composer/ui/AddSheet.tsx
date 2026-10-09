@@ -4,6 +4,7 @@ import { defaultOperations, operationRegistry } from "../../Warholizer/RasterOpe
 import { PureRasterOperation } from "../../Warholizer/RasterOperations/PureRasterOperation/types";
 import { allPerImage, combine, newId, operationNode, variationsList } from "../build";
 import { canvasOps } from "../canvasOps";
+import { defaultDpi, resolveLengths } from "../../Warholizer/RasterOperations/PureRasterOperation/length";
 import { isSeparation } from "../labels";
 import { Dimension, Node, PHOTO } from "../types";
 import { Segmented } from "./Segmented";
@@ -68,8 +69,8 @@ const small = (image: OffscreenCanvas): OffscreenCanvas => {
 };
 
 /** Add a step: categories, search, and live previews of each operation on the image arriving here. */
-export function AddSheet({ dimensions, sampleInput, inList, onAdd, onClose }: {
-  dimensions: Dimension[], sampleInput?: OffscreenCanvas, inList: boolean, onAdd: (node: Node) => void, onClose: () => void,
+export function AddSheet({ dimensions, sampleInput, sampleScale = 1, inList, onAdd, onClose }: {
+  dimensions: Dimension[], sampleInput?: OffscreenCanvas, sampleScale?: number, inList: boolean, onAdd: (node: Node) => void, onClose: () => void,
 }) {
   const [category, setCategory] = React.useState<Category>('effects');
   const [query, setQuery] = React.useState('');
@@ -83,14 +84,20 @@ export function AddSheet({ dimensions, sampleInput, inList, onAdd, onClose }: {
   React.useEffect(() => {
     if (!thumbnail) return;
     let cancelled = false;
+    // Sizes resolve at the thumbnail's scale, so previews look like the real step.
+    const context = {
+      dpi: defaultDpi,
+      scale: sampleScale * (sampleInput ? thumbnail.width / sampleInput.width : 1),
+      shortSide: Math.min(thumbnail.width, thumbnail.height),
+    };
     choices.filter(c => c.op).forEach(c => {
-      canvasOps.apply(c.op!, [thumbnail]).then(out => {
+      canvasOps.apply(resolveLengths(c.op!, context) as PureRasterOperation, [thumbnail]).then(out => {
         if (!cancelled && out[0]) setPreviews(p => ({ ...p, [c.key]: out[0] }));
       }).catch(() => undefined);
     });
     return () => { cancelled = true; };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [previewKey, thumbnail]);
+  }, [previewKey, thumbnail, sampleScale]);
   return (
     <>
       <div className="composer-handle" />

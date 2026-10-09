@@ -9,6 +9,7 @@ import { inferComposition } from './infer';
 import { defaultSpread, numericParamsOf, spreadValues } from './spread';
 import { compositionText } from './text';
 import { Composition, Cube, Node, PHOTO } from './types';
+import { PureRasterOperation } from '../Warholizer/RasterOperations/PureRasterOperation/types';
 
 const doc = (root: Node): Composition => ({ version: 1, name: 'test', root: root as Composition['root'] });
 const shape = async (root: Node, photos: number) => (await inferComposition(doc(root), photos)).output;
@@ -187,6 +188,28 @@ describe('group-aware tone', () => {
   it('writes its method in the text view', () => {
     const node: Node = { kind: 'operation', id: 't', op: { type: 'tone', method: { type: 'match', reference: 'mean' } }, by: ['photo'] };
     expect(compositionText(doc(sequence(node)))).toContain('tone method: match(reference: mean) by: [photo]');
+  });
+});
+
+describe('lengths in compositions', () => {
+  it('the preview tells the truth: sizes shrink with the preview scale', async () => {
+    const seen: PureRasterOperation[] = [];
+    const recording = { ...canvasOps, apply: async (op: PureRasterOperation, inputs: OffscreenCanvas[]) => { seen.push(op); return inputs; } };
+    await evaluate(operationNode({ type: 'blur', pixels: 10 }), photoCube([solid(50, 50, RED)], [0.25]), recording);
+    expect(seen[0]).toMatchObject({ pixels: 2.5 });
+  });
+
+  it('spreads sizes with a unit after the range', async () => {
+    const spread = variationsSpread(allPerImage, { type: 'halftone', angle: angle(45), dotDiameter: 5, blurPixels: 0 },
+      { type: 'count', param: 'dotDiameter', from: 30, to: 90, n: 4, unit: 'lpi' });
+    const out = await shape(spread, 1);
+    expect(labels(out)).toEqual(['1/30 lpi', '1/50 lpi', '1/70 lpi', '1/90 lpi']);
+    expect(compositionText(doc(sequence(spread)))).toContain('dot-diameter: 30..90 lpi count: 4');
+  });
+
+  it('writes sizes in the text view', () => {
+    const node = operationNode({ type: 'halftone', angle: angle(45), dotDiameter: { value: 45, unit: 'lpi' }, blurPixels: 0 });
+    expect(compositionText(doc(sequence(node)))).toContain('dot-diameter: 45 lpi');
   });
 });
 

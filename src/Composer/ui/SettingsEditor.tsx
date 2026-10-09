@@ -3,9 +3,10 @@ import { ColorStopsInput } from "../../Warholizer/RasterOperations/PureRasterOpe
 import { PaletteReplacementsInput } from "../../Warholizer/RasterOperations/PureRasterOperation/editors/PaletteReplacementsInput";
 import { VisualCropModal } from "../../Warholizer/RasterOperations/PureRasterOperation/editors/VisualCropModal";
 import { operationRegistry, sweepsOf } from "../../Warholizer/RasterOperations/PureRasterOperation/registry";
-import { BlendingModes, Crop, PaperSizes, PureRasterOperation, RotationOrigins, Tone, TilingPatterns } from "../../Warholizer/RasterOperations/PureRasterOperation/types";
+import { BlendingModes, Crop, LengthUnit, PaperSizes, PureRasterOperation, RotationOrigins, Size, Tone, TilingPatterns } from "../../Warholizer/RasterOperations/PureRasterOperation/types";
 import { byte } from "../../NumberTypes";
 import { numericParamOf, paramLabel } from "../spread";
+import { convertSize, isLengthParam, sizeOf, unitOf, unitsFor, valueOf } from "../../Warholizer/RasterOperations/PureRasterOperation/length";
 import { Segmented } from "./Segmented";
 
 /** How one setting is edited. */
@@ -65,7 +66,7 @@ const specOf = (op: PureRasterOperation, param: string): ParamSpec | undefined =
   const value = (op as Record<string, unknown>)[param] ?? (operationRegistry[op.type].defaults as Record<string, unknown>)[param];
   const sweep = sweepsOf(op.type).find(s => s.param === param);
   if (typeof value === 'boolean') return { kind: 'boolean' };
-  if (typeof value === 'number') {
+  if (typeof value === 'number' || isLengthParam(op.type, param)) {
     const p = numericParamOf(op.type, param);
     return p ? n(Math.min(0, p.from), p.to * 2, p.integral ? 1 : 0.05) : n(0, 100);
   }
@@ -89,10 +90,17 @@ const paramsOf = (op: PureRasterOperation): string[] => {
   return [...new Set(keys)].filter(k => k !== 'type' && visible(op, k));
 };
 
+/** Slider ranges for sizes in each unit other than pixels. */
+const unitSpecs: Record<Exclude<LengthUnit, 'px'>, NumberSpec> = {
+  '%': n(0, 20, 0.1, '%'), in: n(0, 2, 0.01, 'in'), mm: n(0, 50, 0.5, 'mm'), pt: n(0, 144, 1, 'pt'), lpi: n(10, 200, 1, 'lpi'),
+};
+
 /** A slider and a number field; a long press on the slider (or the Spread button) asks to spread it. */
-function NumberRow({ label, value, spec, onChange, onSpread, spreading }: {
+function NumberRow({ label, value, spec, onChange, onSpread, spreading, units }: {
   label: string, value: number, spec: NumberSpec, onChange: (v: number) => void,
   onSpread?: () => void, spreading: boolean,
+  /** For sizes: the unit picker in place of a fixed unit. */
+  units?: { value: LengthUnit, options: LengthUnit[], onChange: (unit: LengthUnit) => void },
 }) {
   const press = React.useRef<{ timer: number, x: number, y: number }>(undefined);
   const cancel = () => {
@@ -106,7 +114,11 @@ function NumberRow({ label, value, spec, onChange, onSpread, spreading }: {
         <label htmlFor={id}>{label}</label>
         <input type="number" aria-label={`${label} value`} value={value} step={spec.step}
           onChange={e => { if (e.target.value !== '') onChange(Number(e.target.value)); }} />
-        {spec.unit && <span className="composer-setting-unit">{spec.unit}</span>}
+        {units ? (
+          <select className="composer-unit" aria-label={`${label} unit`} value={units.value} onChange={e => units.onChange(e.target.value as LengthUnit)}>
+            {units.options.map(u => <option key={u} value={u}>{u}</option>)}
+          </select>
+        ) : spec.unit && <span className="composer-setting-unit">{spec.unit}</span>}
         {onSpread && (
           <button type="button" className={'composer-chip' + (spreading ? ' on' : '')} aria-pressed={spreading} onClick={onSpread}
             title="Spread this setting into variations (or long-press the slider)">Spread</button>
@@ -251,9 +263,17 @@ export function SettingsEditor({ op, onChange, inputs, photoCount = 0, spreading
         switch (spec.kind) {
           case 'number': {
             const spreadable = onSpread && numericParamOf(op.type, param) !== undefined;
+            const size = isLengthParam(op.type, param) ? value as Size : undefined;
+            const unit = size === undefined ? undefined : unitOf(size);
             return (
               <React.Fragment key={param}>
-                <NumberRow label={label} value={Number(value)} spec={spec} onChange={v => set(param, v)}
+                <NumberRow label={label}
+                  value={size === undefined ? Number(value) : valueOf(size)}
+                  spec={unit && unit !== 'px' ? unitSpecs[unit] : { ...spec, unit: size === undefined ? spec.unit : undefined }}
+                  onChange={v => set(param, unit ? sizeOf(v, unit) : v)}
+                  units={size === undefined || !unit ? undefined : {
+                    value: unit, options: unitsFor(op.type, param), onChange: next => set(param, convertSize(size, next)),
+                  }}
                   spreading={spreading === param} onSpread={spreadable ? () => onSpread(param) : undefined} />
                 {spreading === param && spreadPanel}
               </React.Fragment>

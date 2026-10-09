@@ -37,6 +37,8 @@ const scaled = (image: OffscreenCanvas, size: number): OffscreenCanvas => {
   return c;
 };
 const asPhoto = (full: OffscreenCanvas): Photo => ({ full, preview: scaled(full, previewSize) });
+/** Photos at preview size, each with its scale so sizes resolve as in the full-size export. */
+const previewCube = (photos: Photo[]) => photoCube(photos.map(p => p.preview), photos.map(p => p.preview.width / p.full.width));
 
 const loadSaved = (): Composition => {
   try {
@@ -139,7 +141,7 @@ export default function ComposerPage() {
     let cancelled = false;
     const timer = setTimeout(() => {
       const trace: Trace<OffscreenCanvas> = new Map();
-      evaluate(root, photoCube(photos.map(p => p.preview)), canvasOps, trace)
+      evaluate(root, previewCube(photos), canvasOps, trace)
         .then(output => { if (!cancelled) setRendered({ root, photos, trace, output }); })
         .catch(error => console.error('Composer render failed', error));
     }, 60);
@@ -147,7 +149,7 @@ export default function ComposerPage() {
   }, [root, photos]);
   const busy = !rendered || rendered.root !== root || rendered.photos !== photos;
 
-  const inputPhotos = photoCube(photos.map(p => p.preview));
+  const inputPhotos = previewCube(photos);
   const renderedAfter = (id: NodeId | null): Cube<OffscreenCanvas> | undefined =>
     id === null ? inputPhotos : rendered?.trace.get(id)?.output;
   const dimensionsInto = (id: NodeId): Dimension[] => inferred?.trace.get(id)?.input.dimensions ?? inputPhotos.dimensions;
@@ -164,6 +166,13 @@ export default function ComposerPage() {
       return (sheet.index === 0 ? inputPhotos : renderedAfter(steps[sheet.index - 1]?.id ?? null))?.cells[0]?.image;
     }
     return rendered?.trace.get(addParent.id)?.input.cells[0]?.image;
+  })();
+  const addSampleScale = (() => {
+    if (sheet?.type !== 'add' || !addParent) return undefined;
+    if (addParent.id === root.id) {
+      return (sheet.index === 0 ? inputPhotos : renderedAfter(steps[sheet.index - 1]?.id ?? null))?.cells[0]?.scale;
+    }
+    return rendered?.trace.get(addParent.id)?.input.cells[0]?.scale;
   })();
   const addDimensions = (() => {
     if (sheet?.type !== 'add' || !addParent) return [];
@@ -249,6 +258,7 @@ export default function ComposerPage() {
                 inputDimensions={dimensionsInto(sheetNode.id)}
                 photoCount={photos.length}
                 sampleInput={rendered?.trace.get(sheetNode.id)?.input.cells[0]?.image}
+                sampleScale={rendered?.trace.get(sheetNode.id)?.input.cells[0]?.scale}
                 inputs={async () => rendered?.trace.get(sheetNode.id)?.input.cells.map(c => c.image) ?? []}
                 onChange={node => setRoot(updateNode(root, sheetNode.id, () => node))}
                 onDelete={() => { setRoot(removeNode(root, sheetNode.id)); setSheet(undefined); }}
@@ -268,6 +278,7 @@ export default function ComposerPage() {
               <AddSheet
                 dimensions={addDimensions}
                 sampleInput={addSample}
+                sampleScale={addSampleScale}
                 inList={sheet.inList}
                 onAdd={node => { setRoot(insertNode(root, sheet.parentId, sheet.index, node)); setSheet({ type: 'step', id: node.id }); }}
                 onClose={() => setSheet(sheet.inList ? { type: 'step', id: sheet.parentId } : undefined)} />

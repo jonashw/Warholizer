@@ -1,5 +1,6 @@
 import { applyTone } from "./tone";
-import { Halftone, Line, PaperSizeById, PureRasterOperation, SlideWrap, Tile } from "./types";
+import { Halftone, Line, PaperSizeById, PureRasterOperation, Resolved, SlideWrap, Tile } from "./types";
+import { defaultDpi, resolveLengths } from "./length";
 import { PixelKernels, cpuKernels, inks } from "./kernels";
 import { RGB, medianCutPalette, paintColors, parseHexColor, toHexColor } from "./palette";
 import { borderColor, connectedColorKey, errorDiffusion, stickerBorder } from "./sequential";
@@ -66,7 +67,7 @@ const line = async (inputs: OffscreenCanvas[], op: Line): Promise<OffscreenCanva
  */
 const createApply = (kernels: PixelKernels) => {
 /** The original halftone: a rotated pattern of fixed dots, color-burned and thresholded (style 'classic'). */
-const classicHalftone = async (input: OffscreenCanvas, op: Halftone): Promise<OffscreenCanvas> => {
+const classicHalftone = async (input: OffscreenCanvas, op: Resolved<Halftone>): Promise<OffscreenCanvas> => {
         const patternSpacingRatio = 2;
         const patternSideLength = op.dotDiameter * patternSpacingRatio;
         const patternImage = await offscreenCanvasOperation(patternSideLength, patternSideLength, (ctx) => {
@@ -126,7 +127,7 @@ const classicHalftone = async (input: OffscreenCanvas, op: Halftone): Promise<Of
       };
 
 /** AM screen halftone (style 'smooth'): each cell's dot is sized by the cell's mean tone. */
-const smoothHalftone = async (input: OffscreenCanvas, op: Halftone): Promise<OffscreenCanvas> => {
+const smoothHalftone = async (input: OffscreenCanvas, op: Resolved<Halftone>): Promise<OffscreenCanvas> => {
   const cell = Math.max(1, op.dotDiameter);
   // Optional extra softening; the screen itself averages each cell's tone.
   const blurred = op.blurPixels > 0
@@ -144,7 +145,10 @@ const smoothHalftone = async (input: OffscreenCanvas, op: Halftone): Promise<Off
   });
 };
 
-const applyOp = async (op: PureRasterOperation, inputs: OffscreenCanvas[]): Promise<OffscreenCanvas[]> => {
+const applyOp = async (unresolved: PureRasterOperation, inputs: OffscreenCanvas[]): Promise<OffscreenCanvas[]> => {
+  // Sizes arrive resolved from Composer; anything else is measured against the first input at full scale.
+  const first = inputs[0];
+  const op = resolveLengths(unresolved, { dpi: defaultDpi, scale: 1, shortSide: first ? Math.min(first.width, first.height) : 0 });
   const opType = op.type;
   switch(opType){
     case 'printSet': 

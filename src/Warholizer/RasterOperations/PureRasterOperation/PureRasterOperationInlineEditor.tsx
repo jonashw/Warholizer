@@ -16,6 +16,7 @@ import { VisualCropModal } from "./editors/VisualCropModal";
 import { ColorStopsInput } from "./editors/ColorStopsInput";
 import { BayerSize, DiffusionMethod, DotShape, HalftoneStyle } from "./types";
 import { dotShapes } from "./halftone";
+import { toPixels } from "./length";
 
 const toPrecision = (n: number, fractionalDigits: number) => 
     parseFloat(n.toFixed(fractionalDigits));
@@ -247,7 +248,7 @@ export const PureRasterOperationInlineEditor = ({
                                     onChange={shape => onChange({ ...op, shape })} />
                             )}
                             <span title={(op.style ?? 'smooth') === 'smooth' ? 'Cell size (dot pitch), px' : 'Dot diameter, px'}>
-                                <NumberSpinnerInput value={op.dotDiameter} min={1} max={100} step={0.5}
+                                <NumberSpinnerInput value={toPixels(op.dotDiameter)} min={1} max={100} step={0.5}
                                     sanitize={n => Math.min(100, Math.max(1, n))}
                                     onChange={dotDiameter => onChange({ ...op, dotDiameter })} />
                             </span>
@@ -257,7 +258,7 @@ export const PureRasterOperationInlineEditor = ({
                                 onChange={angle => onChange({...op, angle})}
                             />
                             <span title="Extra blur (px)">
-                                <NumberSpinnerInput value={op.blurPixels} min={0} max={10} step={0.5}
+                                <NumberSpinnerInput value={toPixels(op.blurPixels)} min={0} max={10} step={0.5}
                                     sanitize={n => Math.min(10, Math.max(0, n))}
                                     onChange={blurPixels => onChange({ ...op, blurPixels })} />
                             </span>
@@ -365,7 +366,7 @@ export const PureRasterOperationInlineEditor = ({
                     );
                     case 'blur': return (
                         <NumberSpinnerInput
-                            value={op.pixels}
+                            value={toPixels(op.pixels)}
                             min={0}
                             max={100}
                             step={1}
@@ -497,7 +498,7 @@ export const PureRasterOperationInlineEditor = ({
                                 onChange={matrixSize => onChange({ ...op, matrixSize })} />
                             <span title="Levels per channel"><NumberSpinnerInput<number> value={op.levels} min={2} max={8} step={1}
                                 sanitize={clampInt(2, 8)} onChange={levels => onChange({ ...op, levels })} /></span>
-                            <span title="Pixel size"><NumberSpinnerInput<number> value={op.pixelSize} min={1} max={16} step={1}
+                            <span title="Pixel size"><NumberSpinnerInput<number> value={toPixels(op.pixelSize)} min={1} max={16} step={1}
                                 sanitize={clampInt(1, 16)} onChange={pixelSize => onChange({ ...op, pixelSize })} /></span>
                             <Checkbox label="Mono" checked={op.monochrome} onChange={monochrome => onChange({ ...op, monochrome })} />
                         </>
@@ -523,7 +524,7 @@ export const PureRasterOperationInlineEditor = ({
                     );
                     case 'stickerBorder': return (
                         <>
-                            <span title="Border width (px)"><NumberSpinnerInput<number> value={op.width} min={0} max={100} step={1}
+                            <span title="Border width (px)"><NumberSpinnerInput<number> value={toPixels(op.width)} min={0} max={100} step={1}
                                 sanitize={clampInt(0, 100)} onChange={width => onChange({ ...op, width })} /></span>
                             <input type="color" className="form-control form-control-color form-control-sm p-0" style={{ width: '2em', height: '1.6em' }}
                                 value={op.color} onChange={e => onChange({ ...op, color: e.target.value })} />
@@ -556,9 +557,9 @@ export const PureRasterOperationInlineEditor = ({
                                 <NumberSpinnerInput<number> value={op.scale ?? 1} min={1} max={4} step={1}
                                     sanitize={clampInt(1, 4)} onChange={scale => onChange({ ...op, scale })} />
                             </span>
-                            <span title="Dot diameter (px)"><NumberSpinnerInput<number> value={op.dotDiameter} min={2} max={40} step={1}
+                            <span title="Dot diameter (px)"><NumberSpinnerInput<number> value={toPixels(op.dotDiameter)} min={2} max={40} step={1}
                                 sanitize={n => Math.min(40, Math.max(2, n))} onChange={dotDiameter => onChange({ ...op, dotDiameter })} /></span>
-                            <span title="Blur (px)"><NumberSpinnerInput<number> value={op.blurPixels} min={0} max={10} step={1}
+                            <span title="Blur (px)"><NumberSpinnerInput<number> value={toPixels(op.blurPixels)} min={0} max={10} step={1}
                                 sanitize={clampInt(0, 10)} onChange={blurPixels => onChange({ ...op, blurPixels })} /></span>
                         </>
                     );

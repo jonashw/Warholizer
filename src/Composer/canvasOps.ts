@@ -46,5 +46,6 @@ export const drawCrosstab = (
 /** Image operations on canvases, through the raster engine. */
 export const canvasOps: ImageOps<OffscreenCanvas> = {
   apply,
+  size: image => [image.width, image.height],
   crosstab: async (grid, rowLabels, columnLabels, labels) => drawCrosstab(grid, rowLabels, columnLabels, labels),
 };

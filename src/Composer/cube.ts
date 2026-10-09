@@ -1,9 +1,9 @@
 import { Cell, Cube, Dimension, DimensionId, Member, PHOTO } from "./types";
 
-/** The input cube: one cell per photo along the Photo dimension. */
-export const photoCube = <Img>(images: Img[]): Cube<Img> => ({
+/** The input cube: one cell per photo along the Photo dimension; `scales` for downscaled previews. */
+export const photoCube = <Img>(images: Img[], scales?: number[]): Cube<Img> => ({
   dimensions: [{ id: PHOTO, name: 'Photo', members: images.map((_, i) => ({ key: `${i + 1}`, label: `${i + 1}` })) }],
-  cells: images.map((image, i) => ({ coords: { [PHOTO]: `${i + 1}` }, image })),
+  cells: images.map((image, i) => ({ coords: { [PHOTO]: `${i + 1}` }, image, scale: scales?.[i] ?? 1 })),
 });
 
 export const emptyCube = <Img>(dimensions: Dimension[] = []): Cube<Img> => ({ dimensions, cells: [] });
