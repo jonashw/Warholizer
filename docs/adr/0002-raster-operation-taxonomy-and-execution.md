@@ -74,3 +74,10 @@ Classifying current operations by signature (input count → output count, wheth
   - `grid` guard checks `cols` twice instead of `rows`.
 - Observed inconsistency (tested as current behavior, not yet classified as a bug): `slideWrap` shifts right along x but up along y.
 - `noise` is non-deterministic (`Math.random`), which blocks exact tests and reproducible formulas. Consider a seed parameter.
+
+### 2026-10-08: lint clean, engine bugs fixed
+
+- `npm run lint` passes with zero errors and zero warnings. Along the way, fixed stale-closure bugs in the `PureGallery` and `InputsEditor` paste handlers (pasting dropped previously added inputs) and in `useContainerSize`.
+- Fixed the three known engine bugs above; their tests are now ordinary passing tests. **This changes rendered output**: `rotate` 90°/270° on non-square images, and any non-quarter rotation about `center` on non-square images, now render correctly where they were previously squashed or offset.
+- Fixed `line` and `tile` throwing on an empty input list (seen in the graph demos); they now return no outputs, like `stack`.
+- Remaining console noise, not yet addressed: React "unique key" warnings in `Warholizer`, `GraphViewerDemo`, and `ProgressiveApplicationDemo`.

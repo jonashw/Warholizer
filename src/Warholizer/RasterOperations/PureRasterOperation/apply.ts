@@ -59,7 +59,6 @@ const line = async (inputs: OffscreenCanvas[], op: Line): Promise<OffscreenCanva
         x: horizontal ? 1/inputs.length : 1,
         y:!horizontal ? 1/inputs.length : 1
       };
-      console.log({n:inputs.length,scale});
       ctx.scale(scale.x,scale.y);
     }
     for(const input of orderedInputs){
@@ -363,7 +362,6 @@ const apply = async (op: PureRasterOperation, inputs: OffscreenCanvas[]): Promis
             op.dimension === 'x' 
             ? [input.width * proportion, input.height,  i===0 ? 0 : input.width * (1-proportion),0]
             : [input.width, input.height * proportion,0,i===0 ? 0 : input.height * (1-proportion)];
-          console.log({w,h,sx,sy,proportion,i});
           return offscreenCanvasOperation(w, h, (ctx) => {
             ctx.translate(-sx,-sy);
             ctx.drawImage(input, 0, 0);
@@ -396,7 +394,8 @@ const apply = async (op: PureRasterOperation, inputs: OffscreenCanvas[]): Promis
           dimensionSwitch
           ? [input.height,input.width]
           : [input.width,input.height];
-        const scaleToRetainFullImage = true;
+        // Quarter turns fit exactly in the swapped canvas; only other angles need shrinking to stay in frame.
+        const scaleToRetainFullImage = op.degrees % 90 !== 0;
         return offscreenCanvasOperation(width, height, (ctx) => {
           const radians = op.degrees * Math.PI / 180;
           const rotationCenter = 
@@ -408,7 +407,7 @@ const apply = async (op: PureRasterOperation, inputs: OffscreenCanvas[]): Promis
             ? {x: 0, y: height}
             : op.about === "bottom-right"
             ? {x: width, y: height}
-            : {x: width/2, y: width/2};
+            : {x: width/2, y: height/2};
           ctx.translate(rotationCenter.x, rotationCenter.y);
           if(scaleToRetainFullImage){
             //reference: https://stackoverflow.com/questions/6657479/aabb-of-rotated-sprite
@@ -420,7 +419,6 @@ const apply = async (op: PureRasterOperation, inputs: OffscreenCanvas[]): Promis
               x: width/aabb.w,
               y: height/aabb.h
             };
-            console.log({radians,aabb,scale});
             ctx.scale(scale.x,scale.y);
           }
           ctx.rotate(radians);
@@ -448,7 +446,7 @@ const apply = async (op: PureRasterOperation, inputs: OffscreenCanvas[]): Promis
         });
       }));
     case 'grid': return Promise.all(inputs.map(input => {
-      if(op.cols <= 0 || op.cols <= 0){
+      if(op.cols <= 0 || op.rows <= 0){
         return input;
       }
       return offscreenCanvasOperation(op.cols * input.width, op.rows * input.height, (ctx) => {
@@ -463,8 +461,8 @@ const apply = async (op: PureRasterOperation, inputs: OffscreenCanvas[]): Promis
         }
       });
     }));
-    case 'tile': return [await tile(inputs, op)];
-    case 'line': return [await line(inputs, op)];
+    case 'tile': return inputs.length === 0 ? [] : [await tile(inputs, op)];
+    case 'line': return inputs.length === 0 ? [] : [await line(inputs, op)];
     default:
       throw new Error(`Unexpected operation type: ${opType}`);
   }

@@ -149,19 +149,20 @@ describe('geometry operations (1→1, size changes)', () => {
     expectColor(pixel(out, 3, 3), BLUE);
   });
 
-  // Known bug: on non-square images, the "scaleToRetainFullImage" AABB scaling is applied
-  // even for quarter turns, squashing and clipping the output (apply.ts, case 'rotate').
-  it.fails('rotate 90 about center turns left into top (clockwise), non-square', async () => {
+  it('rotate 90 about center turns left into top (clockwise), non-square', async () => {
     const out = await one({ type: 'rotate', degrees: angle(90), about: 'center' }, bands(4, 2, [RED, BLUE]));
-    expectColor(pixel(out, 0, 0), RED);
-    expectColor(pixel(out, 1, 3), BLUE);
+    expect(allPixels(out)).toEqual([RED, RED, RED, RED, BLUE, BLUE, BLUE, BLUE]);
   });
 
-  // Known bug: the "center" rotation origin uses width/2 for y (apply.ts, case 'rotate').
-  it.fails('rotate 180 about center on a non-square image', async () => {
+  it('rotate 270 about center turns left into bottom, non-square', async () => {
+    const out = await one({ type: 'rotate', degrees: angle(270), about: 'center' }, bands(4, 2, [RED, BLUE]));
+    expect(size(out)).toEqual([2, 4]);
+    expect(allPixels(out)).toEqual([BLUE, BLUE, BLUE, BLUE, RED, RED, RED, RED]);
+  });
+
+  it('rotate 180 about center on a non-square image', async () => {
     const out = await one({ type: 'rotate', degrees: angle(180), about: 'center' }, bands(4, 2, [RED, BLUE]));
-    expectColor(pixel(out, 0, 0), BLUE);
-    expectColor(pixel(out, 3, 1), RED);
+    expect(allPixels(out)).toEqual([BLUE, BLUE, RED, RED, BLUE, BLUE, RED, RED]);
   });
 
   it('slideWrap x shifts right and wraps', async () => {
@@ -227,6 +228,13 @@ describe('layout operations (n→1 or 1→larger)', () => {
     expect(await apply({ type: 'stack', blendingMode: 'multiply' }, [])).toEqual([]);
   });
 
+  it.each([
+    { type: 'line', direction: 'right', squish: false },
+    { type: 'tile', primaryDimension: 'x', lineLength: 2 },
+  ] as PureRasterOperation[])('$type of nothing is nothing', async (op) => {
+    expect(await apply(op, [])).toEqual([]);
+  });
+
   it('line right concatenates in order', async () => {
     const [out] = await apply({ type: 'line', direction: 'right', squish: false }, [solid(2, 2, RED), solid(3, 1, BLUE)]);
     expect(size(out)).toEqual([5, 2]);
@@ -269,8 +277,7 @@ describe('layout operations (n→1 or 1→larger)', () => {
     allPixels(out).forEach(p => expectColor(p, RED));
   });
 
-  // Known bug: the guard checks `op.cols <= 0` twice instead of rows (apply.ts, case 'grid').
-  it.fails('grid with zero rows returns the input unchanged', async () => {
+  it('grid with zero rows returns the input unchanged', async () => {
     const input = solid(2, 2, RED);
     expect(await one({ type: 'grid', rows: 0, cols: 2 }, input)).toBe(input);
   });
