@@ -64,6 +64,7 @@ const operationIcons: Record<PureRasterOperation['type'], SvgIconComponent> = {
     gradientMap: Gradient,
     posterize: Filter4,
     orderedDither: GridOn,
+    dither: GridOn,
     errorDiffusion: ScatterPlot,
     edges: Gesture,
     stickerBorder: ContentCut,

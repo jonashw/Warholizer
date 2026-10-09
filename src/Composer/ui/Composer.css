@@ -233,3 +233,5 @@
   height: auto; max-width: none; margin: 4px 0; display: flex; flex-direction: column; gap: 4px;
   overflow: visible; background: transparent; font-size: 13px;
 }
+.composer-drag { color: var(--c-faint); font-size: 18px; padding: 6px 2px; cursor: grab; touch-action: none; user-select: none; }
+.composer-dragging .composer-pill { box-shadow: 0 12px 28px var(--c-shadow); }

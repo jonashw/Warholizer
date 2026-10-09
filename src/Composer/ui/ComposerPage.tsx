@@ -1,4 +1,5 @@
 import React from "react";
+import { DragDropContext, Draggable, Droppable } from "@hello-pangea/dnd";
 import { CanvasView } from "../../CanvasView";
 import { loadSampleImages, sampleImageUrls } from "../../sampleImageUrls";
 import ImageUtil from "../../Warholizer/ImageUtil";
@@ -50,7 +51,7 @@ const previewSteps = [1, 0.75, 0.5, 0.35, 0.25, 0.18, 0.12];
 /** Pixels a preview may hold at once: phones have far less memory for canvases. */
 const pixelBudget = () =>
   typeof navigator !== 'undefined' && navigator.maxTouchPoints > 0 && Math.min(window.screen.width, window.screen.height) < 900
-    ? 30_000_000 : 150_000_000;
+    ? 40_000_000 : 200_000_000;
 const storageKey = 'composer:composition';
 
 const scaled = (image: OffscreenCanvas, size: number): OffscreenCanvas => {
@@ -485,8 +486,18 @@ export default function ComposerPage() {
             <span className="composer-note-detail">Below {minimumPrintDpi} DPI prints look soft: use a larger photo, or smaller cells.</span>
           </div>
         ))}
+        <DragDropContext onDragEnd={result => {
+          if (!result.destination || result.destination.index === result.source.index) return;
+          const children = [...steps];
+          const [moved] = children.splice(result.source.index, 1);
+          children.splice(result.destination.index, 0, moved);
+          setRoot({ ...root, children });
+        }}>
+        <Droppable droppableId="composer-steps">{list => (
+        <div ref={list.innerRef} {...list.droppableProps}>
         {steps.map((step, i) => (
-          <React.Fragment key={step.id}>
+          <Draggable key={step.id} draggableId={step.id} index={i}>{(drag, snapshot) => (
+          <div ref={drag.innerRef} {...drag.draggableProps} className={snapshot.isDragging ? 'composer-dragging' : undefined}>
             <Wire
               cube={i === 0 ? inputPhotos : inferred?.trace.get(steps[i - 1].id)?.output}
               previous={i === 0 ? undefined : (i === 1 ? inputPhotos : inferred?.trace.get(steps[i - 2].id)?.output)}
@@ -500,9 +511,15 @@ export default function ComposerPage() {
               dimensions={dimensionsInto(step.id)}
               selected={sheet?.type === 'step' && (sheet.id === step.id || parentOf(step, sheet.id) !== undefined)}
               onOpen={() => setSheet({ type: 'step', id: step.id })}
-              onChange={node => setRoot(updateNode(root, node.id, () => node))} />
-          </React.Fragment>
+              onChange={node => setRoot(updateNode(root, node.id, () => node))}
+              dragHandle={<span {...drag.dragHandleProps} className="composer-drag" aria-label={`Reorder ${nodeTitle(step)}`} title="Drag to reorder">⠿</span>} />
+          </div>
+          )}</Draggable>
         ))}
+        {list.placeholder}
+        </div>
+        )}</Droppable>
+        </DragDropContext>
         <Wire
           cube={steps.length === 0 ? inputPhotos : inferred?.trace.get(steps[steps.length - 1].id)?.output}
           previous={steps.length < 1 ? undefined : steps.length === 1 ? inputPhotos : inferred?.trace.get(steps[steps.length - 2].id)?.output}
@@ -647,15 +664,16 @@ function Wire({ cube, previous, onPeek, onInsert, last }: {
   );
 }
 
-function Pill({ node, dimensions, selected, onOpen, onChange, notes, onApply, onDismiss }: {
+function Pill({ node, dimensions, selected, onOpen, onChange, notes, onApply, onDismiss, dragHandle }: {
   node: Node, dimensions: Dimension[], selected: boolean, onOpen: () => void, onChange: (node: Node) => void,
-  notes: Suggestion[], onApply: (s: Suggestion) => void, onDismiss: (s: Suggestion) => void,
+  notes: Suggestion[], onApply: (s: Suggestion) => void, onDismiss: (s: Suggestion) => void, dragHandle?: React.ReactNode,
 }) {
   const swatches = nodeSwatches(node);
   const [open, setOpen] = React.useState<string>();
   return (
     <div className="composer-pill-group">
     <div className={'composer-pill' + (selected ? ' selected' : '')}>
+      {dragHandle}
       <button type="button" className="composer-pill-main" onClick={onOpen}>
         <span className="composer-pill-kind">{kindLabel(node)}</span>
         <span className="composer-pill-name">{nodeTitle(node)}</span>

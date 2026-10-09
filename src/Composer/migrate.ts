@@ -1,3 +1,4 @@
+import { PureRasterOperation } from "../Warholizer/RasterOperations/PureRasterOperation/types";
 import { Composition, Layout, Node } from "./types";
 
 /** A Tile, Line or Crosstab written before Layout (ADR 0003): its Layout. */
@@ -26,7 +27,17 @@ const legacyLayout = (method: Record<string, unknown>): Layout | undefined => {
   }
 };
 
+/** The older dither operations as Dither with a method. */
+const migrateOp = (op: PureRasterOperation): PureRasterOperation =>
+  op.type === 'orderedDither' ? { type: 'dither', method: { type: 'ordered', matrixSize: op.matrixSize, pixelSize: op.pixelSize }, levels: op.levels, monochrome: op.monochrome }
+  : op.type === 'errorDiffusion' ? { type: 'dither', method: { type: 'error-diffusion', algorithm: op.method }, levels: op.levels, monochrome: op.monochrome }
+  : op;
+
 const migrateNode = (node: Node): Node => {
+  if (node.kind === 'operation') {
+    const op = migrateOp(node.op);
+    return op === node.op ? node : { ...node, op };
+  }
   if (node.kind === 'combine') {
     const layout = legacyLayout(node.method as unknown as Record<string, unknown>);
     if (layout) return { ...node, method: layout };
@@ -43,7 +54,9 @@ const migrateNode = (node: Node): Node => {
     const distribution = type === 'all-per-image' ? { type: 'all-variants-per-image' as const }
       : type === 'one-per-image' ? { ...node.distribution, type: 'one-variant-per-image' as const } as typeof node.distribution
       : node.distribution;
-    const variants = node.variants.type === 'list' ? { type: 'list' as const, children: node.variants.children.map(migrateNode) } : node.variants;
+    const variants = node.variants.type === 'list'
+      ? { type: 'list' as const, children: node.variants.children.map(migrateNode) }
+      : { ...node.variants, op: migrateOp(node.variants.op) };
     return { ...node, distribution, variants };
   }
   return node;

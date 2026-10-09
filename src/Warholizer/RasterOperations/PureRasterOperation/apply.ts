@@ -315,6 +315,12 @@ const applyOp = async (unresolved: PureRasterOperation, inputs: OffscreenCanvas[
         kernels.orderedDither(input, op.matrixSize, Math.max(2, op.levels), op.monochrome, Math.max(1, op.pixelSize))));
     case 'errorDiffusion':
       return inputs.map(input => errorDiffusion(input, op.method, Math.max(2, op.levels), op.monochrome));
+    case 'dither': {
+      const { method } = op;
+      return method.type === 'ordered'
+        ? applyOp({ type: 'orderedDither', matrixSize: method.matrixSize, pixelSize: method.pixelSize, levels: op.levels, monochrome: op.monochrome }, inputs)
+        : applyOp({ type: 'errorDiffusion', method: method.algorithm, levels: op.levels, monochrome: op.monochrome }, inputs);
+    }
     case 'edges':
       return Promise.all(inputs.map(input => kernels.edges(input, op.strength, op.threshold, op.invert)));
     case 'stickerBorder':

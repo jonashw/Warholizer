@@ -647,3 +647,25 @@ describe('memory-safe export', () => {
     expect(alone.cells[0].coords[PHOTO]).toBe('2');
   });
 });
+
+describe('geometric spread', () => {
+  it('keeps equal ratios between values', () => {
+    expect(spreadValues({ type: 'count', param: 'dotDiameter', from: 4, to: 32, n: 4, spacing: 'geometric' })).toEqual([4, 8, 16, 32]);
+    expect(spreadValues({ type: 'count', param: 'dotDiameter', from: 4, to: 13, n: 4, spacing: 'geometric' }, true)).toEqual([4, 6, 9, 13]);
+  });
+});
+
+describe('dither consolidation', () => {
+  it('Dither gives the same pixels as the operation it replaces, and old steps migrate', async () => {
+    const { apply } = await import('../Warholizer/RasterOperations/PureRasterOperation/apply');
+    const input = bands(8, 2, [[40, 40, 40, 255], [120, 120, 120, 255], [200, 200, 200, 255], [250, 250, 250, 255]]);
+    const [a] = await apply({ type: 'dither', method: { type: 'error-diffusion', algorithm: 'atkinson' }, levels: 2, monochrome: true }, [input]);
+    const [b] = await apply({ type: 'errorDiffusion', method: 'atkinson', levels: 2, monochrome: true }, [input]);
+    for (let x = 0; x < 8; x++) expect(pixel(a, x, 1)).toEqual(pixel(b, x, 1));
+    const old = { version: 1, name: 'old', root: { kind: 'sequence', id: 'r', children: [
+      { kind: 'operation', id: 'd', op: { type: 'orderedDither', matrixSize: 8, levels: 3, monochrome: false, pixelSize: 2 } },
+    ] } } as unknown as Composition;
+    expect((migrateComposition(old).root.children[0] as Extract<Node, { kind: 'operation' }>).op)
+      .toEqual({ type: 'dither', method: { type: 'ordered', matrixSize: 8, pixelSize: 2 }, levels: 3, monochrome: false });
+  });
+});

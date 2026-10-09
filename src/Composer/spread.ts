@@ -57,8 +57,10 @@ export const spreadValues = (spread: Spread, integral = false): number[] => {
   const raw: number[] = [];
   if (spread.type === 'count') {
     const n = Math.max(1, Math.min(maxSpreadValues, Math.floor(spread.n)));
+    const geometric = spread.spacing === 'geometric' && from > 0 && to > 0;
     for (let i = 0; i < n; i++) {
-      raw.push(n === 1 ? from : from + (i * (to - from)) / (n - 1));
+      const t = n === 1 ? 0 : i / (n - 1);
+      raw.push(geometric ? from * Math.pow(to / from, t) : from + t * (to - from));
     }
   } else {
     const by = Math.abs(spread.by);

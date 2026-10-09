@@ -33,6 +33,7 @@ export type PureRasterOperation =
   | Posterize
   | OrderedDither
   | ErrorDiffusion
+  | Dither
   | Edges
   | StickerBorder
   | ColorKey
@@ -80,6 +81,16 @@ export type BayerSize = 2 | 4 | 8;
 export type OrderedDither = { type: "orderedDither", matrixSize: BayerSize, levels: number, monochrome: boolean, pixelSize: Size };
 export type DiffusionMethod = 'floyd-steinberg' | 'atkinson';
 export type ErrorDiffusion = { type: "errorDiffusion", method: DiffusionMethod, levels: number, monochrome: boolean };
+/**
+ * Few tones or colors, by one of two methods (ADR 0003, methods as sum types): an ordered Bayer
+ * pattern, or error diffusion. Replaces OrderedDither and ErrorDiffusion, which remain for older documents.
+ */
+export type Dither = {
+  type: "dither",
+  method: { type: 'ordered', matrixSize: BayerSize, pixelSize: Size } | { type: 'error-diffusion', algorithm: DiffusionMethod },
+  levels: number,
+  monochrome: boolean,
+};
 /** Line art from edges: `strength` scales line darkness; `threshold` > 0 makes lines solid. */
 export type Edges = { type: "edges", strength: number, threshold: Byte, invert: boolean };
 /** A die-cut style border of `width` px around the opaque shape, optionally with a cut line. */

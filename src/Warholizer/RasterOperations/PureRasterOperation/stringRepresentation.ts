@@ -38,6 +38,9 @@ export const stringRepresentation = (op: PureRasterOperation): string => {
     case 'gradientMap': return `gradientMap(${op.stops.join(' ')})`;
     case 'posterize' : return `posterize(${op.levels})`;
     case 'orderedDither': return `orderedDither(${op.matrixSize}×${op.matrixSize}, ${op.levels}${op.monochrome ? ', mono' : ''}${valueOf(op.pixelSize) > 1 || typeof op.pixelSize !== 'number' ? `, ${formatSize(op.pixelSize)}` : ''})`;
+    case 'dither': return op.method.type === 'ordered'
+      ? `dither(ordered ${op.method.matrixSize}×${op.method.matrixSize}, ${op.levels}${op.monochrome ? ', mono' : ''}${valueOf(op.method.pixelSize) > 1 || typeof op.method.pixelSize !== 'number' ? `, ${formatSize(op.method.pixelSize)}` : ''})`
+      : `dither(${op.method.algorithm}, ${op.levels}${op.monochrome ? ', mono' : ''})`;
     case 'errorDiffusion': return `errorDiffusion(${op.method}, ${op.levels}${op.monochrome ? ', mono' : ''})`;
     case 'edges'     : return `edges(×${op.strength}${op.threshold > 0 ? `, ≥${op.threshold}` : ''}${op.invert ? ', invert' : ''})`;
     case 'stickerBorder': return `stickerBorder(${formatSize(op.width)}, ${op.color}${op.cutLine ? ', cut line' : ''})`;

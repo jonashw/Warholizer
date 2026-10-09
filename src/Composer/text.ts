@@ -37,7 +37,7 @@ export const distributionText = (d: VariationDistribution): string =>
   : `one-image-per-variant(${orderText(d.order)}, ${d.overflow})`;
 
 const spreadText = (s: Spread) =>
-  `${s.bind ? `${s.bind} <- ` : ''}${kebab(s.param)}: ${s.from}..${s.to}${s.unit && s.unit !== 'px' ? ` ${s.unit}` : ''} ${s.type === 'count' ? `count: ${s.n}` : `skip-by: ${s.by}`}`;
+  `${s.bind ? `${s.bind} <- ` : ''}${kebab(s.param)}: ${s.from}..${s.to}${s.unit && s.unit !== 'px' ? ` ${s.unit}` : ''} ${s.type === 'count' ? `count: ${s.n}${s.spacing === 'geometric' ? ' geometric' : ''}` : `skip-by: ${s.by}`}`;
 
 const lines = (node: Node, depth: number): string[] => {
   const indent = '  '.repeat(depth);

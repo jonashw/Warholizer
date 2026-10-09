@@ -9,7 +9,7 @@ import { PureRasterOperation } from './types';
 // The taxonomy from ADR 0002.
 const expectedKinds: Record<OperationKind, OperationType[]> = {
   tone: ['invert', 'threshold', 'grayscale', 'rotateHue', 'fill', 'noise', 'levels', 'tone', 'quantize', 'gradientMap', 'posterize', 'colorKey'],
-  filter: ['blur', 'halftone', 'orderedDither', 'errorDiffusion', 'edges', 'colorHalftone'],
+  filter: ['blur', 'halftone', 'dither', 'orderedDither', 'errorDiffusion', 'edges', 'colorHalftone'],
   geometry: ['crop', 'scale', 'scaleToFit', 'rotate', 'slideWrap', 'stickerBorder'],
   cardinality: ['copies', 'split', 'rgbChannels', 'separateColors', 'cmykChannels', 'void', 'noop'],
   layout: ['stack', 'line', 'tile', 'grid', 'printSet'],
@@ -38,8 +38,9 @@ describe('operation registry', () => {
     expect(new Set(labels).size).toBe(labels.length);
   });
 
-  it('defaultOperations lists each operation once, grouped in kind order', () => {
-    expect(defaultOperations.map(op => op.type).sort()).toEqual([...types].sort());
+  it('defaultOperations lists each operation once (hidden ones aside), grouped in kind order', () => {
+    expect(defaultOperations.map(op => op.type).sort()).toEqual(types.filter(t => !operationRegistry[t].hidden).sort());
+    expect(defaultOperations.some(op => op.type === 'orderedDither' || op.type === 'errorDiffusion')).toBe(false);
     const kindOrder = operationKinds.map(k => k.kind);
     const kindIndexes = defaultOperations.map(op => kindOrder.indexOf(operationRegistry[op.type].kind));
     expect(kindIndexes).toEqual([...kindIndexes].sort((a, b) => a - b));
@@ -48,10 +49,11 @@ describe('operation registry', () => {
 
   it('sends pixel-kernel operations to the GPU and sequential ones to workers', () => {
     expect(types.filter(t => executionOf(operationRegistry[t].defaults) === 'gpu').sort()).toEqual([
-      'cmykChannels', 'colorHalftone', 'edges', 'gradientMap', 'halftone', 'levels', 'noise',
+      'cmykChannels', 'colorHalftone', 'dither', 'edges', 'gradientMap', 'halftone', 'levels', 'noise',
       'orderedDither', 'posterize', 'quantize', 'rgbChannels', 'separateColors', 'threshold']);
     expect(types.filter(t => executionOf(operationRegistry[t].defaults) === 'worker').sort()).toEqual(['colorKey', 'errorDiffusion', 'stickerBorder', 'tone']);
     expect(executionOf({ ...operationRegistry.colorKey.defaults, connected: false })).toBe('gpu');
+    expect(executionOf({ ...operationRegistry.dither.defaults, method: { type: 'error-diffusion', algorithm: 'atkinson' } })).toBe('worker');
   });
 });
 

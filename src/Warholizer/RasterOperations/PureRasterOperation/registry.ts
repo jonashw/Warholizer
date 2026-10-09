@@ -30,7 +30,9 @@ export type OperationRegistration<T extends OperationType = OperationType> = {
   /** Parameters worth exploring, first is the default. */
   sweeps?: readonly Sweep<OperationOfType<T>>[],
   /** Computes statistics across all images passed together; Composer passes one group per call (see `by`). */
-  groupAware?: boolean
+  groupAware?: boolean,
+  /** Kept for older documents, replaced in menus by another operation (e.g. Dither). */
+  hidden?: boolean
 };
 
 const range = (from: number, to: number, step: number) =>
@@ -144,14 +146,21 @@ export const operationRegistry: { [T in OperationType]: OperationRegistration<T>
       { param: 'invert', values: [false, true] },
     ],
   },
+  dither: {
+    kind: 'filter', label: 'Dither',
+    description: 'Renders tones with few colors: an ordered Bayer pattern (crisp, regular, like early screens) or error diffusion (organic grain, Floyd-Steinberg or Atkinson).',
+    execution: op => op.method.type === 'ordered' ? 'gpu' : 'worker',
+    defaults: { type: 'dither', method: { type: 'ordered', matrixSize: 4, pixelSize: 1 }, levels: 2, monochrome: true },
+    sweeps: [{ param: 'levels', values: [2, 3, 4, 6] }, { param: 'monochrome', values: [true, false] }],
+  },
   orderedDither: {
-    kind: 'filter', label: 'Ordered dither', execution: 'gpu',
+    kind: 'filter', label: 'Ordered dither', execution: 'gpu', hidden: true,
     description: 'Renders tones as a regular Bayer dot pattern, like early printers and screens.',
     defaults: { type: 'orderedDither', matrixSize: 4, levels: 2, monochrome: true, pixelSize: 1 },
     sweeps: [{ param: 'pixelSize', values: [1, 2, 3, 4, 6] }, { param: 'matrixSize', values: [2, 4, 8] }, { param: 'levels', values: [2, 3, 4] }, { param: 'monochrome', values: [true, false] }],
   },
   errorDiffusion: {
-    kind: 'filter', label: 'Error-diffusion dither', execution: 'worker',
+    kind: 'filter', label: 'Error-diffusion dither', execution: 'worker', hidden: true,
     description: 'Renders tones with few colors by spreading rounding error to neighbors (Floyd-Steinberg, Atkinson).',
     defaults: { type: 'errorDiffusion', method: 'floyd-steinberg', levels: 2, monochrome: true },
     sweeps: [{ param: 'method', values: ['floyd-steinberg', 'atkinson'] }, { param: 'levels', values: [2, 3, 4, 6] }, { param: 'monochrome', values: [true, false] }],
@@ -300,7 +309,7 @@ const registrations = Object.values(operationRegistry) as OperationRegistration[
 export const defaultOperations: PureRasterOperation[] =
   operationKinds.flatMap(({ kind }) =>
     registrations
-      .filter(r => r.kind === kind)
+      .filter(r => r.kind === kind && !r.hidden)
       .sort((a, b) => a.label.localeCompare(b.label))
       .map(r => r.defaults));
 

@@ -52,6 +52,11 @@ export type ResolvedOperation = PureRasterOperation extends infer O ? (O extends
 
 /** `op` with every size in this image's pixels. */
 export const resolveLengths = (op: PureRasterOperation, context: LengthContext): ResolvedOperation => {
+  if (op.type === 'dither' && op.method.type === 'ordered') {
+    // A size inside a method: the ordered dither's pixel size.
+    const pixelSize = Math.max(1, Math.round(resolveLength(op.method.pixelSize, context)));
+    return { ...op, method: { ...op.method, pixelSize } } as ResolvedOperation;
+  }
   const params = lengthParams[op.type];
   if (!params) return op as ResolvedOperation;
   const record = { ...op } as Record<string, unknown>;

@@ -314,6 +314,10 @@ function SpreadEditor({ node, onChange, inputs }: { node: VariationsNode & { var
                   onChange={e => setParam(i, spread.type === 'count' ? { ...spread, n: Number(e.target.value) } : { ...spread, by: Number(e.target.value) })} />
               </label>
             </div>
+            {spread.type === 'count' && (
+              <Segmented label="Spacing" value={spread.spacing ?? 'linear'} onChange={spacing => setParam(i, { ...spread, spacing: spacing === 'linear' ? undefined : spacing })}
+                options={[{ value: 'linear', label: 'Even steps' }, { value: 'geometric', label: 'Even ratios', disabled: spread.from <= 0 }]} />
+            )}
             <div className="mono" style={{ fontSize: 12, color: 'var(--c-muted)' }}>{values.map(v => formatSpreadValue(spread, v)).join(' · ')}</div>
           </div>
         );

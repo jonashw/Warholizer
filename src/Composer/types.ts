@@ -95,7 +95,8 @@ export type Variants =
 
 /** A numeric range of one parameter, divided by count or by step. Each adds one dimension. */
 export type Spread =
-  | { type: 'count', param: string, from: number, to: number, n: number, unit?: LengthUnit, bind?: string }
+  /** n values from `from` to `to`; geometric spacing keeps equal ratios (4, 6, 9, 13…), for sizes. */
+  | { type: 'count', param: string, from: number, to: number, n: number, spacing?: 'linear' | 'geometric', unit?: LengthUnit, bind?: string }
   | { type: 'skip-by', param: string, from: number, to: number, by: number, unit?: LengthUnit, bind?: string };
 
 /** Images grouped by the `by` dimensions (all but the newest when absent), one result per group. */

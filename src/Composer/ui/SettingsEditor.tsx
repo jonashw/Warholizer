@@ -3,7 +3,7 @@ import { ColorStopsInput } from "../../Warholizer/RasterOperations/PureRasterOpe
 import { PaletteReplacementsInput } from "../../Warholizer/RasterOperations/PureRasterOperation/editors/PaletteReplacementsInput";
 import { VisualCropModal } from "../../Warholizer/RasterOperations/PureRasterOperation/editors/VisualCropModal";
 import { operationRegistry, sweepsOf } from "../../Warholizer/RasterOperations/PureRasterOperation/registry";
-import { BlendingModes, Crop, LengthUnit, PaperSizes, PureRasterOperation, RotationOrigins, Size, Tone, TilingPatterns } from "../../Warholizer/RasterOperations/PureRasterOperation/types";
+import { BayerSize, BlendingModes, Crop, DiffusionMethod, Dither, LengthUnit, PaperSizes, PureRasterOperation, RotationOrigins, Size, Tone, TilingPatterns } from "../../Warholizer/RasterOperations/PureRasterOperation/types";
 import { byte } from "../../NumberTypes";
 import { numericParamOf, paramLabel } from "../spread";
 import { convertSize, isLengthParam, sizeOf, unitOf, unitsFor, valueOf } from "../../Warholizer/RasterOperations/PureRasterOperation/length";
@@ -226,6 +226,32 @@ function ToneSettings({ op, onChange, photoCount }: { op: Tone, onChange: (op: T
   );
 }
 
+function DitherSettings({ op, onChange }: { op: Dither, onChange: (op: Dither) => void }) {
+  const { method } = op;
+  return (
+    <>
+      <Segmented label="Dither method" value={method.type} onChange={type => onChange({
+        ...op, method: type === 'ordered' ? { type, matrixSize: 4, pixelSize: 1 } : { type, algorithm: 'floyd-steinberg' },
+      })} options={[{ value: 'ordered', label: 'Ordered' }, { value: 'error-diffusion', label: 'Error diffusion' }]} />
+      <span className="composer-hint">{method.type === 'ordered'
+        ? 'A regular Bayer pattern: crisp and graphic, like early screens and newsprint.'
+        : 'Spreads each pixel\'s rounding error to its neighbors: organic grain that keeps detail.'}</span>
+      {method.type === 'ordered' ? (
+        <>
+          <Choice label="Matrix" value={method.matrixSize} options={[2, 4, 8]} onChange={v => onChange({ ...op, method: { ...method, matrixSize: Number(v) as BayerSize } })} />
+          <NumberRow label="Pixel size" value={valueOf(method.pixelSize)} spec={n(1, 16, 1, 'px')} spreading={false}
+            onChange={v => onChange({ ...op, method: { ...method, pixelSize: sizeOf(v, unitOf(method.pixelSize)) } })} />
+        </>
+      ) : (
+        <Choice label="Algorithm" value={method.algorithm} options={['floyd-steinberg', 'atkinson']}
+          onChange={v => onChange({ ...op, method: { ...method, algorithm: v as DiffusionMethod } })} />
+      )}
+      <NumberRow label="Levels" value={op.levels} spec={n(2, 16)} spreading={false} onChange={v => onChange({ ...op, levels: Math.max(2, Math.round(v)) })} />
+      <Toggle label="Monochrome" value={op.monochrome} onChange={v => onChange({ ...op, monochrome: v })} />
+    </>
+  );
+}
+
 /**
  * Composer's settings editor for one operation, driven by the registry: labeled sliders with
  * number fields, toggles, choices and colors. Numeric settings that can be spread offer it by a
@@ -245,6 +271,9 @@ export function SettingsEditor({ op, onChange, inputs, photoCount = 0, spreading
   const [cropping, setCropping] = React.useState(false);
   if (op.type === 'tone') {
     return <ToneSettings op={op} onChange={onChange} photoCount={photoCount} />;
+  }
+  if (op.type === 'dither') {
+    return <DitherSettings op={op} onChange={onChange} />;
   }
   const record = op as Record<string, unknown>;
   const set = (param: string, value: unknown) => onChange({ ...op, [param]: value } as PureRasterOperation);
