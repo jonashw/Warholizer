@@ -483,3 +483,33 @@ export const scalePlan = (plan: PagePlan, factor: number): PagePlan => {
     texts: plan.texts.map(t => ({ ...t, x: t.x * factor, y: t.y * factor, size: Math.max(6, t.size * factor) })),
   };
 };
+
+/**
+ * The 8-page mini-zine from one landscape sheet: 4 across, 2 down; the top row prints upside down
+ * (pages 5 4 3 2), the bottom row reads 6 7 8 1, so folding puts page 1 on the cover. Every 8 images
+ * make one sheet; missing pages stay blank.
+ */
+export const planMiniZine = ({ sizes, fit, align, gutter: g, page }: {
+  sizes: [number, number][], fit: Fit, align: Align, gutter: number, page: PageBox,
+}): PagePlan[] => {
+  const contentW = page.width - 2 * page.margin;
+  const contentH = page.height - 2 * page.margin;
+  const cw = (contentW - 3 * g) / 4;
+  const ch = (contentH - g) / 2;
+  const positions: Record<number, [number, number]> = { 5: [0, 0], 4: [0, 1], 3: [0, 2], 2: [0, 3], 6: [1, 0], 7: [1, 1], 8: [1, 2], 1: [1, 3] };
+  const sheets: PagePlan[] = [];
+  for (let start = 0; start < Math.max(1, sizes.length); start += 8) {
+    const images: PlacedImage[] = [];
+    for (let p = 1; p <= 8; p++) {
+      const index = start + p - 1;
+      if (index >= sizes.length) continue;
+      const [row, col] = positions[p];
+      images.push({
+        index, x: page.margin + col * (cw + g), y: page.margin + row * (ch + g), w: cw, h: ch,
+        fit: fit === 'cover' ? 'cover' : 'contain', align, flipX: row === 0, flipY: row === 0,
+      });
+    }
+    sheets.push({ width: page.width, height: page.height, background: page.background, images, texts: [] });
+  }
+  return sheets;
+};

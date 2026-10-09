@@ -30,10 +30,11 @@ export const layout = (changes: Partial<Layout> = {}): Layout => ({
 });
 
 /** The entry points the editor offers for Layout. */
-export type LayoutPreset = 'tile' | 'line' | 'crosstab' | 'sheet';
+export type LayoutPreset = 'tile' | 'line' | 'crosstab' | 'sheet' | 'zine';
 
 export const presetOf = (l: Layout): LayoutPreset =>
-  l.placement.type === 'by-dimensions' ? 'crosstab'
+  l.placement.type === 'imposition' ? 'zine'
+  : l.placement.type === 'by-dimensions' ? 'crosstab'
   : l.frame.type === 'page' ? 'sheet'
   : (l.size.type === 'across' || l.size.type === 'down') && l.size.n === 'all' ? 'line'
   : 'tile';
@@ -46,6 +47,10 @@ export const withPreset = (l: Layout, preset: LayoutPreset, dims: { id: Dimensio
     case 'line': return { ...flow, frame: { type: 'free' }, size: { type: 'across', n: 'all' }, fit: l.fit === 'contain' ? 'natural' : l.fit };
     case 'sheet': return { ...flow, frame: { type: 'page', distribution: { type: 'one-cell-per-image', overflow: 'spill' } },
       size: l.size.type === 'across' && l.size.n !== 'all' ? l.size : { type: 'across', n: 3 } };
+    case 'zine': return {
+      ...l, placement: { type: 'imposition', scheme: 'mini-zine-8' }, pattern: 'normal', labels: 'none',
+      frame: { type: 'page', distribution: { type: 'one-cell-per-image', overflow: 'spill' } },
+    };
     case 'crosstab': return {
       ...l, pattern: 'normal', labels: 'headers',
       placement: { type: 'by-dimensions', rows: dims.length > 1 ? [dims[dims.length - 2].id] : [], columns: dims.length ? [dims[dims.length - 1].id] : [] },

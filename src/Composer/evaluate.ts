@@ -1,6 +1,6 @@
 import { resolveLength, resolveLengths } from "../Warholizer/RasterOperations/PureRasterOperation/length";
 import { defaultFormat, formatToPixels, pageBoxOf, pagePixels } from "./formats";
-import { PageBox, PagePlan, planCrosstab, planFlow, withReading } from "./layoutPlan";
+import { PageBox, PagePlan, planCrosstab, planFlow, planMiniZine, withReading } from "./layoutPlan";
 import { isGroupAware } from "../Warholizer/RasterOperations/PureRasterOperation/registry";
 import { PureRasterOperation } from "../Warholizer/RasterOperations/PureRasterOperation/types";
 import { dealShuffled, groupCells, normalize, unionDimensions, uniqueName } from "./cube";
@@ -21,6 +21,10 @@ export type ImageOps<Img> = {
   size?: (image: Img) => [number, number],
   /** Draws one planned page or canvas of a Layout from the group's images. */
   compose: (plan: PagePlan, images: Img[]) => Promise<Img>,
+  /** Each pixel's mean or median across the images (all drawn at the first image's size). */
+  average: (images: Img[], kind: 'mean' | 'median') => Promise<Img>,
+  /** The images as animation frames: one common size, each image contained and centered. */
+  frames: (images: Img[]) => Promise<Img[]>,
 };
 
 /** Settings that come from the composition rather than from any one step. */
@@ -275,10 +279,24 @@ const evaluateCombine = async <Img>(node: CombineNode, input: Cube<Img>, ops: Im
   }
   const by = combineBy(node, input.dimensions);
   const groups = groupCells(input, by);
-  const images = await Promise.all(groups.map(async group => (await ops.apply(method, group.cells.map(c => c.image)))[0]));
-  const cells = groups.flatMap((group, i) => images[i] === undefined ? [] : [{
-    coords: group.coords, image: images[i], scale: group.cells[0]?.scale, frame: group.cells[0]?.frame,
-  }]);
+  const cells = (await Promise.all(groups.map(async (group): Promise<Cell<Img>[]> => {
+    const images = group.cells.map(c => c.image);
+    const base = { coords: group.coords, scale: group.cells[0]?.scale, frame: group.cells[0]?.frame };
+    if (images.length === 0) return [];
+    switch (method.type) {
+      case 'stack': {
+        const [image] = await ops.apply(method, images);
+        return image === undefined ? [] : [{ ...base, image }];
+      }
+      case 'mean':
+      case 'median':
+        return [{ ...base, image: await ops.average(images, method.type) }];
+      case 'animate': {
+        const frames = await ops.frames(images);
+        return [{ ...base, image: frames[0], animation: { frames, frameMs: method.frameMs, bounce: method.bounce } }];
+      }
+    }
+  }))).flat();
   return normalize(input.dimensions.filter(d => by.includes(d.id)), cells);
 };
 
@@ -298,7 +316,7 @@ const evaluateLayout = async <Img>(node: CombineNode, layout: Layout, input: Cub
   const groups = groupCells(input, by);
   const { frame, placement } = layout;
   const distribution = frame.type === 'page' ? frame.distribution : undefined;
-  const spills = distribution?.type === 'one-cell-per-image' && distribution.overflow === 'spill';
+  const spills = (distribution?.type === 'one-cell-per-image' && distribution.overflow === 'spill') || placement.type === 'imposition';
   const pageId = `${node.id}:page`;
   const unplaced = input.dimensions.filter(d => !by.includes(d.id));
   const label = (cell: Cell<Img>, d: Dimension) => d.members.find(m => m.key === cell.coords[d.id])?.label ?? '–';
@@ -317,6 +335,11 @@ const evaluateLayout = async <Img>(node: CombineNode, layout: Layout, input: Cub
     if (placement.type === 'flow') {
       const captions = group.cells.map(c => unplaced.map(d => label(c, d)).join(' · '));
       plans = planFlow({ sizes, captions, layout, gutter, cellLength, page });
+    } else if (placement.type === 'imposition') {
+      // Imposition is for paper: the page is the format's, turned landscape.
+      const box = page ?? pageBoxOf(format, scale);
+      const landscape = box.width >= box.height ? box : { ...box, width: box.height, height: box.width };
+      plans = planMiniZine({ sizes, fit: layout.fit, align: layout.align, gutter, page: landscape });
     } else {
       const rowDims = placement.rows.flatMap(id => input.dimensions.filter(d => d.id === id));
       const columnDims = placement.columns.flatMap(id => input.dimensions.filter(d => d.id === id));
@@ -350,7 +373,7 @@ const evaluateLayout = async <Img>(node: CombineNode, layout: Layout, input: Cub
       coords: { ...group.coords, ...(spills ? { [pageId]: `${k + 1}` } : {}) },
       image,
       scale,
-      frame: page ? format : undefined,
+      frame: page || placement.type === 'imposition' ? format : undefined,
     }));
   }));
   const cells = results.flat();

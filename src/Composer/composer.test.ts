@@ -537,3 +537,49 @@ describe('suggestions', () => {
     expect(s.apply!(root).children).toEqual([kept]);
   });
 });
+
+describe('v1.1: blends, animation, zines, shared palettes', () => {
+  const gray = (v: number) => [v, v, v, 255] as [number, number, number, number];
+
+  it('Mean and Median blend each pixel across a group', async () => {
+    const images = [solid(4, 4, gray(0)), solid(4, 4, gray(30)), solid(4, 4, gray(240))];
+    const mean = await evaluate(combine({ type: 'mean' }, []), photoCube(images), canvasOps);
+    expect(pixel(mean.cells[0].image, 1, 1)[0]).toBe(90);
+    const median = await evaluate(combine({ type: 'median' }, []), photoCube(images), canvasOps);
+    expect(pixel(median.cells[0].image, 1, 1)[0]).toBe(30);
+  });
+
+  it('Animate makes one animated result per group, frames in cube order at one size', async () => {
+    const out = await evaluate(combine({ type: 'animate', frameMs: 200, bounce: true }, []), photoCube([solid(4, 4, RED), solid(8, 4, BLUE)]), canvasOps);
+    expect(out.cells).toHaveLength(1);
+    const a = out.cells[0].animation!;
+    expect(a.frames.map(f => [f.width, f.height])).toEqual([[8, 4], [8, 4]]);
+    expect(colorDistance(pixel(a.frames[1], 4, 2), BLUE)).toBe(0);
+    const { gifOf, playOrder } = await import('./export/gif');
+    expect(playOrder([1, 2, 3, 4], true)).toEqual([1, 2, 3, 4, 3, 2]);
+    const bytes = new Uint8Array(await gifOf(a.frames, a.frameMs, false).arrayBuffer());
+    expect(new TextDecoder().decode(bytes.slice(0, 6))).toBe('GIF89a');
+  });
+
+  it('a mini-zine puts 8 pages on one landscape sheet, top row upside down, cover bottom right', async () => {
+    const { planMiniZine } = await import('./layoutPlan');
+    const [sheet] = planMiniZine({ sizes: squares(8), fit: 'contain', align: 'center', gutter: 0, page: { width: 1100, height: 850, margin: 0, background: 'white' } });
+    const at = (page: number) => sheet.images.find(i => i.index === page - 1)!;
+    expect([at(1).x, at(1).y, at(1).flipX]).toEqual([825, 425, false]);
+    expect([at(5).x, at(5).y, at(5).flipX, at(5).flipY]).toEqual([0, 0, true, true]);
+    expect([at(8).x, at(8).y]).toEqual([550, 425]);
+    const root = sequence(variationsList(allPerImage, ...Array.from({ length: 10 }, () => operationNode({ type: 'noop' }))), combine(layout({ placement: { type: 'imposition', scheme: 'mini-zine-8' } }), []));
+    const out = await shape(root, 1);
+    expect(out.cells.map(c => [c.image.width, c.image.height])).toEqual([[3300, 2550], [3300, 2550]]);
+  });
+
+  it('a shared palette gives every image in the group the same colors', async () => {
+    const op: Node = { kind: 'operation', id: 'q', op: { type: 'quantize', colors: 2, replacements: [], palette: 'shared' } };
+    const out = await evaluate(op, photoCube([bands(2, 1, [gray(10), gray(60)]), bands(2, 1, [gray(200), gray(250)])]), canvasOps);
+    const colors = new Set(out.cells.flatMap(c => [pixel(c.image, 0, 0)[0], pixel(c.image, 1, 0)[0]]));
+    expect(colors.size).toBe(2);
+    const each = await evaluate({ ...op, op: { type: 'quantize', colors: 2, replacements: [], palette: 'each' } } as Node,
+      photoCube([bands(2, 1, [gray(10), gray(60)]), bands(2, 1, [gray(200), gray(250)])]), canvasOps);
+    expect(new Set(each.cells.flatMap(c => [pixel(c.image, 0, 0)[0], pixel(c.image, 1, 0)[0]])).size).toBe(4);
+  });
+});

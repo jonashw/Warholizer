@@ -39,6 +39,10 @@ const choicesFor = (category: Category, dims: Dimension[], inList: boolean): Cho
       { key: 'crosstab', label: 'Crosstab', description: 'Layout: a labeled grid, one dimension down and another across.', make: () => combine(withPreset(layout(), 'crosstab', dims)) },
       { key: 'sheet', label: 'Sheet', description: 'Layout on a page of the format: each image once (spilling onto pages), or filling the page.', make: () => combine(withPreset(layout(), 'sheet', dims)) },
       { key: 'stack', label: 'Stack', description: 'Blend: each group\'s images layered with a blend mode.', make: () => combine({ type: 'stack', blendingMode: 'multiply' }) },
+      { key: 'mean', label: 'Mean', description: 'Blend: each pixel is the average of the group\'s images.', make: () => combine({ type: 'mean' }) },
+      { key: 'median', label: 'Median', description: 'Blend: each pixel is the middle value of the group\'s images.', make: () => combine({ type: 'median' }) },
+      { key: 'animate', label: 'Animate', description: 'The group\'s images become frames of an animation (GIF).', make: () => combine({ type: 'animate', frameMs: 400, bounce: false }) },
+      { key: 'zine', label: 'Zine', description: 'Eight images as an 8-page mini-zine on one sheet, ready to fold.', make: () => combine(withPreset(layout(), 'zine', dims)) },
     ];
     case 'pick': return [
       { key: 'pick', label: 'Pick', description: 'Keep some members of a dimension.', make: () => ({

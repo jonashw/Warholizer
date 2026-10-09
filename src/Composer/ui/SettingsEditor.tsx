@@ -43,6 +43,7 @@ const specs: Record<string, ParamSpec> = {
   paperSize: { kind: 'choice', options: PaperSizes.map(p => p.id) },
   about: { kind: 'choice', options: RotationOrigins },
   'colorKey.color': { kind: 'color', nullLabel: 'Edge color' },
+  'quantize.palette': { kind: 'choice', options: ['each', 'shared'] },
   stops: { kind: 'stops' },
   replacements: { kind: 'replacements' },
 };
@@ -52,7 +53,7 @@ const labels: Record<string, string> = {
   blendingMode: 'Blend mode', rowLength: 'Per row', paperSize: 'Paper', tilingPattern: 'Pattern', pixelSize: 'Pixel size',
   matrixSize: 'Matrix', cutLine: 'Cut line', monochromatic: 'Monochrome', w: 'Width', h: 'Height', n: 'Copies',
   'scale.x': 'Horizontal', 'scale.y': 'Vertical', degrees: 'Angle', percent: 'Amount', value: 'Level', stops: 'Colors (dark → light)',
-  replacements: 'Replace colors', about: 'About', unit: 'Unit',
+  replacements: 'Replace colors', about: 'About', unit: 'Unit', palette: 'Palette (each image, or shared by the group)',
 };
 
 const labelOf = (type: string, param: string) => {

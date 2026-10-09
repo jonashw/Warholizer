@@ -376,7 +376,10 @@ function LayoutEditor({ method, onChange, inputDimensions }: { method: Layout, o
   return (
     <>
       <Segmented label="Layout" value={preset} onChange={p => onChange(withPreset(method, p, inputDimensions))}
-        options={[{ value: 'tile', label: 'Tile' }, { value: 'line', label: 'Line' }, { value: 'crosstab', label: 'Crosstab' }, { value: 'sheet', label: 'Sheet' }]} />
+        options={[{ value: 'tile', label: 'Tile' }, { value: 'line', label: 'Line' }, { value: 'crosstab', label: 'Crosstab' }, { value: 'sheet', label: 'Sheet' }, { value: 'zine', label: 'Zine' }]} />
+      {placement.type === 'imposition' && (
+        <span className="composer-hint">8 images become an 8-page mini-zine on one landscape sheet of the format (cover first). Fold it in half three ways and cut the middle slit.</span>
+      )}
       <div className="composer-card">
         {placement.type === 'by-dimensions' ? (
           <>
@@ -503,17 +506,40 @@ function CombineEditor({ node, onChange, inputDimensions }: StepSheetProps & { n
   const setMethod = (m: CombineMethod) => onChange({ ...node, method: m });
   return (
     <>
-      <Segmented label="Combine kind" value={kind} onChange={k => setMethod(k === 'blend' ? { type: 'stack', blendingMode: 'multiply' } : layout())}
-        options={[{ value: 'layout', label: 'Layout' }, { value: 'blend', label: 'Blend' }]} />
-      {method.type === 'layout' ? (
-        <LayoutEditor method={method} onChange={setMethod} inputDimensions={inputDimensions} />
-      ) : (
+      <Segmented label="Combine kind" value={kind} onChange={k => setMethod(
+        k === 'blend' ? { type: 'stack', blendingMode: 'multiply' }
+        : k === 'animate' ? { type: 'animate', frameMs: 400, bounce: false }
+        : layout())}
+        options={[{ value: 'layout', label: 'Layout' }, { value: 'blend', label: 'Blend' }, { value: 'animate', label: 'Animate' }]} />
+      {method.type === 'layout' && <LayoutEditor method={method} onChange={setMethod} inputDimensions={inputDimensions} />}
+      {(method.type === 'stack' || method.type === 'mean' || method.type === 'median') && (
         <div className="composer-card">
-          <label className="composer-field">Blend mode
-            <select value={method.blendingMode} onChange={e => setMethod({ ...method, blendingMode: e.target.value as typeof method.blendingMode })}>
-              {BlendingModes.map(m => <option key={m} value={m}>{m}</option>)}
-            </select>
+          <Segmented label="Blend method" value={method.type} onChange={t => setMethod(t === 'stack' ? { type: 'stack', blendingMode: 'multiply' } : { type: t })}
+            options={[{ value: 'stack', label: 'Stack' }, { value: 'mean', label: 'Mean' }, { value: 'median', label: 'Median' }]} />
+          {method.type === 'stack' ? (
+            <label className="composer-field">Blend mode
+              <select value={method.blendingMode} onChange={e => setMethod({ ...method, blendingMode: e.target.value as typeof method.blendingMode })}>
+                {BlendingModes.map(m => <option key={m} value={m}>{m}</option>)}
+              </select>
+            </label>
+          ) : (
+            <span className="composer-hint">{method.type === 'mean'
+              ? 'Each pixel becomes the average of the images: ghostly, like a long exposure.'
+              : 'Each pixel becomes the middle value of the images: what most of them agree on (it removes things that appear in only a few).'}</span>
+          )}
+        </div>
+      )}
+      {method.type === 'animate' && (
+        <div className="composer-card">
+          <label className="composer-field">Each frame
+            <input type="number" min={20} step={20} value={method.frameMs} onChange={e => setMethod({ ...method, frameMs: Math.max(20, Number(e.target.value)) })} /> ms
           </label>
+          <div className="composer-setting composer-setting-inline">
+            <span>Back and forth</span>
+            <button type="button" role="switch" aria-checked={method.bounce} aria-label="Back and forth" className="composer-switch"
+              onClick={() => setMethod({ ...method, bounce: !method.bounce })}><span /></button>
+          </div>
+          <span className="composer-hint">Frames are the group's images in cube order; animations export as GIF.</span>
         </div>
       )}
       <ByChips label="By: one result per" dimensions={inputDimensions} by={node.by} autoLabel="Auto" onChange={by => onChange({ ...node, by })} />

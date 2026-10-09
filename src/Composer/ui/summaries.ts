@@ -40,7 +40,10 @@ export const nodeSummary = (node: Node, dimensions: Dimension[]): string => {
     case 'combine': {
       const by = node.by ? node.by.map(id => dimensionName(dimensions, id)).join(', ') || 'everything' : 'auto';
       const m = node.method;
-      if (m.type !== 'layout') return `${m.blendingMode} · by ${by}`;
+      if (m.type === 'stack') return `${m.blendingMode} · by ${by}`;
+      if (m.type === 'animate') return `${m.frameMs} ms a frame${m.bounce ? ', back and forth' : ''} · by ${by}`;
+      if (m.type !== 'layout') return `each pixel's ${m.type} · by ${by}`;
+      if (m.placement.type === 'imposition') return `8-page mini-zine, cover first · by ${by}`;
       const names = (ids: string[]) => ids.map(id => dimensionName(dimensions, id)).join(' × ') || 'none';
       const where = m.placement.type === 'by-dimensions'
         ? `${names(m.placement.rows)} down, ${names(m.placement.columns)} across`

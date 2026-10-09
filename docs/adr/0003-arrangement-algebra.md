@@ -86,7 +86,7 @@ and Reference = FirstInGroup | GroupMean | Photo of int
 
 Match histogram keeps each pixel's brightness rank and assigns the reference's brightness at that rank. Auto-levels and Match histogram are **group-aware**: with *by*, statistics are computed per group ("Match histogram by Photo" makes each photo's variations consistent with each other). All three methods compile to a per-channel 256-entry curve applied by one GPU kernel.
 
-Other operations following the principle: **Halftone** (`smooth` | `classic`), **Dither** (`ordered` with Bayer size | `error-diffusion` with Floyd–Steinberg or Atkinson; consolidates two current operations), **Combine** (Layout | Blend | Animate), and **Spread** (Count | Skip by).
+Other operations following the principle: **Halftone** (`smooth` | `classic`), **Dither** (`ordered` with Bayer size | `error-diffusion` with Floyd–Steinberg or Atkinson; consolidates two current operations), **Combine** (Layout | Blend (Stack, Mean, Median) | Animate), and **Spread** (Count | Skip by).
 
 ### Dimension names
 
@@ -310,7 +310,7 @@ sequence
 | Version | Scope |
 |---|---|
 | **v1** | Composer route; Composition document; types, canonical JSON, read-only text view; Sequence; Variations with all three distributions; Variations as **List** or **Spread** (Count, Skip by) with Expand and long-press "Spread this"; dimension binders; Effects and Separate operations from the registry; **Tone** (manual levels, auto-levels, match histogram; group-aware via *by*); Combine: Layout (Tile, Line, Print sheet, Crosstab with labels) and Blend (Stack) with *by*; Pick; Pivot; live dimension and count inference; seeds and Reroll; the Warhol duotone grid as a sample Composition |
-| **v1.1** | Combine · Animate (images to animation frames); other group-aware effects (shared palette quantize); Dither consolidation; Blend · Mean and Median; geometric Spread spacing; caching, Pick pushdown, effect fusion |
+| **v1.1** | Built 2026-10-09: Combine · Animate (frames in cube order, GIF export), Blend · Mean and Median, shared-palette Quantize (group-aware), Layout imposition (8-page mini-zine). Still to do: Dither consolidation; geometric Spread spacing; caching, Pick pushdown, effect fusion |
 | **v1.2** (in order) | Length (px, relative, physical; lpi for halftone) and plan-before-render resolution; Formats, frames and the Format step; Layout (Flow and ByDimensions with nested headers, fit, align, patterns, pages with both distributions and overflow), replacing Tile, Line, Crosstab and print set in Composer; one-image-per-variant; multi-page PDF and export settings; recipes: Merch pack, shared seed, role swap |
 | **v2** | Per-cell measures and data-driven arrangement: constraint-based selection (pick where, e.g. best contrast per photo), sort by (e.g. brightness), assignment by measurement (e.g. light photos get dark palettes), **Classify** (a derived dimension from a measurement, e.g. sort photos into brightness or hue buckets for a crosstab); **Spread · Distinct** (render many values, keep the *n* most visually different, so steps land where the image visibly changes); editable text with round-tripping |
 

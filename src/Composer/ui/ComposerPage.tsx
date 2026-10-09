@@ -22,6 +22,7 @@ import { defaultExportSettings, exportFiles, fileNameOf, resultAddress } from ".
 import { Segmented } from "./Segmented";
 import "./Composer.css";
 import { StepSheet } from "./StepSheet";
+import { AnimatedView } from "./AnimatedView";
 import { Suggestion, suggestionsFor } from "../suggestions";
 import { exportScaleOf, minimumPrintDpi, PhotoPrint, planPrint } from "../printPlan";
 import { kindLabel, nodeSummary, nodeSwatches, nodeTitle } from "./summaries";
@@ -774,13 +775,13 @@ function Viewer({ cube, root, photos, composition, options, printPlan, onSetting
       {cube.cells.map((c, i) => (
         <div key={i} style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
           <div style={{ position: 'relative' }}>
-            <CanvasView osc={c.image} />
+            {c.animation ? <AnimatedView frames={c.animation.frames} frameMs={c.animation.frameMs} bounce={c.animation.bounce} /> : <CanvasView osc={c.image} />}
             {guides && c.frame && <PageGuides format={c.frame} />}
           </div>
           <div className="composer-row" style={{ flexWrap: 'nowrap' }}>
             <span style={{ flexGrow: 1, fontSize: 12, color: '#b9bdc6' }}>{cellLabel(cube, i)}</span>
             <button type="button" className="composer-primary" style={{ height: 40 }} disabled={busy !== undefined} onClick={() => exportResults([i], `${i}`)}>
-              {busy === `${i}` ? 'Rendering…' : `Save ${settings.fileType.toUpperCase()}`}
+              {busy === `${i}` ? 'Rendering…' : `Save ${c.animation ? 'GIF' : settings.fileType.toUpperCase()}`}
             </button>
           </div>
         </div>

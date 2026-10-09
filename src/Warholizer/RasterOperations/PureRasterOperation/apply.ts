@@ -145,6 +145,19 @@ const smoothHalftone = async (input: OffscreenCanvas, op: Resolved<Halftone>): P
   });
 };
 
+/** Every input, downscaled side by side on one canvas: a sample for statistics across a group. */
+const sampleSheet = (inputs: OffscreenCanvas[], side = 128): OffscreenCanvas => {
+  const scaled = inputs.map(input => {
+    const s = Math.min(1, side / Math.max(1, input.width, input.height));
+    return [Math.max(1, Math.round(input.width * s)), Math.max(1, Math.round(input.height * s))] as const;
+  });
+  const sheet = new OffscreenCanvas(scaled.reduce((a, [w]) => a + w, 0), Math.max(...scaled.map(([, h]) => h)));
+  const ctx = sheet.getContext('2d')!;
+  let x = 0;
+  inputs.forEach((input, i) => { ctx.drawImage(input, x, 0, scaled[i][0], scaled[i][1]); x += scaled[i][0]; });
+  return sheet;
+};
+
 const applyOp = async (unresolved: PureRasterOperation, inputs: OffscreenCanvas[]): Promise<OffscreenCanvas[]> => {
   // Sizes arrive resolved from Composer; anything else is measured against the first input at full scale.
   const first = inputs[0];
@@ -278,11 +291,13 @@ const applyOp = async (unresolved: PureRasterOperation, inputs: OffscreenCanvas[
       return Promise.all(inputs.map(input => kernels.threshold(input, op.value)));
     case 'noise':
       return Promise.all(inputs.map(input => kernels.noise(input, op)));
-    case 'quantize':
+    case 'quantize': {
+      const shared = op.palette === 'shared' && inputs.length > 1 ? medianCutPalette(sampleSheet(inputs), op.colors) : undefined;
       return Promise.all(inputs.map(input => {
-        const palette = medianCutPalette(input, op.colors);
+        const palette = shared ?? medianCutPalette(input, op.colors);
         return kernels.mapToPalette(input, palette, paintColors(palette, op.replacements));
       }));
+    }
     case 'separateColors':
       return (await Promise.all(inputs.map(input => {
         const palette = medianCutPalette(input, op.colors);

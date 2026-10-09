@@ -1,5 +1,6 @@
 import { defaultFormat } from "../formats";
 import { Cell, Cube, ExportSettings, Format } from "../types";
+import { gifOf } from "./gif";
 import { buildPdf, PdfPage } from "./pdf";
 
 export const defaultExportSettings: ExportSettings = { fileType: 'png', pdf: 'one-document', resolution: 'final' };
@@ -57,6 +58,20 @@ export const exportFiles = async (
     return { jpeg: await jpegOf(cell.image), pixelWidth: cell.image.width, pixelHeight: cell.image.height, widthPt, heightPt, bleedPt };
   };
   const pdfBlob = (pages: PdfPage[]) => new Blob([buildPdf(pages) as BlobPart], { type: 'application/pdf' });
+  // Animations are GIFs whatever the file type; everything else follows the settings.
+  const animated = indexes.filter(i => cube.cells[i].animation);
+  const gifs = animated.map(i => {
+    const a = cube.cells[i].animation!;
+    return { name: fileNameOf(resultAddress(name, cube, i), 'gif'), blob: gifOf(a.frames, a.frameMs, a.bounce) };
+  });
+  const still = indexes.filter(i => !cube.cells[i].animation);
+  return [...gifs, ...(still.length ? await stillFiles(name, cube, still, settings, page, pdfBlob) : [])];
+};
+
+const stillFiles = async (
+  name: string, cube: Cube<OffscreenCanvas>, indexes: number[], settings: ExportSettings,
+  page: (i: number) => Promise<PdfPage>, pdfBlob: (pages: PdfPage[]) => Blob,
+): Promise<ExportFile[]> => {
   switch (settings.fileType) {
     case 'pdf':
       if (settings.pdf === 'one-document') {

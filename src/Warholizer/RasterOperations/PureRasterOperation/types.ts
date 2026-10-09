@@ -53,7 +53,11 @@ export type Resolved<T> = { [K in keyof T]: Exclude<T[K], Length> };
 export type Direction = 'up' | 'down' | 'left' | 'right';
 export type Invert = { type: "invert" };
 /** Reduce to a median-cut palette; `replacements[i]` (hex or null to keep) recolors the i-th darkest color. */
-export type Quantize = { type: "quantize", colors: number, replacements: (string | null)[] };
+export type Quantize = {
+  type: "quantize", colors: number, replacements: (string | null)[],
+  /** `shared`: one palette across all images passed together (a Composer group), so a series matches. */
+  palette?: 'each' | 'shared',
+};
 /** One image per palette color (as in Quantize), the rest transparent: screenprint/stencil separations. */
 export type SeparateColors = { type: "separateColors", colors: number, replacements: (string | null)[] };
 /** Remap tones: `black` and `white` points (0-255) and gamma (> 1 brightens midtones). */

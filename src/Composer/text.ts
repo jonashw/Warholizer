@@ -59,7 +59,11 @@ const lines = (node: Node, depth: number): string[] => {
     case 'combine': {
       const { method } = node;
       const by = node.by ? ` by: [${node.by.join(' ')}]` : '';
-      return [indent + (method.type === 'layout' ? layoutText(method) : operation(method)) + by];
+      const text = method.type === 'layout' ? layoutText(method)
+        : method.type === 'animate' ? `animate frame-ms: ${method.frameMs}${method.bounce ? ' bounce: true' : ''}`
+        : method.type === 'mean' || method.type === 'median' ? method.type
+        : operation(method);
+      return [indent + text + by];
     }
     case 'format': return [`${indent}format ${kebab(node.format.name.replace(/[^A-Za-z0-9]+/g, ' ').trim().replace(/ /g, '-'))} ${node.format.width} × ${node.format.height} ${node.format.unit}${node.format.unit === 'px' ? '' : ` ${node.format.dpi} dpi`}`];
     case 'pick': return [`${indent}pick ${node.dimension} ${Array.isArray(node.members) ? `in: [${node.members.join(' ')}]` : `= ${node.members}`}`];
@@ -73,7 +77,8 @@ export const layoutDistributionText = (d: LayoutDistribution): string =>
 /** A Layout, writing only what differs from the defaults (flow, contain, center, normal, no gutter, no labels, free). */
 const layoutText = (l: Layout): string => {
   const parts = ['layout'];
-  if (l.placement.type === 'by-dimensions') parts.push(`rows: [${l.placement.rows.join(' ')}] columns: [${l.placement.columns.join(' ')}]`);
+  if (l.placement.type === 'imposition') parts.push(`imposition: ${l.placement.scheme}`);
+  else if (l.placement.type === 'by-dimensions') parts.push(`rows: [${l.placement.rows.join(' ')}] columns: [${l.placement.columns.join(' ')}]`);
   else if (l.size.type === 'across' || l.size.type === 'down') parts.push(`${l.size.type}: ${l.size.n}`);
   else parts.push(`${l.size.type}: ${value(l.size.size)}`);
   if (l.fit !== 'contain') parts.push(`fit: ${l.fit}`);

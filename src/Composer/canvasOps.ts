@@ -69,9 +69,55 @@ export const drawPlan = (unlimited: PagePlan, images: OffscreenCanvas[]): Offscr
   return canvas;
 };
 
+/** Each pixel's mean or median across images drawn at the first image's size. */
+export const averageImages = (images: OffscreenCanvas[], kind: 'mean' | 'median'): OffscreenCanvas => {
+  const { width, height } = images[0];
+  const data = images.map(image => {
+    const c = new OffscreenCanvas(width, height);
+    const ctx = c.getContext('2d')!;
+    ctx.drawImage(image, 0, 0, width, height);
+    return ctx.getImageData(0, 0, width, height).data;
+  });
+  const out = new OffscreenCanvas(width, height);
+  const ctx = out.getContext('2d')!;
+  const result = ctx.createImageData(width, height);
+  const n = data.length;
+  const values = new Float64Array(n);
+  for (let i = 0; i < result.data.length; i++) {
+    if (kind === 'mean') {
+      let sum = 0;
+      for (let k = 0; k < n; k++) sum += data[k][i];
+      result.data[i] = sum / n;
+    } else {
+      for (let k = 0; k < n; k++) values[k] = data[k][i];
+      values.sort();
+      result.data[i] = n % 2 ? values[(n - 1) / 2] : (values[n / 2 - 1] + values[n / 2]) / 2;
+    }
+  }
+  ctx.putImageData(result, 0, 0);
+  return out;
+};
+
+/** Frames of one size (the largest), each image contained and centered on white. */
+export const framesOf = (images: OffscreenCanvas[]): OffscreenCanvas[] => {
+  const width = Math.max(...images.map(i => i.width));
+  const height = Math.max(...images.map(i => i.height));
+  return images.map(image => {
+    const c = new OffscreenCanvas(width, height);
+    const ctx = c.getContext('2d')!;
+    ctx.fillStyle = '#ffffff';
+    ctx.fillRect(0, 0, width, height);
+    const s = Math.min(width / image.width, height / image.height);
+    ctx.drawImage(image, (width - image.width * s) / 2, (height - image.height * s) / 2, image.width * s, image.height * s);
+    return c;
+  });
+};
+
 /** Image operations on canvases, through the raster engine. */
 export const canvasOps: ImageOps<OffscreenCanvas> = {
   apply,
   size: image => [image.width, image.height],
   compose: async (plan, images) => drawPlan(plan, images),
+  average: async (images, kind) => averageImages(images, kind),
+  frames: async images => framesOf(images),
 };

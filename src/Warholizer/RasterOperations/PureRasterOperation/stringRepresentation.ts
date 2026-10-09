@@ -29,7 +29,7 @@ export const stringRepresentation = (op: PureRasterOperation): string => {
     case 'void'      : return `void`;
     case 'noise'     : return `noise(${op.amount}%,mono:${op.monochromatic})`;
     case 'fill'      : return `fill(${op.color})`;
-    case 'quantize'  : return `quantize(${op.colors}${op.replacements.some(r => r) ? `, ${op.replacements.map(r => r ?? '_').join(' ')}` : ''})`;
+    case 'quantize'  : return `quantize(${op.colors}${op.palette === 'shared' ? ', shared palette' : ''}${op.replacements.some(r => r) ? `, ${op.replacements.map(r => r ?? '_').join(' ')}` : ''})`;
     case 'separateColors': return `separateColors(${op.colors}${op.replacements.some(r => r) ? `, ${op.replacements.map(r => r ?? '_').join(' ')}` : ''})`;
     case 'tone'      : return op.method.type === 'manual' ? `tone(manual, ${op.method.black}, ${op.method.white}, γ${op.method.gamma})`
       : op.method.type === 'auto' ? `tone(auto, clip ${op.method.clip}%)`

@@ -27,6 +27,7 @@
     "@react-oauth/google": "^0.13.4",
     "aws4fetch": "^1.0.20",
     "drizzle-orm": "^0.45.1",
+    "gifenc": "^1.0.3",
     "google-auth-library": "^11.2.0",
     "hsluv-ts": "^1.0.1",
     "react": "^19.3.0",

@@ -101,9 +101,12 @@ export type Spread =
 /** Images grouped by the `by` dimensions (all but the newest when absent), one result per group. */
 export type CombineNode = { kind: 'combine', id: NodeId, method: CombineMethod, by?: DimensionId[] };
 
-export type CombineMethod = Layout | Blend;
-export type Blend = Stack;
-export type CombineKind = 'layout' | 'blend';
+export type CombineMethod = Layout | Blend | Animate;
+/** Overlay a group's images into one: stacked with a blend mode, or each pixel's mean or median. */
+export type Blend = Stack | { type: 'mean' } | { type: 'median' };
+/** A group's images become the frames of one animation, in cube order. */
+export type Animate = { type: 'animate', frameMs: number, bounce: boolean };
+export type CombineKind = 'layout' | 'blend' | 'animate';
 
 /**
  * Images placed into a grid of layout cells (ADR 0003, Layout): Tile, Line, Crosstab and Sheet
@@ -127,7 +130,9 @@ export type Reading = { horizontal: 'ltr' | 'rtl', vertical: 'ttb' | 'btt' };
 
 export type Placement =
   | { type: 'flow' }
-  | { type: 'by-dimensions', rows: DimensionId[], columns: DimensionId[] };
+  | { type: 'by-dimensions', rows: DimensionId[], columns: DimensionId[] }
+  /** Pages arranged for folding: the 8-page mini-zine from one sheet (pages in cube order, cover first). */
+  | { type: 'imposition', scheme: 'mini-zine-8' };
 
 /** How big each cell is: so many across or down (all: one line), or a width or height. */
 export type LayoutSize =
@@ -164,13 +169,16 @@ export type Dimension = { id: DimensionId, name: string, members: Member[] };
 /**
  * One image at its coordinates; a dimension that does not apply to the cell is absent. `scale` is
  * the image's pixels per original photo pixel (below 1 in previews; 1 when absent), so sizes
- * resolve the same at every resolution.
+ * resolve the same at every resolution. An animated cell's image is its first frame.
  */
-export type Cell<Img> = { coords: Record<DimensionId, MemberKey>, image: Img, scale?: number, frame?: Format };
+export type Cell<Img> = {
+  coords: Record<DimensionId, MemberKey>, image: Img, scale?: number, frame?: Format,
+  animation?: { frames: Img[], frameMs: number, bounce: boolean },
+};
 
 export type Cube<Img> = { dimensions: Dimension[], cells: Cell<Img>[] };
 
 export const PHOTO: DimensionId = 'photo';
 
 export const combineKindOf = (method: CombineMethod): CombineKind =>
-  method.type === 'stack' ? 'blend' : 'layout';
+  method.type === 'layout' ? 'layout' : method.type === 'animate' ? 'animate' : 'blend';

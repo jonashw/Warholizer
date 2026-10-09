@@ -6,10 +6,12 @@ import { CombineMethod, Member, Node, VariationsNode } from "./types";
 
 export const operationLabel = (op: PureRasterOperation) => operationRegistry[op.type].label;
 
-const presetLabels: Record<LayoutPreset, string> = { tile: 'Tile', line: 'Line', crosstab: 'Crosstab', sheet: 'Sheet' };
+const presetLabels: Record<LayoutPreset, string> = { tile: 'Tile', line: 'Line', crosstab: 'Crosstab', sheet: 'Sheet', zine: 'Zine' };
 
 export const combineMethodLabel = (method: CombineMethod): string =>
-  method.type === 'layout' ? presetLabels[presetOf(method)] : operationLabel(method);
+  method.type === 'layout' ? presetLabels[presetOf(method)]
+  : method.type === 'mean' ? 'Mean' : method.type === 'median' ? 'Median' : method.type === 'animate' ? 'Animate'
+  : operationLabel(method);
 
 /** Short name of a node, for pills, members and the text view. */
 export const nodeLabel = (node: Node): string => {

@@ -93,9 +93,9 @@ export const operationRegistry: { [T in OperationType]: OperationRegistration<T>
     defaults: { type: 'tone', method: { type: 'auto', clip: 1 } },
   },
   quantize: {
-    kind: 'tone', label: 'Quantize', execution: 'gpu',
+    kind: 'tone', label: 'Quantize', execution: 'gpu', groupAware: true,
     description: 'Reduces the image to a few flat colors, optionally replacing each one.',
-    defaults: { type: 'quantize', colors: 4, replacements: [] },
+    defaults: { type: 'quantize', colors: 4, replacements: [], palette: 'each' },
     sweeps: [{ param: 'colors', values: [2, 3, 4, 6, 8, 12, 16] }, { param: 'replacements', values: [
       [], ['#000000', '#ff3399', '#ffcc00', '#ffffff'], ['#1a1a6e', '#00a0e0', '#ff6600', '#ffee88'],
       ['#222222', '#e63946', '#a8dadc', '#f1faee'], ['#2b2d42', '#8d99ae', '#ef233c', '#edf2f4'],
