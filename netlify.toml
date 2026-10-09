@@ -1,5 +1,6 @@
 [build]
-command = "npm run build && npx drizzle-kit migrate"
+# Lint, type-check (inside build) and the Node tests gate every deploy; migrations run only after they pass.
+command = "npm run lint && npx vitest run --project node && npm run build && npx drizzle-kit migrate"
 publish = "dist"
 functions = "api"
 

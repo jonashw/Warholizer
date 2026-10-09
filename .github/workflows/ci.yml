@@ -1,0 +1,32 @@
+name: CI
+
+# Every push and pull request: lint, the browser and Node test suites, and the production build.
+# (Pushes to main also deploy through Netlify, whose build runs lint, the type-check and the Node
+# tests before publishing, so a failing commit is not deployed.)
+on:
+  push:
+  pull_request:
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+      - run: npm ci
+      - name: Install Chromium for the browser tests
+        run: npx playwright install --with-deps chromium
+      - name: Lint
+        run: npm run lint
+      - name: Tests (browser and Node)
+        run: npx vitest run
+      - name: Build (type-check and bundle)
+        run: npm run build
