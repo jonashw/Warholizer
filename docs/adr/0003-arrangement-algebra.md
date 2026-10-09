@@ -44,8 +44,10 @@ A **Composition** is the Composer document: a tree of **nodes**. A node is an **
 | Distribution | Meaning |
 |---|---|
 | `all-per-image` | Every image goes through every variation (full cross product). |
-| `one-per-image, in-turn` | Image *n* goes through variation *n mod k*. |
-| `one-per-image, shuffled, seed` | Each image goes through one variation, assigned by dealing a seeded shuffled deck of the variations (balanced: with 6 images and 3 variations, each variation is used twice). |
+| `one-per-image(in-turn)` | Image *n* goes through variation *n mod k*. |
+| `one-per-image(shuffled(seed: 7))` | Each image goes through one variation, assigned by dealing a seeded shuffled deck of the variations (balanced: with 6 images and 3 variations, each variation is used twice). |
+
+The notation nests like the type constructors (`OnePerImage of Order`, `Shuffled of seed`).
 
 ### Operations, by what they do to the cube
 
@@ -53,11 +55,12 @@ A **Composition** is the Composer document: a tree of **nodes**. A node is an **
 |---|---|---|---|
 | **Effects** | image → image | unchanged | invert, levels, halftone, crop, rotate, gradient map, … |
 | **Drill-downs** | image → parts | adds one (Channel, Ink, Part, Color) | split, RGB channels, separate colors, CMYK |
-| **Roll-ups**, *by* dimensions | images → image per group | keeps only the *by* dimensions | tile, line, stack, print sheet, **crosstab** |
+| **Roll-ups**, *by* dimensions | images → image per group | keeps only the *by* dimensions | tile, line, stack, print sheet, **crosstab**; v1.1: **mean**, **median** |
 | **Pick** | cube → sub-cube | `= member` (slice) removes the dimension; `in [members]` (dice) keeps it, even for a list of one | pick |
 | **Pivot** | cube → cube | reorders dimensions | pivot |
 
 - **Roll-up grouping:** cells are grouped by the *by* dimensions (like SQL `GROUP BY`); each group becomes one image, combined in cube order. `by: []` makes one group. Default: all dimensions except the newest. Example phrasing: "Tile by Photo".
+- A roll-up node is exactly one of these kinds (they share the *by* control); separate roll-up nodes compose, e.g. `mean by: [photo, gradient map]` then `tile by: [photo]`.
 - **Crosstab:** a two-dimensional tile with **rows** = one dimension and **columns** = another, labeled with member names (a pivot table of images).
 - Copies, Noop, and Void are not Composer operations: copies is Variations of identical children; void is a Pick of nothing.
 
@@ -85,11 +88,20 @@ All randomness is seeded and therefore deterministic, testable, and cacheable:
     | Operation of Operation
     | Sequence of Node list
     | Variations of distribution: VariationDistribution * Node list
+    | Sweep of op: Operation * parameters: (string * Values) list * distribution: VariationDistribution
   and VariationDistribution =
     | AllPerImage
     | OnePerImage of Order
   and Order = InTurn | Shuffled of seed: int
+  and Values =
+    | Range of from: float * to: float * steps: int * spacing: Spacing
+    | List of Value list
+  and Spacing = Linear | Geometric
   ```
+
+### Sweep
+
+A **Sweep** generates Variations of one operation across values of one or more of its parameters (values: a range with linear or geometric spacing, or a list, which covers non-numeric parameters such as shapes or palettes). It stays a Sweep in the document, so editing the range regenerates its children; **Expand** converts it to plain Variations. Its dimension is named after the operation and parameter (*Halftone cell*), with the values as members; with several parameters it adds one dimension per parameter (their cross product). Distributions apply as for Variations.
 - **Storage:** canonical JSON (the formula format of ADR 0001).
 - **Text view:** indentation-based s-expressions with named arguments, one node per line, children indented:
   ```
@@ -132,7 +144,7 @@ Per-ink screen angles (drill-down, distribution in turn, roll-up):
 ```
 sequence
   rgb-channels
-  variations one-per-image in-turn
+  variations one-per-image(in-turn)
     halftone angle: 15
     halftone angle: 75
     halftone angle: 0
@@ -158,15 +170,11 @@ sequence
 | 1 | Posterize + Gradient map | B |
 | 1 | Halftone | – |
 
-Systematic exploration (a sweep in a crosstab):
+Systematic exploration (a two-parameter sweep in a crosstab, per photo):
 ```
 sequence
-  variations all-per-image                 (sweep: halftone cell 3 → 16)
-    halftone cell: 3
-    halftone cell: 6
-    halftone cell: 10
-    halftone cell: 16
-  crosstab rows: [photo] columns: [halftone]
+  sweep halftone cell: range(4, 16, steps: 4, spacing: geometric) angle: list(0, 15, 30, 45) all-per-image
+  crosstab rows: [halftone cell] columns: [halftone angle] by: [photo]
 ```
 
 ## Scope
@@ -174,8 +182,8 @@ sequence
 | Version | Scope |
 |---|---|
 | **v1** | Composer route; Composition document; types, canonical JSON, read-only text view; Sequence; Variations with all three distributions; **Sweep** (Variations generated from a parameter range); Effects and Drill-downs from the registry; Tile, Line, Stack, Print sheet with *by*; Crosstab with labels; Pick; Pivot; live dimension and count inference; seeds and Reroll; the Warhol duotone grid as a sample Composition |
-| **v1.1** | Animate (a roll-up to animation frames); group-aware effects (shared palette, auto-levels by group); Match histogram; Average and Median roll-ups; caching, Pick pushdown, effect fusion |
-| **v2** | Per-cell measures and data-driven arrangement (pick where, sort by, derived dimensions); editable text with round-tripping |
+| **v1.1** | Animate (a roll-up to animation frames); group-aware effects (shared palette, auto-levels by group); Match histogram; Mean and Median roll-ups; caching, Pick pushdown, effect fusion |
+| **v2** | Per-cell measures and data-driven arrangement: constraint-based selection (pick where, e.g. best contrast per photo), sort by (e.g. brightness), assignment by measurement (e.g. light photos get dark palettes), derived dimensions (e.g. hue bucket in a crosstab); editable text with round-tripping |
 
 ## Future directions (from treating compositions as an AST)
 
