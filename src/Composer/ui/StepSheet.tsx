@@ -1,6 +1,6 @@
 import React from "react";
 import { CanvasView } from "../../CanvasView";
-import { PureRasterOperationInlineEditor } from "../../Warholizer/RasterOperations/PureRasterOperation/PureRasterOperationInlineEditor";
+import { isGroupAware } from "../../Warholizer/RasterOperations/PureRasterOperation/registry";
 import { BlendingModes, Direction, PureRasterOperation } from "../../Warholizer/RasterOperations/PureRasterOperation/types";
 import { allPerImage, newId, newSeed, operationNode, variationsSpread } from "../build";
 import { canvasOps } from "../canvasOps";
@@ -10,6 +10,8 @@ import { defaultSpread, formatParamValue, numericParamOf, numericParamsOf, param
 import {
   CombineMethod, CombineNode, Dimension, Node, OperationNode, PickNode, PivotNode, Spread, VariationDistribution, VariationsNode, combineKindOf,
 } from "../types";
+import { Segmented } from "./Segmented";
+import { SettingsEditor } from "./SettingsEditor";
 import { kindLabel, nodeTitle } from "./summaries";
 
 export type StepSheetProps = {
@@ -20,6 +22,7 @@ export type StepSheetProps = {
   sampleInput?: OffscreenCanvas,
   /** All rendered images arriving at this step, for visual editors (crop, palettes). */
   inputs?: () => Promise<OffscreenCanvas[]>,
+  photoCount: number,
   onChange: (node: Node) => void,
   onDelete: () => void,
   onMove: (delta: -1 | 1) => void,
@@ -27,20 +30,6 @@ export type StepSheetProps = {
   onAddVariant: (variationsId: string) => void,
   onClose: () => void,
 };
-
-export function Segmented<T extends string>({ value, options, onChange, label }: {
-  value: T, options: { value: T, label: string, disabled?: boolean }[], onChange: (v: T) => void, label: string,
-}) {
-  return (
-    <div className="composer-segmented" role="group" aria-label={label}>
-      {options.map(o => (
-        <button key={o.value} type="button" aria-pressed={o.value === value} disabled={o.disabled} onClick={() => onChange(o.value)}>
-          {o.label}
-        </button>
-      ))}
-    </div>
-  );
-}
 
 export function StepSheet(props: StepSheetProps) {
   const { node, onDelete, onMove, onClose } = props;
@@ -78,50 +67,62 @@ function StepEditor(props: StepSheetProps) {
   }
 }
 
-const withoutId = ({ id: _id, ...op }: PureRasterOperation & { id: string }): PureRasterOperation => {
-  void _id;
-  return op as PureRasterOperation;
-};
-
-function OpSettings({ op, id, onChange, inputs }: { op: PureRasterOperation, id: string, onChange: (op: PureRasterOperation) => void, inputs?: () => Promise<OffscreenCanvas[]> }) {
-  return (
-    <div className="composer-op-settings">
-      <PureRasterOperationInlineEditor value={{ ...op, id }} onChange={r => onChange(withoutId(r))} inputs={inputs} />
-    </div>
-  );
-}
-
 function OperationEditor(props: StepSheetProps & { node: OperationNode }) {
-  const { node, onChange, sampleInput, inputs } = props;
-  const params = numericParamsOf(node.op.type);
+  const { node, onChange, sampleInput, inputs, photoCount, inputDimensions } = props;
   const [spreading, setSpreading] = React.useState<string>();
-  const param = params.find(p => p.param === spreading);
+  const peek = spreading !== undefined && numericParamOf(node.op.type, spreading) !== undefined;
   return (
     <>
-      <OpSettings op={node.op} id={node.id} inputs={inputs} onChange={op => onChange({ ...node, op })} />
-      {params.length > 0 && (
-        <div className="composer-card">
-          <span className="composer-section-label">Spread a setting</span>
-          <div className="composer-row">
-            {params.map(p => (
-              <button key={p.param} type="button" className={'composer-chip' + (p.param === spreading ? ' on' : '')}
-                aria-pressed={p.param === spreading} onClick={() => setSpreading(p.param === spreading ? undefined : p.param)}>
-                {paramLabel(p.param)}
-              </button>
-            ))}
-          </div>
-          {param && (
+      <SettingsEditor
+        op={node.op}
+        inputs={inputs}
+        photoCount={photoCount}
+        onChange={op => onChange({ ...node, op })}
+        spreading={peek ? spreading : undefined}
+        onSpread={param => setSpreading(param === spreading ? undefined : param)}
+        spreadPanel={peek && (
+          <div className="composer-card">
             <SpreadPeek
-              key={param.param}
+              key={spreading}
               op={node.op}
-              spread={defaultSpread(node.op.type, param.param)}
+              spread={defaultSpread(node.op.type, spreading!)}
               sampleInput={sampleInput}
               onSpread={spread => onChange({ ...variationsSpread(allPerImage, node.op, spread), id: node.id })}
             />
-          )}
-        </div>
+          </div>
+        )} />
+      {numericParamsOf(node.op.type).length > 0 && (
+        <span className="composer-hint">Long-press a slider (or tap Spread) to vary that setting.</span>
+      )}
+      {isGroupAware(node.op) && (
+        <ByChips label="Statistics per group of" dimensions={inputDimensions} by={node.by}
+          autoLabel="All together" onChange={by => onChange({ ...node, by })} />
       )}
     </>
+  );
+}
+
+/** Chips choosing the `by` dimensions, with an automatic choice when none is written. */
+function ByChips({ label, dimensions, by, autoLabel, onChange }: {
+  label: string, dimensions: Dimension[], by?: string[], autoLabel: string, onChange: (by: string[] | undefined) => void,
+}) {
+  return (
+    <div className="composer-card">
+      <span className="composer-section-label">{label}</span>
+      <div className="composer-row">
+        <button type="button" className={'composer-chip' + (by === undefined ? ' on' : '')} aria-pressed={by === undefined}
+          onClick={() => onChange(undefined)}>{autoLabel}</button>
+        {dimensions.map(d => {
+          const on = by?.includes(d.id) ?? false;
+          return (
+            <button key={d.id} type="button" className={'composer-chip' + (on ? ' on' : '')} aria-pressed={on}
+              onClick={() => onChange(on ? (by ?? []).filter(id => id !== d.id) : [...(by ?? []), d.id])}>
+              {d.name}
+            </button>
+          );
+        })}
+      </div>
+    </div>
   );
 }
 
@@ -288,7 +289,7 @@ function SpreadEditor({ node, onChange, inputs }: { node: VariationsNode & { var
       </div>
       <details>
         <summary className="composer-section-label">Other {nodeLabel(operationNode(op))} settings</summary>
-        <OpSettings op={op} id={node.id} inputs={inputs} onChange={next => onChange({ ...node, variants: { ...node.variants, op: next } })} />
+        <SettingsEditor op={op} inputs={inputs} onChange={next => onChange({ ...node, variants: { ...node.variants, op: next } })} />
       </details>
     </>
   );

@@ -107,6 +107,12 @@ export default function ComposerPage() {
   };
 
   React.useEffect(() => {
+    const onKey = (e: KeyboardEvent) => { if (e.key === 'Escape') setSheet(undefined); };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, []);
+
+  React.useEffect(() => {
     loadSampleImages([sampleImageUrls.warhol, sampleImageUrls.banana, sampleImageUrls.soupCan])
       .then(images => setPhotos(images.map(asPhoto)));
     const onPaste = (event: ClipboardEvent) => {
@@ -234,13 +240,14 @@ export default function ComposerPage() {
 
       {sheet && sheet.type !== 'viewer' && (
         <>
-          <button type="button" className="composer-scrim" aria-label="Close" onClick={() => setSheet(undefined)} />
-          <div className={'composer-sheet' + (sheet.type === 'add' ? ' full' : '')} role="dialog" aria-modal="true">
+          {/* No scrim: the flow above stays live, so tapping another step switches to it. */}
+          <div className={'composer-sheet' + (sheet.type === 'add' ? ' full' : '')} role="dialog" aria-label="Step editor">
             {sheet.type === 'step' && sheetNode && (
               <StepSheet
                 key={sheetNode.id}
                 node={sheetNode}
                 inputDimensions={dimensionsInto(sheetNode.id)}
+                photoCount={photos.length}
                 sampleInput={rendered?.trace.get(sheetNode.id)?.input.cells[0]?.image}
                 inputs={async () => rendered?.trace.get(sheetNode.id)?.input.cells.map(c => c.image) ?? []}
                 onChange={node => setRoot(updateNode(root, sheetNode.id, () => node))}

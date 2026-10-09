@@ -6,7 +6,7 @@ import { allPerImage, combine, newId, operationNode, variationsList } from "../b
 import { canvasOps } from "../canvasOps";
 import { isSeparation } from "../labels";
 import { Dimension, Node, PHOTO } from "../types";
-import { Segmented } from "./StepSheet";
+import { Segmented } from "./Segmented";
 
 type Category = 'effects' | 'separate' | 'variations' | 'combine' | 'pick';
 
