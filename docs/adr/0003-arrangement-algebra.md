@@ -64,6 +64,30 @@ The notation nests like the type constructors (`OnePerImage of Order`, `Shuffled
 - **Crosstab:** a two-dimensional tile with **rows** = one dimension and **columns** = another, labeled with member names (a pivot table of images).
 - Copies, Noop, and Void are not Composer operations: copies is Variations of identical children; void is a Pick of nothing.
 
+### Alternatives are methods (sum types)
+
+Operations that answer the same question with different tradeoffs are **one operation with a `method` sum type**, and the registry records each method's strengths and weaknesses (shown in tooltips and the Add step menu), so the knowledge that they are alternatives travels with the type. One step chooses one method; steps still chain (e.g. Match histogram, then Manual levels to fine-tune).
+
+**Tone** (which tone curve should this image use?):
+
+```
+type Tone =
+  | ManualLevels of black: Byte * white: Byte * gamma: float
+  | AutoLevels of clip: Percent
+  | MatchHistogram of reference: Reference
+and Reference = FirstInGroup | GroupMean | Photo of int
+```
+
+| Method | Strengths | Weaknesses |
+|---|---|---|
+| **Manual levels** | Full control; predictable; good for fine-tuning one photo | Manual work; does not adapt to new photos |
+| **Auto-levels** | One click; adapts to each image; uses the full tonal range | Straight stretch keeps the curve's shape; outliers distort it (hence `clip`); can amplify noise |
+| **Match histogram** | Makes a series behave alike, so one recipe treats every photo the same; copies the whole curve, not only its endpoints | Only as good as the reference; very different sources can band; can pull a photo from its own character |
+
+Match histogram keeps each pixel's brightness rank and assigns the reference's brightness at that rank. Auto-levels and Match histogram are **group-aware**: with *by*, statistics are computed per group ("Match histogram by Photo" makes each photo's variations consistent with each other). All three methods compile to a per-channel 256-entry curve applied by one GPU kernel.
+
+Other operations following the principle: **Halftone** (`smooth` | `classic`), **Dither** (`ordered` with Bayer size | `error-diffusion` with Floyd–Steinberg or Atkinson; consolidates two current operations), and the **roll-up kind** (tile | line | stack | print sheet | crosstab | mean | median | animate).
+
 ### Dimension names
 
 - Variations of one operation type: named after the operation; members labeled by the differing parameter (Gradient map: navy → red, …; Halftone: 15°, 75°, 0°).
@@ -71,6 +95,9 @@ The notation nests like the type constructors (`OnePerImage of Order`, `Shuffled
 - Drill-downs name their dimension (Channel: R, G, B; Ink: C, M, Y, K; Part; Color).
 - Identical children are numbered; a repeated dimension name gets a suffix (Gradient map 2).
 - Dimensions are identified internally by the node that created them, so they can be renamed without breaking *by* or Pick references.
+- A Sweep or Variations may **bind** its dimension's name explicitly, like a comprehension variable: `sweep cell <- halftone.cell range(4, 16, steps: 4)`. Without a binder, the derived name applies; writing a binder is the rename.
+
+Sweeps and roll-ups read as comprehensions: two sweeps then a crosstab is `[halftone(photo, cell, angle) | photo <- photos, cell <- cells, angle <- angles] |> groupBy photo |> pivot rows: cell, columns: angle`. Dimensions are the comprehension's bound variables.
 
 ### Randomness
 
@@ -181,8 +208,8 @@ sequence
 
 | Version | Scope |
 |---|---|
-| **v1** | Composer route; Composition document; types, canonical JSON, read-only text view; Sequence; Variations with all three distributions; **Sweep** (Variations generated from a parameter range); Effects and Drill-downs from the registry; Tile, Line, Stack, Print sheet with *by*; Crosstab with labels; Pick; Pivot; live dimension and count inference; seeds and Reroll; the Warhol duotone grid as a sample Composition |
-| **v1.1** | Animate (a roll-up to animation frames); group-aware effects (shared palette, auto-levels by group); Match histogram; Mean and Median roll-ups; caching, Pick pushdown, effect fusion |
+| **v1** | Composer route; Composition document; types, canonical JSON, read-only text view; Sequence; Variations with all three distributions; **Sweep** with Expand; dimension binders; Effects and Drill-downs from the registry; **Tone** (manual levels, auto-levels, match histogram; group-aware via *by*); Tile, Line, Stack, Print sheet with *by*; Crosstab with labels; Pick; Pivot; live dimension and count inference; seeds and Reroll; the Warhol duotone grid as a sample Composition |
+| **v1.1** | Animate (a roll-up to animation frames); other group-aware effects (shared palette quantize); Dither consolidation; Mean and Median roll-ups; caching, Pick pushdown, effect fusion |
 | **v2** | Per-cell measures and data-driven arrangement: constraint-based selection (pick where, e.g. best contrast per photo), sort by (e.g. brightness), assignment by measurement (e.g. light photos get dark palettes), derived dimensions (e.g. hue bucket in a crosstab); editable text with round-tripping |
 
 ## Future directions (from treating compositions as an AST)
