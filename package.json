@@ -22,15 +22,11 @@
     "@netlify/functions": "^2.6.3",
     "@netlify/neon": "^0.1.2",
     "@react-oauth/google": "^0.13.4",
-    "@testing-library/react": "^14.2.1",
-    "@types/jest": "^29.5.12",
     "drizzle-orm": "^0.45.1",
     "google-auth-library": "^10.5.0",
     "hsluv-ts": "^1.0.1",
-    "immutable": "^4.3.6",
     "react": "^18.2.0",
     "react-beautiful-dnd": "^13.1.1",
-    "react-d3-dag": "^0.2.0",
     "react-dom": "^18.2.0",
     "react-force-graph-2d": "^1.25.4",
     "react-image-crop": "^11.0.5",
@@ -52,7 +48,6 @@
     "sass": "^1.77.4",
     "typescript": "^5.2.2",
     "vite": "^5.0.8",
-    "vite-plugin-mkcert": "^1.17.5",
     "vitest": "^3.2.7"
   }
 }
