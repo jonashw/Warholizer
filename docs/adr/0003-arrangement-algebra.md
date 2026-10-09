@@ -1,124 +1,201 @@
-# ADR 0003: Arrangement algebra
+# ADR 0003: Composer: compositions over image cubes
 
-- **Status:** Proposed
+- **Status:** Accepted (model and vocabulary); version 1 scope proposed
 - **Date:** 2026-10-09
 - **Deciders:** @jonashw
 
 ## Context
 
-The Pure Editor arranges operations with *applicators* (`pipe`, `flatMap`, `zip`), and since 2026-10-09 with one-level *groups* (`each`, `all`). Reviewing the model for semantic consistency, expressiveness, and conceptual purity:
+The Pure Editor arranges operations with *applicators* (`pipe`, `flatMap`, `zip`) and, since 2026-10-09, one-level groups (`each`, `all`). Reviewing that model for semantic consistency, expressiveness, and conceptual purity found:
 
-**The domain.** Every operation is a function from a list of images to a list of images. Operations already have three list behaviors:
-
-| Behavior | FP shape | Examples |
-|---|---|---|
-| Per image, one in, one out | `map f` | invert, levels, halftone, crop, rotate, grid, printSet |
-| Per image, one in, several out | `concatMap f` | split, rgbChannels, separateColors, cmykChannels |
-| Whole list | list function or fold | copies, void, noop, stack, line, tile |
-
-**Current combining constructs.**
-
-| Construct | Combines | Actual semantics |
-|---|---|---|
-| Arrangement (top level) | steps | composition |
-| `pipe` applicator | operations | composition |
-| `flatMap` applicator | operations | each operation applied to the same list, results concatenated: `concat (map ($ xs) ops)` (Arrow fanout, then concat) |
-| `zip` applicator | operations | operation *i* on image *i*: `concat (zipWith ($) ops (map pure xs))`; extra images dropped |
-| group `all` | applicators | composition |
-| group `each` | applicators | `concatMap pipeline xs`: the real flatMap (monadic bind on the image list) |
-
-**Problems.**
-
-1. "flatMap" names the wrong concept: the applicator is a fan-out; the group's `each` mode is the actual flatMap.
+1. "flatMap" names the wrong concept: the applicator is a fan-out; the group's `each` mode is the real flatMap (monadic bind on the image list).
 2. Composition is expressed three ways (top level, `pipe`, group `all`).
-3. Applicators and groups are the same abstraction (a container plus a combining rule) at two levels, with different capabilities: only operations can be dragged; applicators cannot move between groups.
-4. Combinators are not compositional: `flatMap` and `zip` combine only single operations, so pipelines cannot be fanned out or distributed.
-5. The one-level limit on groups is an editor convenience, not a semantic rule.
-6. Empty containers are inconsistent: an empty fan-out should yield nothing, but empty applicators are silently skipped (identity).
-7. `zip` silently drops images beyond the number of operations, which is rarely what an artist wants.
-8. `enabled` exists separately on applicators and groups with the same meaning.
+3. Applicators and groups are one abstraction (a container plus a combining rule) at two levels, with different capabilities.
+4. Combinators are not compositional: pipelines cannot be fanned out or distributed.
+5. `zip` silently drops images beyond the number of operations.
+6. Empty containers and `enabled` flags are handled inconsistently.
+7. Words like "per image", "pairwise", and "group by image or by operation first" are all about **which dimension** something acts along, but the model has no dimensions: images flow as a flat list.
 
-**When "for each image" matters.** Per-image operations behave the same with or without it. It matters only when the inside contains whole-list operations (tile, stack, copies, line): the mode decides which list those operations see.
+The last point is the key. After a fan-out, every image has coordinates (which photo, which variation): the data is a **cube**, and OLAP already has precise vocabulary for it (drill-down, roll-up, slice, dice, pivot).
+
+The Pure Editor and graph editor stay as they are. The cube model gets its own editor, **Composer**, built on the same image operations and engine (which were deliberately kept separate from how they are combined).
 
 ## Decision
 
-Replace applicators and groups with one recursive algebra. Every node is a function from images to images: either an **operation** (leaf) or a **composition**: a container with a **mode** and children (operations or compositions, to any depth). In code and docs, "node" means operation or composition.
+### Data: cubes of cells
 
-Modes answer *how* the children apply, so they are named as adverbial phrases ("a composition, in sequence"):
+- A **cube** is what flows between steps: an ordered collection of **cells** plus an ordered list of **dimensions**.
+- A **dimension** is an axis (Photo, Gradient map, Channel). A **member** is one value of a dimension (photo 2, plum → mustard, R).
+- A **cell** holds one **image** at its coordinates (one member per dimension, or "–" where a dimension does not apply: cubes may be sparse and ragged). In the editor, cells are simply "images".
+- The input cube has one dimension, **Photo**.
+- **Order:** cells are listed by their dimensions in dimension order: **by photo first**, then later dimensions in the order they were created. **Pivot** reorders dimensions.
 
-| Mode | Stored name | FP meaning | Meaning for artists |
-|---|---|---|---|
-| **In sequence** | `sequence` | composition (`>>>`) | Do these in order; each receives the previous one's output. |
-| **In parallel** | `parallel` | fanout, then concatenate | Each receives the same images; all results are collected. |
-| **Pairwise** | `pairwise` | zipWith over children | Child *n* receives image *n*. |
-| **Per image** | `perImage` | concatMap (bind) | Runs the inside on each image separately; results in image order. |
+### Documents: compositions
 
-### Operation shapes
+A **Composition** is the Composer document: a tree of **nodes**. A node is an **operation** or a **composition** (a container with children). Every node takes a cube and returns a cube.
 
-Orthogonal to an operation's *kind* (what it does to pixels: tone, texture, shape and size), every operation declares its **shape** (what it does to the list):
+| Composition | Meaning | FP |
+|---|---|---|
+| **Sequence** | Each child receives the previous child's output. The document root is a Sequence. | composition |
+| **Variations** (*distribution*) | Each child receives the incoming cube; outputs gain a new dimension whose members are the children. | fanout (cross product), or zip with cycling or shuffling |
 
-| Shape | FP | Friendly | Operations |
-|---|---|---|---|
-| `map` | image → image, per image | **Per image** | invert, levels, halftone, crop, rotate, grid, printSet, … |
-| `expand` | image → images, per image (concatMap) | **Splits** | split, rgbChannels, separateColors, cmykChannels |
-| `combine` | images → image (fold) | **Combines** | stack, line, tile |
-| `list` | images → images | **Whole set** | copies, void, noop |
+`distribution: VariationDistribution` is one of:
 
-Uses:
-- **Laws.** *Per image* around only `map` and `expand` operations is the identity; it matters exactly when the inside contains `combine` or `list` operations, deciding which list they see. The editor can explain or flag this.
-- **Counts before running.** Shapes determine output counts, so the editor can show image counts through the arrangement and catch mistakes such as combining nothing.
-- **Safe optimizations.** Fuse consecutive `map`s into one GPU pass; run maps per image concurrently; skip *Per image* around maps only.
-- **Registry.** The current "image count" and "layout" kinds conflate pixels and list behavior; they become derivable from shape.
-
-Rules:
-
-- **One composition construct.** The arrangement root is a Sequence. There is no separate arrangement, `pipe`, or group-`all` concept.
-- **Bypass.** Any node can be bypassed; a bypassed node is the identity. Replaces `enabled` everywhere.
-- **Empty containers.** An empty Sequence is the identity (unit of composition). An empty Parallel or Pairwise would yield nothing; the editor marks empty containers and treats them as bypassed until filled, as a visible, documented rule.
-- **Pairwise remainder.** When there are more images than children: `cycle` (default; image *n* goes to child *n mod k*), `passThrough`, or `drop`. With fewer images than children, unused children produce nothing.
-- **Depth.** Unlimited in the model. The editor renders each container as a card with an indented child list, can collapse deep cards, and supports dragging any node (operation or container) anywhere.
-- **No generic "Group" label.** Compositions are labeled by their mode in the editor ("In parallel"); "Composition" names the concept in code and docs.
-
-Example, the Warhol duotone grid:
-
-```
-Per image
-  In sequence
-    Levels
-    In parallel
-      Gradient map (navy → red) … Gradient map (green → yellow)
-    Tile (3 per row)
-```
-
-### Mapping from the current model
-
-| Current | New |
+| Distribution | Meaning |
 |---|---|
-| `pipe` [ops] | In sequence [ops] |
-| `flatMap` [ops] | In parallel [ops] (children may now be compositions) |
-| `zip` [ops] | Pairwise [ops], remainder `drop` to preserve behavior (new default `cycle`) |
-| group `all` | In sequence (disappears) |
-| group `each` | Per image |
-| arrangement | root composition, in sequence |
+| `all-per-image` | Every image goes through every variation (full cross product). |
+| `one-per-image, in-turn` | Image *n* goes through variation *n mod k*. |
+| `one-per-image, shuffled, seed` | Each image goes through one variation, assigned by dealing a seeded shuffled deck of the variations (balanced: with 6 images and 3 variations, each variation is used twice). |
 
-Nothing is persisted yet (ADR 0001 pending), so stored names change freely; the formula format in ADR 0001 adopts this algebra from its first version.
+### Operations, by what they do to the cube
 
-### Naming decisions
+| Category | Signature | Dimensions | Operations |
+|---|---|---|---|
+| **Effects** | image → image | unchanged | invert, levels, halftone, crop, rotate, gradient map, … |
+| **Drill-downs** | image → parts | adds one (Channel, Ink, Part, Color) | split, RGB channels, separate colors, CMYK |
+| **Roll-ups**, *by* dimensions | images → image per group | keeps only the *by* dimensions | tile, line, stack, print sheet, **crosstab** |
+| **Pick** | cube → sub-cube | `= member` (slice) removes the dimension; `in [members]` (dice) keeps it, even for a list of one | pick |
+| **Pivot** | cube → cube | reorders dimensions | pivot |
 
-- **Composition** (accepted): the container node; means arrangement of elements in art and combining functions in FP.
-- **Mode names as adverbial phrases** (proposed): *In sequence*, *In parallel*, *Pairwise*, *Per image*. Considered and rejected: *Parallel* alone (adjective beside the noun *Sequence*), *Branching* (in programming it means conditionals, choosing one path, the opposite of this mode), *Branches* (reads as a verb), *Group* (generic). Noun alternatives if phrases are not wanted: *Sequence / Ensemble*, *Sequence / Array* (collides with the programming term), *Sequence / Juxtaposition* (precise art term, long).
+- **Roll-up grouping:** cells are grouped by the *by* dimensions (like SQL `GROUP BY`); each group becomes one image, combined in cube order. `by: []` makes one group. Default: all dimensions except the newest. Example phrasing: "Tile by Photo".
+- **Crosstab:** a two-dimensional tile with **rows** = one dimension and **columns** = another, labeled with member names (a pivot table of images).
+- Copies, Noop, and Void are not Composer operations: copies is Variations of identical children; void is a Pick of nothing.
+
+### Dimension names
+
+- Variations of one operation type: named after the operation; members labeled by the differing parameter (Gradient map: navy → red, …; Halftone: 15°, 75°, 0°).
+- Variations of different operations: **Variation**, members labeled by each child (Invert, Grayscale; a nested sequence by its contents).
+- Drill-downs name their dimension (Channel: R, G, B; Ink: C, M, Y, K; Part; Color).
+- Identical children are numbered; a repeated dimension name gets a suffix (Gradient map 2).
+- Dimensions are identified internally by the node that created them, so they can be renamed without breaking *by* or Pick references.
+
+### Randomness
+
+All randomness is seeded and therefore deterministic, testable, and cacheable:
+
+- Seeds are chosen when a step is added and stored in the document; **Reroll** picks a new one.
+- Per-cell randomness (e.g. noise) derives from (seed, cell coordinates), so adding a photo does not change other cells.
+- Applies to Shuffled distributions and to Noise (the CPU kernel moves from `Math.random` to a seeded generator).
+
+### Representations
+
+- **Types** (documentation and checking), ML style:
+  ```
+  type Node =
+    | Operation of Operation
+    | Sequence of Node list
+    | Variations of distribution: VariationDistribution * Node list
+  and VariationDistribution =
+    | AllPerImage
+    | OnePerImage of Order
+  and Order = InTurn | Shuffled of seed: int
+  ```
+- **Storage:** canonical JSON (the formula format of ADR 0001).
+- **Text view:** indentation-based s-expressions with named arguments, one node per line, children indented:
+  ```
+  sequence
+    levels white: 245
+    variations all-per-image
+      gradient-map stops: [#183a65 #ff4137]
+      gradient-map stops: [#850564 #f3dd6d]
+      gradient-map stops: [#012be5 #00fcff]
+      gradient-map stops: [#891c72 #00e5c8]
+      gradient-map stops: [#980405 #88dbdf]
+      gradient-map stops: [#077942 #fef08d]
+    tile by: [photo] columns: 3
+  ```
+
+### Laws
+
+- Effects never change coordinates or order.
+- A drill-down followed by a roll-up by all other dimensions returns one image per original cell.
+- Variations of identical children is Copies; Pick of one member after Variations equals that child alone.
+- A roll-up only behaves differently "per photo" because of its *by* dimensions; there is no separate per-image wrapper.
+
+### Examples
+
+Simple:
+```
+variations all-per-image
+  invert
+  grayscale
+tile by: [photo]
+```
+| Photo | Variation | after `tile by: [photo]` |
+|---|---|---|
+| 1 | Invert | photo 1: Invert and Grayscale tiled |
+| 1 | Grayscale | |
+| 2 | Invert | photo 2: Invert and Grayscale tiled |
+| 2 | Grayscale | |
+
+Per-ink screen angles (drill-down, distribution in turn, roll-up):
+```
+sequence
+  rgb-channels
+  variations one-per-image in-turn
+    halftone angle: 15
+    halftone angle: 75
+    halftone angle: 0
+  stack mode: multiply by: [photo]
+```
+
+Nested (ragged):
+```
+sequence
+  variations all-per-image
+    sequence
+      posterize
+      variations all-per-image
+        gradient-map stops: [A]
+        gradient-map stops: [B]
+    halftone
+  tile by: [photo, variation]
+  tile by: [photo]
+```
+| Photo | Variation | Gradient map |
+|---|---|---|
+| 1 | Posterize + Gradient map | A |
+| 1 | Posterize + Gradient map | B |
+| 1 | Halftone | – |
+
+Systematic exploration (a sweep in a crosstab):
+```
+sequence
+  variations all-per-image                 (sweep: halftone cell 3 → 16)
+    halftone cell: 3
+    halftone cell: 6
+    halftone cell: 10
+    halftone cell: 16
+  crosstab rows: [photo] columns: [halftone]
+```
+
+## Scope
+
+| Version | Scope |
+|---|---|
+| **v1** | Composer route; Composition document; types, canonical JSON, read-only text view; Sequence; Variations with all three distributions; **Sweep** (Variations generated from a parameter range); Effects and Drill-downs from the registry; Tile, Line, Stack, Print sheet with *by*; Crosstab with labels; Pick; Pivot; live dimension and count inference; seeds and Reroll; the Warhol duotone grid as a sample Composition |
+| **v1.1** | Animate (a roll-up to animation frames); group-aware effects (shared palette, auto-levels by group); Match histogram; Average and Median roll-ups; caching, Pick pushdown, effect fusion |
+| **v2** | Per-cell measures and data-driven arrangement (pick where, sort by, derived dimensions); editable text with round-tripping |
+
+## Future directions (from treating compositions as an AST)
+
+1. Dimension inference: show dimensions and counts at every step without rendering; catch invalid references.
+2. Incremental, content-addressed caching (shared with ADR 0001): re-render only what changed.
+3. Query-style rewrites: Pick pushdown, hoisting shared effects above Variations, deduplicating identical children.
+4. Effect fusion: consecutive effects compile into one GPU pass.
+5. Resolution independence: evaluate at preview resolution while editing, full resolution for output.
+6. The filter gallery as a cube view: a Sweep plus a Crosstab; systematic exploration across any parameters and photos.
+7. Text form and round-tripping.
+8. Canonical forms: recipe equivalence, deduplication, structural search.
 
 ## Consequences
 
 **Positive**
-
-- One concept (composition + mode) instead of two; one composition construct; one bypass rule.
-- Operation shapes make the combinators' effects predictable (laws, counts) and enable safe optimizations.
-- Fan out and distribute whole pipelines; "for each image" around any part.
-- Names that read naturally for artists and map precisely to FP terms (documented in tooltips and this ADR).
-- Natural format for saved formulas (ADR 0001); the graph editor's DAG generalizes the same function type, so both can share one evaluator.
+- One small algebra (two compositions, five operation categories) with exact, OLAP-grounded vocabulary.
+- Expressiveness the list model lacks: fanned-out pipelines, per-dimension roll-ups, crosstabs, slicing.
+- Deterministic, testable randomness; a natural saved-formula format.
+- Existing editors keep working; operations and engine are shared.
 
 **Negative / costs**
-
-- Rewrite of the arrangement editor (recursive cards, node-level drag and drop) and of the evaluator; recipes and tests convert mechanically.
-- The local, undeployed groups commit (`e2547e3`) is superseded.
+- A new editor and evaluator (cells carry coordinates; roll-ups group by them).
+- Two composition models coexist until one supersedes the other.
