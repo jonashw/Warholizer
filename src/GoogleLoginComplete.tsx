@@ -1,4 +1,4 @@
-import { useNavigate } from 'react-router-dom';
+import { useNavigate } from 'react-router';
 import AuthContext from './AuthContext.tsx';
 export default function GoogleLoginComplete() {
     const navigate = useNavigate();

@@ -1,6 +1,6 @@
 import { GoogleLogin } from '@react-oauth/google';
 import AuthContext from './AuthContext.tsx';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate } from 'react-router';
 import { User } from '../api/auth.mts';
 
 export default function GoogleLoginPage() {

@@ -2,10 +2,8 @@ import { GoogleOAuthProvider } from '@react-oauth/google';
 import ReactDOM from 'react-dom/client'
 import './index.css';
 import './App.css';
-import {
-  createBrowserRouter,
-  RouterProvider,
-} from "react-router-dom";
+import { createBrowserRouter } from "react-router";
+import { RouterProvider } from "react-router/dom";
 import { routeConfig } from './routeConfig.tsx';
 import AuthContext from './AuthContext.tsx';
 

@@ -1,4 +1,4 @@
-import { Outlet, RouteObject } from "react-router-dom"
+import { Outlet, RouteObject } from "react-router"
 import App from "./App";
 import Gallery from "./Gallery";
 import PureGallery from "./PureGallery";
