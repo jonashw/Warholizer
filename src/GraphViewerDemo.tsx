@@ -86,15 +86,14 @@ export function GraphViewerDemo() {
       />
     </div>
     {transformers.map((t,i) => 
-      <>
+      <React.Fragment key={t.id}>
         {i>0 && <hr/>}
         <ImageGraphSideBySide 
           inputs={inputs}
-          key={t.id}
           dagMode={dagMode}
           applicators={t.applicators}
         />
-      </>
+      </React.Fragment>
     )}
   </div>;
 }

@@ -40,8 +40,8 @@ export function ProgressiveApplicationDemo() {
       {result && <Outputs outputs={result.outputs}/>}
       {result && <div className="mt-3 row">
         {graph.nodes.map(n => n.op).map(op => (
-          <div className="col-6">
-          <div className="card mb-3" key={op.id} id={op.id}>
+          <div className="col-6" key={op.id}>
+          <div className="card mb-3" id={op.id}>
             <div className="card-body">
               <div>{PureRasterOperations.stringRepresentation(op)}</div>
               <div className="row align-items-center">

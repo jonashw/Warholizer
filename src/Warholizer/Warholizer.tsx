@@ -619,8 +619,8 @@ const Warholizer = ({
         <h6 className="mt-3">Quantized Color Pallette</h6>
 
         <div className="mb-3 d-flex flex-wrap">
-          {quantization?.colorBuckets.map((bucket, _) =>
-            <div className="pe-1 pb-1">
+          {quantization?.colorBuckets.map((bucket, i) =>
+            <div className="pe-1 pb-1" key={i}>
               <Swatch color={bucket.averageColorCSS} />
             </div>
           )}
@@ -628,7 +628,7 @@ const Warholizer = ({
 
         <h6 className="mt-3">Color Replacement</h6>
         {quantization?.colorBuckets.map((bucket, i) =>
-        <div className="py-1 d-flex justify-content-between align-items-center">
+        <div className="py-1 d-flex justify-content-between align-items-center" key={i}>
             <Swatch color={bucket.averageColorCSS} />
             <div className="h3 m-0">&rarr;</div>
 
@@ -666,7 +666,7 @@ const Warholizer = ({
         <h6 className="mt-3">Color Buckets</h6>
 
         {quantization?.colorBuckets.map((bucket,i) =>
-          <div className="d-flex align-items-center">
+          <div className="d-flex align-items-center" key={i}>
             <div className="card mb-2">
               <img src={bucket.original.dataUrl}
                 alt={"preview of original bucket #" + (i + 1)}
