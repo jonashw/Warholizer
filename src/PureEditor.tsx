@@ -1,5 +1,5 @@
 import React from 'react';
-import { applicatorAsRecord, PureRasterApplicators } from './Warholizer/RasterOperations/PureRasterApplicator';
+import { applicatorAsRecord, Arrangement, PureRasterApplicators } from './Warholizer/RasterOperations/PureRasterApplicator';
 import { PureRasterApplicatorsEditor } from './PureRasterApplicatorsEditor';
 import { imageAsRecord, ImageRecord } from './ImageRecord';
 import { InputsEditor } from './InputsEditor';
@@ -9,14 +9,14 @@ import { loadSampleImages, sampleImageUrls } from './sampleImageUrls';
 
 export default function PureEditor() {
     const [inputImages, setInputImages] = React.useState<ImageRecord[]>();
-    const [applicators, setApplicators] = React.useState([applicatorAsRecord(defaultApplicator)]);
+    const [arrangement, setArrangement] = React.useState<Arrangement>({ applicators: [applicatorAsRecord(defaultApplicator)], perInput: false });
     const [result, setResult] = React.useState<{
         inputImages: ImageRecord[],
-        applicators: typeof applicators,
+        arrangement: Arrangement,
         outputImages: ImageRecord[]
     }>();
     const outputImages =
-        result && result.inputImages === inputImages && result.applicators === applicators
+        result && result.inputImages === inputImages && result.arrangement === arrangement
         ? result.outputImages
         : [];
 
@@ -40,15 +40,15 @@ export default function PureEditor() {
         }
         let cancelled = false;
         const inputOffscreenCanvases = inputImages.map(i => i.osc);
-        PureRasterApplicators.applyAll(applicators, inputOffscreenCanvases)
+        PureRasterApplicators.applyArrangement(arrangement, inputOffscreenCanvases)
             .then(oscs => oscs.map(osc => ({osc, id: crypto.randomUUID().toString()})))
             .then(outputImages => {
                 if(!cancelled){
-                    setResult({inputImages, applicators, outputImages});
+                    setResult({inputImages, arrangement, outputImages});
                 }
             });
         return () => { cancelled = true; };
-    },[inputImages,applicators]);
+    },[inputImages,arrangement]);
 
     return (
         <div className="container-fluid">
@@ -60,8 +60,8 @@ export default function PureEditor() {
 
                     <div className="col-md-6 mb-3">
                         <PureRasterApplicatorsEditor
-                            defaultApplicators={applicators}
-                            onChange={setApplicators}
+                            defaultArrangement={arrangement}
+                            onChange={setArrangement}
                             previewImages={inputImages}
                         />
                     </div>

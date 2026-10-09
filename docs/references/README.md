@@ -27,7 +27,9 @@ Six duotones of one photo, each with its own shadow ink and flat light backgroun
 
 ![Recipe output](warhol-duotone-grid-recipe-output.jpg)
 
-**Future: a parameterized "Warhol grid"**
+Recipe settings: **Subject darkness** (Levels black point and gamma; raise it for light subjects such as a pale banana) and **Columns**. The recipe turns on **Each input separately**, so several photos give one grid each.
+
+**Future: a richer parameterized "Warhol grid"**
 - Parameters: tile count / columns, a palette set (list of duotone pairs, or generated: complementary or analogous pairs around the hue wheel), texture (none, dither, halftone line screen), background clip strength.
 - Expands to the formula above. Natural fit for the filter gallery: sweep palette sets.
 - Works best with high-contrast sources on white or keyed (`colorKey`) backgrounds.

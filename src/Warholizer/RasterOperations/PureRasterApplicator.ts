@@ -140,4 +140,31 @@ const inputsForOp = async (app: PureRasterApplicator, index: number, inputs: Off
   }
 };
 
-export const PureRasterApplicators = {apply,types,applyAll,applyAllIteratively,map,inputsForOp};
+/**
+ * Everything the Pure Editor arranges: the applicators, and whether to run them on each input
+ * image separately (outputs concatenated in input order) or on all inputs together.
+ */
+export type Arrangement = {
+  applicators: PureRasterApplicatorRecord[],
+  perInput: boolean
+};
+
+const applyArrangement = async ({ applicators, perInput }: Arrangement, inputs: OffscreenCanvas[]): Promise<OffscreenCanvas[]> =>
+  !perInput
+  ? applyAll(applicators, inputs)
+  : (await Promise.all(inputs.map(input => applyAll(applicators, [input])))).flat();
+
+/** Like applyAllIteratively; per input, each step's inputs and outputs are concatenated across inputs. */
+const applyArrangementIteratively = async ({ applicators, perInput }: Arrangement, inputs: OffscreenCanvas[]): Promise<IterativeApplication[]> => {
+  if (!perInput) {
+    return applyAllIteratively(applicators, inputs);
+  }
+  const perImage = await Promise.all(inputs.map(input => applyAllIteratively(applicators, [input])));
+  return applicators.map((_, step) => ({
+    applied: perImage[0]?.[step]?.applied ?? applicators.slice(0, step + 1),
+    inputs: perImage.flatMap(iterations => iterations[step].inputs),
+    outputs: perImage.flatMap(iterations => iterations[step].outputs),
+  }));
+};
+
+export const PureRasterApplicators = {apply,types,applyAll,applyAllIteratively,map,inputsForOp,applyArrangement,applyArrangementIteratively};
