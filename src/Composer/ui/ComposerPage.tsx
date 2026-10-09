@@ -47,6 +47,41 @@ const asPhoto = (full: OffscreenCanvas): Photo => ({ full, preview: scaled(full,
 /** Photos at preview size, each with its scale so sizes resolve as in the full-size export. */
 const previewCube = (photos: Photo[]) => photoCube(photos.map(p => p.preview), photos.map(p => p.preview.width / p.full.width));
 
+/** Images from a blob (pasted or shared): decoded through an object URL. */
+const imageFromBlob = async (blob: Blob): Promise<OffscreenCanvas> => {
+  const url = URL.createObjectURL(blob);
+  try {
+    return await ImageUtil.loadOffscreen(url);
+  } finally {
+    URL.revokeObjectURL(url);
+  }
+};
+
+/** Photos the service worker stored from a share, removed once taken. */
+const takeSharedPhotos = async (): Promise<OffscreenCanvas[]> => {
+  if (!('caches' in window)) return [];
+  const cache = await caches.open('warholizer-shared');
+  const requests = await cache.keys();
+  const images = await Promise.all(requests.map(async request => {
+    const response = await cache.match(request);
+    await cache.delete(request);
+    return response ? imageFromBlob(await response.blob()) : undefined;
+  }));
+  return images.filter((i): i is OffscreenCanvas => i !== undefined);
+};
+
+/** Images on the clipboard (after a tap: browsers ask or allow it for a user gesture). */
+const pasteFromClipboard = async (): Promise<OffscreenCanvas[]> => {
+  const items = await navigator.clipboard.read();
+  const blobs = await Promise.all(items.flatMap(item => {
+    const type = item.types.find(t => t.startsWith('image/'));
+    return type ? [item.getType(type)] : [];
+  }));
+  return Promise.all(blobs.map(imageFromBlob));
+};
+
+const canPaste = typeof navigator !== 'undefined' && typeof navigator.clipboard?.read === 'function';
+
 const loadSaved = (): Composition => {
   try {
     const saved = localStorage.getItem(storageKey);
@@ -128,8 +163,17 @@ export default function ComposerPage() {
   }, []);
 
   React.useEffect(() => {
-    loadSampleImages([sampleImageUrls.warhol, sampleImageUrls.banana, sampleImageUrls.soupCan])
-      .then(images => setPhotos(images.map(asPhoto)));
+    // Photos shared from another app arrive through the service worker; they replace the samples.
+    const shared = new URLSearchParams(window.location.search).has('shared');
+    if (shared) {
+      takeSharedPhotos().then(images => {
+        window.history.replaceState(null, '', '/composer');
+        if (images.length) setPhotos(images.map(asPhoto));
+      });
+    } else {
+      loadSampleImages([sampleImageUrls.warhol, sampleImageUrls.banana, sampleImageUrls.soupCan])
+        .then(images => setPhotos(images.map(asPhoto)));
+    }
     const onPaste = (event: ClipboardEvent) => {
       const file = [...(event.clipboardData?.items ?? [])].find(i => i.kind === 'file')?.getAsFile();
       if (file) {
@@ -218,6 +262,18 @@ export default function ComposerPage() {
                 <CanvasView osc={p.preview} className="composer-thumb" />
               </button>
             ))}
+            {canPaste && (
+              <button type="button" className="composer-add-photo" style={{ width: 'auto', padding: '0 10px', fontSize: 13, fontWeight: 600 }}
+                onClick={async () => {
+                  try {
+                    const images = await pasteFromClipboard();
+                    if (images.length) setPhotos(ps => [...ps, ...images.map(asPhoto)]);
+                    else window.alert('No image on the clipboard.');
+                  } catch {
+                    window.alert('Could not read the clipboard. Allow clipboard access, or long-press and paste.');
+                  }
+                }}>Paste</button>
+            )}
             <label className="composer-add-photo" aria-label="Add photos">
               +
               <input type="file" accept="image/*" multiple hidden onChange={async e => {

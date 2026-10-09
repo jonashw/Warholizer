@@ -20,3 +20,7 @@ ReactDOM.createRoot(document.getElementById('root')!).render(
     </GoogleOAuthProvider>
   </AuthContext.Provider>
 );
+// Installable app: the service worker receives photos shared from other apps (see public/sw.js).
+if ('serviceWorker' in navigator) {
+  navigator.serviceWorker.register('/sw.js').catch(error => console.warn('Service worker not registered', error));
+}
