@@ -380,3 +380,33 @@ describe('text view', () => {
   });
 });
 
+
+describe('export', () => {
+  it('writes a PDF with one page per result, sized from its format', async () => {
+    const { buildPdf } = await import('./export/pdf');
+    const jpeg = new Uint8Array(await (await solid(4, 4, RED).convertToBlob({ type: 'image/jpeg' })).arrayBuffer());
+    const pdf = new TextDecoder('latin1').decode(buildPdf([
+      { jpeg, pixelWidth: 4, pixelHeight: 4, widthPt: 612, heightPt: 792 },
+      { jpeg, pixelWidth: 4, pixelHeight: 4, widthPt: 216, heightPt: 216 },
+    ]));
+    expect(pdf.startsWith('%PDF-1.4')).toBe(true);
+    expect(pdf).toContain('/Count 2');
+    expect(pdf).toContain('/MediaBox [0 0 612 792]');
+    expect(pdf).toContain('/MediaBox [0 0 216 216]');
+    const xref = Number(pdf.match(/startxref\n(\d+)/)![1]);
+    expect(pdf.slice(xref, xref + 4)).toBe('xref');
+    // Every object offset in the cross-reference table points at its object.
+    const offsets = [...pdf.slice(xref).matchAll(/(\d{10}) 00000 n/g)].map(m => Number(m[1]));
+    offsets.forEach((offset, i) => expect(pdf.slice(offset).startsWith(`${i + 1} 0 obj`)).toBe(true));
+  });
+
+  it('names results by their coordinates and sizes pages from their format', async () => {
+    const { resultAddress, fileNameOf, pointsOf } = await import('./export/exportResults');
+    const root = sequence(
+      variationsList(allPerImage, ...Array.from({ length: 12 }, () => operationNode({ type: 'noop' }))),
+      combine(layout({ frame: { type: 'page', distribution: { type: 'one-cell-per-image', overflow: 'spill' } } }), [PHOTO]));
+    const out = await evaluate(root, photoCube([solid(100, 100, RED), solid(100, 100, BLUE)]), canvasOps);
+    expect(fileNameOf(resultAddress('Warhol duotone grid', out, 1), 'pdf')).toBe('warhol-duotone-grid_photo-1_page-2.pdf');
+    expect(pointsOf(out.cells[0]).map(Math.round)).toEqual([612, 792]);
+  });
+});

@@ -13,8 +13,10 @@ import { evaluate, EvaluateOptions, Trace } from "../evaluate";
 import { inferComposition, Placeholder } from "../infer";
 import { compositionText } from "../text";
 import { findNode, insertNode, moveNode, parentOf, removeNode, updateNode } from "../tree";
-import { Composition, Cube, Dimension, Node, NodeId, SequenceNode, VariationDistribution } from "../types";
+import { Composition, Cube, Dimension, ExportSettings, Node, NodeId, SequenceNode, VariationDistribution } from "../types";
 import { AddSheet } from "./AddSheet";
+import { defaultExportSettings, exportFiles, fileNameOf, resultAddress } from "../export/exportResults";
+import { Segmented } from "./Segmented";
 import "./Composer.css";
 import { StepSheet } from "./StepSheet";
 import { kindLabel, nodeSummary, nodeSwatches, nodeTitle } from "./summaries";
@@ -81,8 +83,7 @@ const cellLabel = <Img,>(cube: Cube<Img>, i: number) => cube.dimensions
   .map(d => d.members.find(m => m.key === cube.cells[i].coords[d.id])?.label ?? '–')
   .join(' · ');
 
-const download = async (image: OffscreenCanvas, name: string) => {
-  const blob = await image.convertToBlob({ type: 'image/png' });
+const download = async (blob: Blob, name: string) => {
   const url = URL.createObjectURL(blob);
   const a = document.createElement('a');
   a.href = url;
@@ -343,7 +344,8 @@ export default function ComposerPage() {
       )}
 
       {sheet?.type === 'viewer' && rendered && (
-        <Viewer cube={rendered.output} root={root} photos={photos} name={composition.name} options={options} onClose={() => setSheet(undefined)} />
+        <Viewer cube={rendered.output} root={root} photos={photos} composition={composition} options={options}
+          onSettings={settings => setComposition({ ...composition, export: settings })} onClose={() => setSheet(undefined)} />
       )}
     </div>
   );
@@ -429,34 +431,57 @@ function Peek({ cube, onClose, onCombine, onPick }: {
   );
 }
 
-function Viewer({ cube, root, photos, name, options, onClose }: {
-  cube: Cube<OffscreenCanvas>, root: Node, photos: Photo[], name: string, options: EvaluateOptions, onClose: () => void,
+function Viewer({ cube, root, photos, composition, options, onSettings, onClose }: {
+  cube: Cube<OffscreenCanvas>, root: Node, photos: Photo[], composition: Composition, options: EvaluateOptions,
+  onSettings: (settings: ExportSettings) => void, onClose: () => void,
 }) {
-  const [saving, setSaving] = React.useState<number>();
-  const saveFullSize = async (i: number) => {
-    setSaving(i);
+  const settings = composition.export ?? defaultExportSettings;
+  const [busy, setBusy] = React.useState<string>();
+  const exportResults = async (indexes: number[], what: string) => {
+    setBusy(what);
     try {
-      // Full resolution: the same composition, evaluated on the original photos.
-      const full = await evaluate(root, photoCube(photos.map(p => p.full)), canvasOps, undefined, { format: options.format });
-      const image = full.cells[i]?.image;
-      if (image) await download(image, `${name || 'composition'} ${i + 1}.png`);
+      // The same composition on the original photos (half size for proofs), so sizes resolve for print.
+      const proof = settings.resolution === 'proof';
+      const sources = photos.map(p => proof ? scaled(p.full, Math.ceil(Math.max(p.full.width, p.full.height) / 2)) : p.full);
+      const scales = sources.map((source, i) => source.width / photos[i].full.width);
+      const rendered = await evaluate(root, photoCube(sources, scales), canvasOps, undefined, { format: options.format });
+      const files = await exportFiles(composition.name, rendered, indexes.filter(i => i < rendered.cells.length), settings, options.format);
+      for (const file of files) {
+        await download(file.blob, file.name);
+      }
     } finally {
-      setSaving(undefined);
+      setBusy(undefined);
     }
   };
+  const all = cube.cells.map((_, i) => i);
+  const fileCount = settings.fileType === 'pdf' && settings.pdf === 'one-document' ? 1 : cube.cells.length;
   return (
     <div className="composer-viewer" role="dialog" aria-modal="true" aria-label="Output">
       <div className="composer-row" style={{ flexWrap: 'nowrap' }}>
         <strong style={{ flexGrow: 1 }}>{cube.cells.length} results</strong>
         <button type="button" className="composer-icon-button" style={{ background: '#23262e', color: '#fff' }} onClick={onClose}>Close</button>
       </div>
+      <div className="composer-export">
+        <Segmented label="File type" value={settings.fileType} onChange={fileType => onSettings({ ...settings, fileType })}
+          options={[{ value: 'png', label: 'PNG' }, { value: 'jpeg', label: 'JPEG' }, { value: 'pdf', label: 'PDF' }]} />
+        {settings.fileType === 'pdf' && (
+          <Segmented label="PDF pages" value={settings.pdf} onChange={pdf => onSettings({ ...settings, pdf })}
+            options={[{ value: 'one-document', label: 'One document' }, { value: 'one-per-page', label: 'A file per page' }]} />
+        )}
+        <Segmented label="Resolution" value={settings.resolution} onChange={resolution => onSettings({ ...settings, resolution })}
+          options={[{ value: 'final', label: 'Final' }, { value: 'proof', label: 'Proof (half size)' }]} />
+        <button type="button" className="composer-primary" disabled={busy !== undefined} onClick={() => exportResults(all, 'all')}>
+          {busy === 'all' ? 'Rendering…' : `Export all (${fileCount} ${fileCount === 1 ? 'file' : 'files'})`}
+        </button>
+        <span style={{ fontSize: 12, color: '#b9bdc6' }}>Files are named by their place in the composition, e.g. {fileNameOf(resultAddress(composition.name, cube, 0), settings.fileType === 'jpeg' ? 'jpg' : settings.fileType)}</span>
+      </div>
       {cube.cells.map((c, i) => (
         <div key={i} style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
           <CanvasView osc={c.image} />
           <div className="composer-row" style={{ flexWrap: 'nowrap' }}>
             <span style={{ flexGrow: 1, fontSize: 12, color: '#b9bdc6' }}>{cellLabel(cube, i)}</span>
-            <button type="button" className="composer-primary" style={{ height: 40 }} disabled={saving !== undefined} onClick={() => saveFullSize(i)}>
-              {saving === i ? 'Rendering full size…' : 'Save full size'}
+            <button type="button" className="composer-primary" style={{ height: 40 }} disabled={busy !== undefined} onClick={() => exportResults([i], `${i}`)}>
+              {busy === `${i}` ? 'Rendering…' : `Save ${settings.fileType.toUpperCase()}`}
             </button>
           </div>
         </div>

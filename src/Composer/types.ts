@@ -10,6 +10,17 @@ export type Composition = {
   root: SequenceNode,
   /** The default frame for pages (Letter, portrait, 300 DPI when absent). */
   format?: Format,
+  /** How results are written; defaults when absent. */
+  export?: ExportSettings,
+};
+
+/** How results are written (ADR 0003, Export), not how they look. */
+export type ExportSettings = {
+  fileType: 'png' | 'jpeg' | 'pdf',
+  /** PDF only: one file per page, or one document with every page. */
+  pdf: 'one-per-page' | 'one-document',
+  /** Proof renders at half resolution. */
+  resolution: 'final' | 'proof',
 };
 
 /**
