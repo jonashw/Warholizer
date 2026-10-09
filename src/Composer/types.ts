@@ -21,8 +21,12 @@ export type Node =
   | PickNode
   | PivotNode;
 
-/** An Effect (image → image) or a Separate (image → parts), depending on the operation. */
-export type OperationNode = { kind: 'operation', id: NodeId, op: PureRasterOperation };
+/**
+ * An Effect (image → image) or a Separate (image → parts), depending on the operation.
+ * Group-aware effects (Tone) compute statistics per group of the `by` dimensions (one group of
+ * everything when absent).
+ */
+export type OperationNode = { kind: 'operation', id: NodeId, op: PureRasterOperation, by?: DimensionId[] };
 
 export type SequenceNode = { kind: 'sequence', id: NodeId, children: Node[] };
 

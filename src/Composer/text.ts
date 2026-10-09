@@ -4,10 +4,17 @@ import { Composition, Node, Spread, VariationDistribution } from "./types";
 /** "gradientMap" → "gradient-map". */
 const kebab = (s: string) => s.replace(/([a-z0-9])([A-Z])/g, '$1-$2').toLowerCase();
 
-const value = (v: unknown): string =>
-  Array.isArray(v) ? `[${v.map(value).join(' ')}]`
-  : typeof v === 'string' && /\s/.test(v) ? JSON.stringify(v)
-  : String(v);
+const value = (v: unknown): string => {
+  if (Array.isArray(v)) return `[${v.map(value).join(' ')}]`;
+  if (v !== null && typeof v === 'object') {
+    // A sum type: its tag, then its fields, e.g. match(reference: first).
+    const { type, ...rest } = v as Record<string, unknown>;
+    const fields = Object.entries(rest).map(([k, x]) => `${kebab(k)}: ${value(x)}`).join(' ');
+    return type === undefined ? `(${fields})` : `${kebab(String(type))}${fields ? `(${fields})` : ''}`;
+  }
+  if (typeof v === 'string' && /\s/.test(v)) return JSON.stringify(v);
+  return String(v);
+};
 
 const args = (o: Record<string, unknown>) =>
   Object.entries(o)
@@ -32,7 +39,7 @@ const lines = (node: Node, depth: number): string[] => {
   const indent = '  '.repeat(depth);
   const nested = (children: Node[]) => children.flatMap(c => lines(c, depth + 1));
   switch (node.kind) {
-    case 'operation': return [indent + operation(node.op)];
+    case 'operation': return [indent + operation(node.op) + (node.by ? ` by: [${node.by.join(' ')}]` : '')];
     case 'sequence': return [indent + 'sequence', ...nested(node.children)];
     case 'variations': {
       const head = `${indent}variations ${distributionText(node.distribution)}${node.bind ? ` ${node.bind} <-` : ''}`;

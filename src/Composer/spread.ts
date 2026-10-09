@@ -81,6 +81,11 @@ export const formatParamValue = (param: string, value: unknown): string => {
   if (Array.isArray(value)) {
     return value.join(' → ');
   }
+  if (value !== null && typeof value === 'object') {
+    const { type, ...rest } = value as Record<string, unknown>;
+    const fields = Object.entries(rest).map(([k, v]) => formatParamValue(k, v)).join(' ');
+    return [type, fields].filter(Boolean).join(' ');
+  }
   return String(value);
 };
 

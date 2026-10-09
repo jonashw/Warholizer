@@ -28,6 +28,7 @@ export type PureRasterOperation =
   | Quantize
   | SeparateColors
   | Levels
+  | Tone
   | GradientMap
   | Posterize
   | OrderedDither
@@ -47,6 +48,17 @@ export type Quantize = { type: "quantize", colors: number, replacements: (string
 export type SeparateColors = { type: "separateColors", colors: number, replacements: (string | null)[] };
 /** Remap tones: `black` and `white` points (0-255) and gamma (> 1 brightens midtones). */
 export type Levels = { type: "levels", black: Byte, white: Byte, gamma: number };
+/** Which image a Match histogram copies: the group's first, the group's mean, or a photo (resolved by Composer). */
+export type ToneReference = 'first' | 'mean' | { photo: number };
+export type ToneMethod =
+  | { type: 'manual', black: Byte, white: Byte, gamma: number }
+  | { type: 'auto', clip: number }
+  | { type: 'match', reference: ToneReference };
+/**
+ * Which tone curve each image should use (ADR 0003). Auto and match are group-aware: statistics
+ * come from all the images passed together.
+ */
+export type Tone = { type: "tone", method: ToneMethod };
 /** Brightness mapped through color stops (hex), dark to light; two stops make a duotone. */
 export type GradientMap = { type: "gradientMap", stops: string[] };
 export type Posterize = { type: "posterize", levels: number };

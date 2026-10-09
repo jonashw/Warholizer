@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { angle } from '../NumberTypes';
-import { BLUE, GREEN, RED, colorDistance, pixel, solid } from '../Warholizer/RasterOperations/PureRasterOperation/testUtil';
+import { BLUE, GREEN, RED, bands, colorDistance, pixel, solid } from '../Warholizer/RasterOperations/PureRasterOperation/testUtil';
 import { allPerImage, combine, inTurn, operationNode, sequence, shuffled, variationsList, variationsSpread, warholDuotoneGrid } from './build';
 import { canvasOps, drawCrosstab } from './canvasOps';
 import { dealShuffled, photoCube } from './cube';
@@ -161,6 +161,32 @@ describe('rendering', () => {
     const out = await evaluate(composition.root, photoCube([solid(8, 8, RED), solid(8, 8, BLUE)]), canvasOps);
     expect(out.cells).toHaveLength(2);
     expect([out.cells[0].image.width, out.cells[0].image.height]).toEqual([24, 16]);
+  });
+});
+
+describe('group-aware tone', () => {
+  const gray = (v: number) => [v, v, v, 255] as [number, number, number, number];
+  it('matches every photo to photo 2', async () => {
+    const node: Node = { kind: 'operation', id: 't', op: { type: 'tone', method: { type: 'match', reference: { photo: 2 } } } };
+    const out = await evaluate(node, photoCube([bands(2, 1, [gray(10), gray(60)]), bands(2, 1, [gray(120), gray(240)])]), canvasOps);
+    expect(out.cells).toHaveLength(2);
+    expect(pixel(out.cells[0].image, 0, 0)).toEqual(gray(120));
+    expect(pixel(out.cells[0].image, 1, 0)).toEqual(gray(240));
+  });
+
+  it('keeps statistics within each group of `by`', async () => {
+    const variations = variationsList(allPerImage, operationNode({ type: 'noop' }), operationNode({ type: 'invert' }));
+    const tone: Node = { kind: 'operation', id: 't', op: { type: 'tone', method: { type: 'auto', clip: 0 } }, by: [variations.id] };
+    const photos = photoCube([bands(2, 1, [gray(0), gray(100)]), bands(2, 1, [gray(100), gray(200)])]);
+    const out = await evaluate(sequence(variations, tone), photos, canvasOps);
+    expect(out.cells).toHaveLength(4);
+    // Group "Pass through" pools both photos (0..200): photo 2's 200 becomes white.
+    expect(pixel(out.cells[2].image, 1, 0)).toEqual(gray(255));
+  });
+
+  it('writes its method in the text view', () => {
+    const node: Node = { kind: 'operation', id: 't', op: { type: 'tone', method: { type: 'match', reference: 'mean' } }, by: ['photo'] };
+    expect(compositionText(doc(sequence(node)))).toContain('tone method: match(reference: mean) by: [photo]');
   });
 });
 

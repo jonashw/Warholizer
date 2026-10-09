@@ -1,10 +1,11 @@
+import { isGroupAware } from "../Warholizer/RasterOperations/PureRasterOperation/registry";
 import { PureRasterOperation } from "../Warholizer/RasterOperations/PureRasterOperation/types";
 import { dealShuffled, groupCells, normalize, unionDimensions, uniqueName } from "./cube";
 import { isSeparation, listDimension, operationLabel, separationDimension } from "./labels";
 import { formatParamValue, spreadValuesFor } from "./spread";
 import {
   Cell, CombineNode, Cube, Dimension, DimensionId, MemberKey, Node, NodeId, OperationNode,
-  PickNode, PivotNode, VariationsNode,
+  PHOTO, PickNode, PivotNode, VariationsNode,
 } from "./types";
 
 /**
@@ -44,8 +45,32 @@ const evaluateNode = <Img>(node: Node, input: Cube<Img>, ops: ImageOps<Img>, tra
   }
 };
 
+/** The group-aware operation with "Photo n" resolved: the reference image goes first, then the group. */
+const withReference = <Img>(op: PureRasterOperation, input: Cube<Img>): { op: PureRasterOperation, reference?: Img } => {
+  if (op.type !== 'tone' || op.method.type !== 'match' || typeof op.method.reference !== 'object') return { op };
+  const key = `${op.method.reference.photo}`;
+  const cell = input.cells.find(c => c.coords[PHOTO] === key);
+  return { op: { ...op, method: { ...op.method, reference: 'first' } }, reference: cell?.image };
+};
+
+/** Group-aware effects: one call per group of the `by` dimensions, so statistics stay within a group. */
+const evaluateGroupAware = async <Img>(node: OperationNode, input: Cube<Img>, ops: ImageOps<Img>): Promise<Cube<Img>> => {
+  const by = (node.by ?? []).filter(id => input.dimensions.some(d => d.id === id));
+  const { op, reference } = withReference(node.op, input);
+  const groups = groupCells(input, by);
+  const results = await Promise.all(groups.map(async group => {
+    const images = group.cells.map(c => c.image);
+    const out = reference === undefined ? await ops.apply(op, images) : (await ops.apply(op, [reference, ...images])).slice(1);
+    return group.cells.map((cell, i) => ({ ...cell, image: out[i] }));
+  }));
+  return normalize(input.dimensions, results.flat().filter(c => c.image !== undefined));
+};
+
 const evaluateOperation = async <Img>(node: OperationNode, input: Cube<Img>, ops: ImageOps<Img>): Promise<Cube<Img>> => {
   const { op } = node;
+  if (isGroupAware(op)) {
+    return evaluateGroupAware(node, input, ops);
+  }
   const outputs = await Promise.all(input.cells.map(cell => ops.apply(op, [cell.image])));
   if (!isSeparation(op)) {
     // Effects: one image per cell, coordinates unchanged. (Void leaves none.)

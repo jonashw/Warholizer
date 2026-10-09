@@ -28,7 +28,8 @@ import {
     ContentCut,
     FormatColorReset,
     Style,
-    BlurCircular
+    BlurCircular,
+    Equalizer
 } from "@mui/icons-material";
 import type { SvgIconComponent } from "@mui/icons-material";
 
@@ -59,6 +60,7 @@ const operationIcons: Record<PureRasterOperation['type'], SvgIconComponent> = {
     quantize: ColorLens,
     separateColors: ViewQuilt,
     levels: Exposure,
+    tone: Equalizer,
     gradientMap: Gradient,
     posterize: Filter4,
     orderedDither: GridOn,

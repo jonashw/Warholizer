@@ -8,7 +8,7 @@ import { PureRasterOperation } from './types';
 
 // The taxonomy from ADR 0002.
 const expectedKinds: Record<OperationKind, OperationType[]> = {
-  tone: ['invert', 'threshold', 'grayscale', 'rotateHue', 'fill', 'noise', 'levels', 'quantize', 'gradientMap', 'posterize', 'colorKey'],
+  tone: ['invert', 'threshold', 'grayscale', 'rotateHue', 'fill', 'noise', 'levels', 'tone', 'quantize', 'gradientMap', 'posterize', 'colorKey'],
   filter: ['blur', 'halftone', 'orderedDither', 'errorDiffusion', 'edges', 'colorHalftone'],
   geometry: ['crop', 'scale', 'scaleToFit', 'rotate', 'slideWrap', 'stickerBorder'],
   cardinality: ['copies', 'split', 'rgbChannels', 'separateColors', 'cmykChannels', 'void', 'noop'],
@@ -50,7 +50,7 @@ describe('operation registry', () => {
     expect(types.filter(t => executionOf(operationRegistry[t].defaults) === 'gpu').sort()).toEqual([
       'cmykChannels', 'colorHalftone', 'edges', 'gradientMap', 'halftone', 'levels', 'noise',
       'orderedDither', 'posterize', 'quantize', 'rgbChannels', 'separateColors', 'threshold']);
-    expect(types.filter(t => executionOf(operationRegistry[t].defaults) === 'worker').sort()).toEqual(['colorKey', 'errorDiffusion', 'stickerBorder']);
+    expect(types.filter(t => executionOf(operationRegistry[t].defaults) === 'worker').sort()).toEqual(['colorKey', 'errorDiffusion', 'stickerBorder', 'tone']);
     expect(executionOf({ ...operationRegistry.colorKey.defaults, connected: false })).toBe('gpu');
   });
 });

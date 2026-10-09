@@ -28,7 +28,9 @@ export type OperationRegistration<T extends OperationType = OperationType> = {
   /** Where to run; a function when it depends on parameters (e.g. a CPU-only mode). */
   execution: ExecutionHint | ((op: OperationOfType<T>) => ExecutionHint),
   /** Parameters worth exploring, first is the default. */
-  sweeps?: readonly Sweep<OperationOfType<T>>[]
+  sweeps?: readonly Sweep<OperationOfType<T>>[],
+  /** Computes statistics across all images passed together; Composer passes one group per call (see `by`). */
+  groupAware?: boolean
 };
 
 const range = (from: number, to: number, step: number) =>
@@ -84,6 +86,11 @@ export const operationRegistry: { [T in OperationType]: OperationRegistration<T>
     description: 'Sets the black point, white point, and midtone brightness (gamma).',
     defaults: { type: 'levels', black: byte(0), white: byte(255), gamma: 1 },
     sweeps: [{ param: 'gamma', values: [0.5, 0.7, 1, 1.4, 2, 3] }, { param: 'black', values: range(0, 160, 32).map(byte) }, { param: 'white', values: range(95, 255, 32).map(byte) }],
+  },
+  tone: {
+    kind: 'tone', label: 'Tone', execution: 'worker', groupAware: true,
+    description: 'Sets each image\'s tone curve: by hand (levels), automatically, or by matching another image\'s histogram so a series looks alike.',
+    defaults: { type: 'tone', method: { type: 'auto', clip: 1 } },
   },
   quantize: {
     kind: 'tone', label: 'Quantize', execution: 'gpu',
@@ -280,6 +287,9 @@ export const executionOf = (op: PureRasterOperation): ExecutionHint => {
   const execution = operationRegistry[op.type].execution as ExecutionHint | ((op: PureRasterOperation) => ExecutionHint);
   return typeof execution === 'function' ? execution(op) : execution;
 };
+
+export const isGroupAware = (op: PureRasterOperation): boolean =>
+  operationRegistry[op.type].groupAware === true;
 
 export const registrationOf = <T extends OperationType>(op: { type: T }): OperationRegistration<T> =>
   operationRegistry[op.type];

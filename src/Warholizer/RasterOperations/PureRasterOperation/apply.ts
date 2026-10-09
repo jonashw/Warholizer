@@ -1,3 +1,4 @@
+import { applyTone } from "./tone";
 import { Halftone, Line, PaperSizeById, PureRasterOperation, SlideWrap, Tile } from "./types";
 import { PixelKernels, cpuKernels, inks } from "./kernels";
 import { RGB, medianCutPalette, paintColors, parseHexColor, toHexColor } from "./palette";
@@ -340,6 +341,8 @@ const applyOp = async (op: PureRasterOperation, inputs: OffscreenCanvas[]): Prom
       }));
     case 'levels':
       return Promise.all(inputs.map(input => kernels.levels(input, op.black, op.white, op.gamma)));
+    case 'tone':
+      return applyTone(op, inputs);
     case 'rgbChannels': 
       return (await Promise.all(inputs.map(input => kernels.rgbChannels(input)))).flat();
     case 'grayscale': 
