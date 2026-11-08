@@ -45,6 +45,8 @@ What moves where:
 | Everything else in `src/`, `api/`, `db/`, `migrations/`, `public/`, `index.html`, Vite and Netlify config | `apps/web/` | `netlify.toml` gains `base = "apps/web"`. |
 | `palette/subjects/blank_faces/*.py` in the project files | `services/faces/` | Only the scripts the chosen looks use; the FLUX and Qwen experiments stay behind as notes. |
 
+Decisions 1a and 1b answer different questions and are not alternatives to each other: 1a picks the tool that links the packages together, 1b picks how the engine code is cut into packages. Both winners are used together.
+
 ### Decision 1a: workspace tooling
 
 | Criterion | Weight | npm workspaces | pnpm workspaces | Turborepo over npm | Nx |
