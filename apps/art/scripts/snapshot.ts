@@ -6,7 +6,7 @@
 import { readFileSync, existsSync } from 'node:fs'
 import { join } from 'node:path'
 import { execFileSync } from 'node:child_process'
-import { renderPage } from '../src/app'
+import { handle } from '../src/app'
 import { sqliteDb } from '../test/sqlite'
 import { css } from '../src/style'
 
@@ -14,16 +14,16 @@ const dataDir = process.argv[2] ?? '/mnt/project-files/palette/kb/data'
 const ownDir = process.argv[3] ?? '/mnt/project-files/palette/subjects/pieces/own/doc'
 const read = (n: string) => JSON.parse(readFileSync(join(dataDir, `${n}.json`), 'utf8'))
 const tables = Object.fromEntries(['works', 'readings', 'tropes', 'idioms', 'techniques', 'archetypes'].map(n => [n, read(n)]))
-const db = sqliteDb(tables as never)
-const numbers: Record<string, number> = JSON.parse(readFileSync(join(import.meta.dirname, '..', 'data', 'numbers.json'), 'utf8'))
-
-const pad = (n: number) => String(n).padStart(4, '0')
+const codesCsv = '/mnt/project-files/palette/proof_stamp/qr/codes.csv'
+const csv = existsSync(codesCsv) ? readFileSync(codesCsv, 'utf8') : 'code\n'
+const db = sqliteDb(tables as never, csv)
+const firstCode = csv.trim().split('\n')[1]?.split(',')[0]
 const paths = ['/', '/works', '/tropes', '/idioms', '/techniques', '/archetypes']
 for (const w of tables.works as { id: string; origin: string }[]) {
-  if (w.origin === 'own') paths.push(`/studio/w/${pad(numbers[w.id])}`)
-  else paths.push(`/w/${w.id}`)
+  paths.push(w.origin === 'own' ? `/studio/w/${w.id}` : `/w/${w.id}`)
 }
-paths.push('/studio/works?origin=own')
+paths.push('/studio/works')
+if (firstCode) paths.push(`/p/${firstCode}`, `/studio/p/${firstCode}`)
 for (const t of tables.tropes as { id: string }[]) paths.push(`/tropes/${t.id}`)
 for (const t of tables.idioms as { id: string }[]) paths.push(`/idioms/${t.id}`)
 for (const t of tables.techniques as { id: string }[]) paths.push(`/techniques/${t.id}`)
@@ -45,12 +45,14 @@ const thumb = (file: string) => {
 
 const sections: string[] = []
 for (const p of paths) {
-  const { status, body } = await renderPage(db, new URL(`https://art.jonashw.dev${p}`), true)
-  if (status !== 200) throw new Error(`${p}: ${status}`)
+  const res = await handle(db, new Request(`https://art.jonashw.dev${p}`), 'jon@example.com')
+  const body = await res.text()
+  if (res.status !== 200 && !p.startsWith('/p/')) throw new Error(`${p}: ${res.status}`)
   let main = body.match(/<main>([\s\S]*)<\/main>/)![1]
   main = main
-    .replace(/src="\/img\/kb\/own\/doc\/([^"]+)"/g, (_m, f) => `src="${thumb(decodeURIComponent(f))}"`)
-    .replace(/href="(\/[^"]*)"/g, (_m, h) => `href="#${h.replace(/&amp;/g, '&')}"`)
+    .replace(/src="\/img\/kb\/own\/doc\/([^"]+)"/g, (_m: string, f: string) => `src="${thumb(decodeURIComponent(f))}"`)
+    .replace(/<form method="post" action="[^"]*">/g, '<form onsubmit="alert(\'In the live site this registers the proof.\');return false">')
+    .replace(/href="(\/[^"]*)"/g, (_m: string, h: string) => `href="#${h.replace(/&amp;/g, '&')}"`)
   const studio = p.startsWith('/studio')
   sections.push(`<section data-path="${p.replace(/&/g, '&amp;')}"${studio ? ' data-studio' : ''} hidden>${main}</section>`)
 }
@@ -59,9 +61,9 @@ const page = `<!doctype html><html lang="en"><head><meta charset="utf-8"><meta n
 <title>Knowledge Base Site</title><style>${css}
 .snap{background:var(--code);border-bottom:1px solid var(--line);font-size:14px}.snap .in{max-width:1080px;margin:0 auto;padding:8px 16px;color:var(--muted)}
 </style></head><body>
-<div class="snap"><div class="in">Snapshot of art.jonashw.dev before deploy, rendered by the Worker's own code from the knowledge base tables. Jon's own works appear as the signed-in studio view; publicly they stay hidden until the editorial pass.</div></div>
+<div class="snap"><div class="in">Snapshot of art.jonashw.dev before deploy, rendered by the Worker's own code from the knowledge base tables. Studio in the menu shows the signed-in view, with your own works; publicly they stay hidden until the editorial pass. Registering a proof mark is shown but can't be saved here.</div></div>
 <header class="site"><div class="in"><a class="name" href="#/">Art · jonashw</a><span class="studio" id="studio" hidden>Studio: drafts and private items shown</span>
-<nav aria-label="Sections"><a href="#/works">Works</a><a href="#/tropes">Tropes</a><a href="#/idioms">Idioms</a><a href="#/techniques">Techniques</a><a href="#/archetypes">Archetypes</a></nav></div></header>
+<nav aria-label="Sections"><a href="#/works">Works</a><a href="#/tropes">Tropes</a><a href="#/idioms">Idioms</a><a href="#/techniques">Techniques</a><a href="#/archetypes">Archetypes</a><a href="#/studio/works">Studio (signed-in view)</a></nav></div></header>
 <main>${sections.join('\n')}</main>
 <footer class="site"><div class="in">The knowledge base behind Jon Wilson's practice: works, the readings of them, and the tropes, idioms and techniques they carry.</div></footer>
 <script>

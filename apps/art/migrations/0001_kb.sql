@@ -6,7 +6,6 @@
 -- A work: a picture, poem, film, video or software, received (others') or own (Jon's).
 CREATE TABLE works (
   id            TEXT PRIMARY KEY,
-  number        INTEGER UNIQUE,            -- proof-mark number (the stamp on the front), own works only
   title         TEXT,
   who           TEXT,
   form          TEXT NOT NULL,             -- picture | poem | film | video | software
@@ -74,3 +73,14 @@ CREATE TABLE links (
   PRIMARY KEY (from_kind, from_id, to_kind, to_id)
 );
 CREATE INDEX links_to ON links(to_kind, to_id);
+
+-- A proof mark: a QR sticker on the front of a proof, printed in bulk before it is used. Its code is
+-- random (five Crockford base32 characters, so no I, L, O or U) and names one proof, not a work.
+-- Codes are loaded unregistered; on the first signed-in scan Jon picks the work it belongs to.
+CREATE TABLE proofs (
+  code           TEXT PRIMARY KEY,
+  work           TEXT,                     -- null until registered
+  registered_at  TEXT,
+  registered_by  TEXT
+);
+CREATE INDEX proofs_work ON proofs(work);

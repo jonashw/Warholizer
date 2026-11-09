@@ -21,7 +21,7 @@ code{background:var(--code);padding:1px 5px;border-radius:3px;font:0.9em/1.4 ui-
 .grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(160px,1fr));gap:16px}
 .card{display:block;background:var(--card);border:1px solid var(--line);border-radius:6px;overflow:hidden;color:var(--ink);text-decoration:none}
 .card:hover{border-color:var(--muted)}
-.card .pic{aspect-ratio:1;background:var(--code);display:flex;align-items:center;justify-content:center;color:var(--muted);font-size:13px;text-align:center;padding:8px}
+.card .pic{aspect-ratio:1;overflow:hidden;background:var(--code);display:flex;align-items:center;justify-content:center;color:var(--muted);font-size:13px;text-align:center;padding:8px}
 .card .pic img{width:100%;height:100%;object-fit:cover;display:block}
 .card .cap{padding:8px 10px 10px;font-size:14px;line-height:1.35}
 .card .cap b{display:block;font-weight:600}
@@ -33,6 +33,8 @@ code{background:var(--code);padding:1px 5px;border-radius:3px;font:0.9em/1.4 ui-
 @media (max-width:760px){.work{grid-template-columns:1fr}}
 .work figure{margin:0}
 .work figure img{width:100%;height:auto;display:block;border-radius:4px;background:var(--code)}
+.work figure.fairuse img{max-width:300px}
+.work figcaption{color:var(--muted);font-size:13px;margin-top:8px;max-width:300px}
 .hidden-pic{border:1px dashed var(--line);border-radius:4px;padding:40px 20px;text-align:center;color:var(--muted)}
 dl.facts{display:grid;grid-template-columns:max-content 1fr;gap:6px 16px;margin:16px 0}
 dl.facts dt{color:var(--muted)}
@@ -51,6 +53,10 @@ blockquote{margin:12px 0;padding:0 0 0 16px;border-left:3px solid var(--line);wh
 .stats a{display:block;background:var(--card);border:1px solid var(--line);border-radius:6px;padding:14px 16px;text-decoration:none;color:var(--ink)}
 .stats b{display:block;font:600 1.8rem/1 Georgia,serif;margin-bottom:4px}
 .stats span{color:var(--muted);font-size:14px}
+button.pickcard{font:inherit;text-align:left;padding:0;cursor:pointer;width:100%;display:flex;flex-direction:column}
+button.pickcard .pic,button.pickcard .cap{display:flex;width:100%}button.pickcard .pic{flex:none}button.pickcard .cap{flex-direction:column}
+.error{color:var(--accent);font-weight:600}
+details{margin:24px 0}summary{cursor:pointer;color:var(--accent);min-height:44px;display:flex;align-items:center}
 footer.site{border-top:1px solid var(--line);color:var(--muted);font-size:14px}
 footer.site .in{max-width:1080px;margin:0 auto;padding:16px}
 `

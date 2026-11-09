@@ -4,6 +4,7 @@ export interface Statement {
   bind(...values: unknown[]): Statement
   all<T = Record<string, unknown>>(): Promise<{ results: T[] }>
   first<T = Record<string, unknown>>(): Promise<T | null>
+  run(): Promise<{ meta: { changes: number } }>
 }
 export interface Db { prepare(sql: string): Statement }
 
@@ -14,7 +15,6 @@ export type Visibility = 'public' | 'draft' | 'private'
 
 export interface Work {
   id: string
-  number: number | null
   title: string | null
   who: string | null
   form: string
@@ -62,17 +62,19 @@ export interface Technique {
 }
 export interface Archetype { id: string; name: string; example: string; recipe: string; anchors: string[] }
 
+export interface Proof { code: string; work: string | null; registeredAt: string | null }
+
 export type LinkKind = 'trope' | 'technique' | 'archetype'
 export interface Backlink { kind: LinkKind; id: string; name: string }
 
 type WorkRow = {
-  id: string; number: number | null; title: string | null; who: string | null; form: string
+  id: string; title: string | null; who: string | null; form: string
   origin: 'received' | 'own'; recognition: number | null; in_copyright: number
   visibility: Visibility; image_url: string | null; body: string
 }
 
 const toWork = (r: WorkRow): Work => ({
-  id: r.id, number: r.number, title: r.title, who: r.who, form: r.form, origin: r.origin,
+  id: r.id, title: r.title, who: r.who, form: r.form, origin: r.origin,
   recognition: r.recognition, inCopyright: !!r.in_copyright, visibility: r.visibility,
   imageUrl: r.image_url, body: JSON.parse(r.body),
 })
@@ -80,8 +82,16 @@ const toWork = (r: WorkRow): Work => ({
 /** Which works a viewer may see at all. Private and draft works are Jon's alone. */
 const visibleSql = (v: Viewer) => (v.signedIn ? '1 = 1' : "visibility = 'public'")
 
-/** Whether the page shows a work's image: an in-copyright work hides only its image, and only publicly. */
-export const showImage = (w: Work, v: Viewer) => !!w.imageUrl && (v.signedIn || !w.inCopyright)
+/**
+ * Whether a work's image shows. An in-copyright image follows Wikipedia's non-free content practice:
+ * a small copy on the page about the work itself, never in lists or grids of many works. Signed in,
+ * Jon sees every image everywhere.
+ */
+export const showImage = (w: Work, v: Viewer, where: 'page' | 'list' = 'list') =>
+  !!w.imageUrl && (v.signedIn || !w.inCopyright || where === 'page')
+
+/** The small copy Wikipedia's practice calls for: no wider than 300 pixels. */
+export const fairUseUrl = (url: string) => url.replace(/([?&])width=\d+/, '$1width=300')
 
 const bodies = <T>(rows: { body: string }[]): T[] => rows.map(r => JSON.parse(r.body) as T)
 
@@ -102,13 +112,37 @@ export class Kb {
     return results.map(toWork)
   }
 
-  /** A work by proof-mark number ("0042" or "42") or by id. */
-  async work(key: string): Promise<Work | null> {
-    const byNumber = /^\d+$/.test(key)
+  async work(id: string): Promise<Work | null> {
     const row = await this.db
-      .prepare(`SELECT * FROM works WHERE ${byNumber ? 'number = ?' : 'id = ?'} AND ${visibleSql(this.viewer)}`)
-      .bind(byNumber ? Number(key) : key).first<WorkRow>()
+      .prepare(`SELECT * FROM works WHERE id = ? AND ${visibleSql(this.viewer)}`).bind(id).first<WorkRow>()
     return row ? toWork(row) : null
+  }
+
+  /** A work whatever the viewer may see, to tell "not published yet" from "not found". */
+  async workExists(id: string): Promise<boolean> {
+    return !!(await this.db.prepare('SELECT 1 AS x FROM works WHERE id = ?').bind(id).first())
+  }
+
+  /** An issued proof-mark code, registered or not; null if it was never issued. */
+  async proof(code: string): Promise<Proof | null> {
+    return this.db.prepare('SELECT code, work, registered_at AS registeredAt FROM proofs WHERE code = ?')
+      .bind(code).first<Proof>()
+  }
+
+  async proofsFor(workId: string): Promise<Proof[]> {
+    const { results } = await this.db
+      .prepare('SELECT code, work, registered_at AS registeredAt FROM proofs WHERE work = ? ORDER BY registered_at, code')
+      .bind(workId).all<Proof>()
+    return results
+  }
+
+  /** Ties an unused code to a work. A registered code never moves: returns false if it was taken. */
+  async registerProof(code: string, workId: string, by: string, at = new Date().toISOString()): Promise<boolean> {
+    if (!this.viewer.signedIn) return false
+    const { meta } = await this.db
+      .prepare('UPDATE proofs SET work = ?, registered_at = ?, registered_by = ? WHERE code = ? AND work IS NULL')
+      .bind(workId, at, by, code).run()
+    return meta.changes === 1
   }
 
   async worksByIds(ids: string[]): Promise<Work[]> {

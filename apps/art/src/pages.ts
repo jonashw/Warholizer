@@ -1,14 +1,13 @@
 // Server-rendered pages. Every page takes the knowledge base as the viewer sees it.
 
 import { html, raw, type Html } from './html'
-import { Kb, showImage, type Backlink, type Reading, type Work } from './db'
+import { Kb, fairUseUrl, showImage, type Backlink, type Proof, type Reading, type Work } from './db'
 import { css } from './style'
 
 export interface Ctx { kb: Kb; base: string; path: string }
 
-export const pad = (n: number) => String(n).padStart(4, '0')
-const workTitle = (w: Work) => w.title ?? (w.number !== null ? `No. ${pad(w.number)}` : w.id)
-const workHref = (c: Ctx, w: Work) => `${c.base}/w/${w.number !== null ? pad(w.number) : w.id}`
+const workTitle = (w: Work) => w.title ?? 'Untitled'
+const workHref = (c: Ctx, w: Work) => `${c.base}/w/${w.id}`
 const words = (s: string) => s.replace(/([a-z])([A-Z])/g, '$1 $2').toLowerCase()
 const plural = (n: number, one: string, many = `${one}s`) => `${n} ${n === 1 ? one : many}`
 
@@ -37,7 +36,7 @@ ${c.kb.viewer.signedIn ? html`<span class="studio">Studio: drafts and private it
 function workCard(c: Ctx, w: Work): Html {
   const pic = showImage(w, c.kb.viewer)
     ? html`<img src="${w.imageUrl}" alt="" loading="lazy">`
-    : html`${w.imageUrl ? 'Image hidden: in copyright' : w.form}`
+    : html`${w.imageUrl ? 'In copyright: image on the work’s page' : w.form}`
   return html`<a class="card" href="${workHref(c, w)}"><div class="pic">${pic}</div>
 <div class="cap"><b>${workTitle(w)}</b><span>${w.who ?? ''}</span></div></a>`
 }
@@ -109,14 +108,16 @@ function backlinkList(c: Ctx, links: Backlink[], kind: Backlink['kind'], heading
 export async function work(c: Ctx, key: string): Promise<Html | null> {
   const w = await c.kb.work(key)
   if (!w) return null
-  const [readings, links, archetypes] = await Promise.all([c.kb.readings(w.id), c.kb.backlinks('work', w.id), c.kb.archetypes()])
+  const [readings, links, archetypes, proofs] = await Promise.all([
+    c.kb.readings(w.id), c.kb.backlinks('work', w.id), c.kb.archetypes(), c.kb.proofsFor(w.id)])
   const names = new Map(archetypes.map(a => [a.id, a.name]))
   const b = w.body
-  const figure = showImage(w, c.kb.viewer)
-    ? html`<figure><img src="${w.imageUrl}" alt="${workTitle(w)}${w.who ? ', ' + w.who : ''}"></figure>`
-    : w.imageUrl
-      ? html`<div class="hidden-pic">The image is hidden on public pages because the work is in copyright. The record and its readings stay.</div>`
-      : html``
+  const alt = `${workTitle(w)}${w.who ? ', ' + w.who : ''}`
+  const figure = !w.imageUrl ? html``
+    : w.inCopyright && !c.kb.viewer.signedIn
+      ? html`<figure class="fairuse"><img src="${fairUseUrl(w.imageUrl)}" alt="${alt}">
+<figcaption>A small copy, shown only here on the page about the work, as Wikipedia does with in-copyright works. Copyright belongs to the artist or their estate.</figcaption></figure>`
+      : html`<figure><img src="${w.imageUrl}" alt="${alt}"></figure>`
   return layout(c, workTitle(w), html`
 <div class="work">
 <div>${figure}${b.excerpt ? html`<blockquote>${b.excerpt}</blockquote>` : ''}</div>
@@ -125,7 +126,8 @@ export async function work(c: Ctx, key: string): Promise<Html | null> {
 ${w.who ? html`<p class="meta">${w.who}${b.when ? `, ${b.when}` : ''}</p>` : ''}
 ${w.visibility !== 'public' ? html`<p class="meta"><span class="pill">${w.visibility === 'draft' ? 'Draft: unpublished until the editorial pass' : 'Private'}</span></p>` : ''}
 <dl class="facts">
-${w.number !== null ? html`<dt>Proof mark</dt><dd>No. ${pad(w.number)}</dd>` : ''}
+${w.title === null ? html`<dt>Working name</dt><dd>${w.id}</dd>` : ''}
+${proofs.length ? html`<dt>${proofs.length === 1 ? 'Proof mark' : 'Proof marks'}</dt><dd>${proofs.map((p, i) => html`${i ? ', ' : ''}<code>${p.code}</code>`)}</dd>` : ''}
 <dt>Form</dt><dd>${w.form}</dd>
 <dt>Origin</dt><dd>${w.origin === 'own' ? 'own work' : 'received'}</dd>
 ${b.materials ? html`<dt>Materials</dt><dd>${b.materials}</dd>` : ''}
@@ -248,3 +250,43 @@ ${await anchorsBlock(c, a.anchors)}`, a.recipe)
 export function notFound(c: Ctx): Html {
   return layout(c, 'Not found', html`<h1>Not found</h1><p class="lede">Nothing here${c.kb.viewer.signedIn ? '' : ', or it is not published yet'}. <a href="${c.base || '/'}">Back to the knowledge base</a>.</p>`)
 }
+
+// Proof marks: /p/<code> is what a QR sticker on a proof points at.
+
+const proofPage = (c: Ctx, code: string, title: string, body: Html) =>
+  layout(c, title, html`<p class="meta">Proof mark <code>${code}</code></p><h1>${title}</h1>${body}`)
+
+export function proofUnknown(c: Ctx, raw: string): Html {
+  return layout(c, 'Not a proof mark', html`<h1>Not a proof mark</h1>
+<p class="lede"><code>${raw}</code> isn't a code that was printed. Codes are five letters and digits, like <code>V2P1B</code>.</p>`)
+}
+
+export function proofUnregistered(c: Ctx, code: string): Html {
+  return proofPage(c, code, 'Not registered yet', html`
+<p class="lede">This sticker hasn't been put on a proof yet, or the proof it's on hasn't been recorded.</p>
+<p><a href="/studio/p/${code}">Jon: sign in to register it</a></p>`)
+}
+
+export function proofUnpublished(c: Ctx, code: string): Html {
+  return proofPage(c, code, 'Not published yet', html`
+<p class="lede">This proof is recorded, but the work it belongs to isn't public yet.</p>`)
+}
+
+/** Signed in, unused code: pick the work this proof belongs to. Own works first. */
+export async function proofRegister(c: Ctx, code: string, error = ''): Promise<Html> {
+  const all = await c.kb.works()
+  const own = all.filter(w => w.origin === 'own')
+  const pick = (w: Work) => html`<button class="card pickcard" type="submit" name="work" value="${w.id}">
+<span class="pic">${showImage(w, c.kb.viewer) ? html`<img src="${w.imageUrl}" alt="" loading="lazy">` : w.form}</span>
+<span class="cap"><b>${workTitle(w)}</b><span>${w.title === null ? w.id : w.who ?? ''}</span></span></button>`
+  return proofPage(c, code, 'Register this proof', html`
+<p class="lede">Pick the work this proof belongs to. A registered code stays with its work.</p>
+${error ? html`<p class="error" role="alert">${error}</p>` : ''}
+<form method="post" action="/studio/p/${code}">
+<h2>Your works</h2><div class="grid">${own.map(pick)}</div>
+<details><summary>Someone else's work</summary><div class="grid">${all.filter(w => w.origin !== 'own').map(pick)}</div></details>
+</form>
+<p class="meta">Not listed? Record the work in the knowledge base first, then scan the sticker again.</p>`)
+}
+
+export type { Proof }
