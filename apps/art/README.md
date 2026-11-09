@@ -12,7 +12,7 @@ soon as the seed is reloaded; nothing is generated ahead of time.
 | `/` | counts and the way in |
 | `/works` | every work, filtered by `?form=`, `?archetype=` and (signed in) `?origin=` |
 | `/w/monalisa` | one work |
-| `/p/V2P1B` | a proof mark: where the QR sticker on a proof points (any case; see below) |
+| `/p/V2P1B` | a proof mark: the code written on a proof (any case; see below); `/p?code=` is the box on the home page |
 | `/tropes`, `/tropes/:id` | tropes grouped by turn; one trope with what carries it and what it is anchored on |
 | `/idioms`, `/idioms/:id` | idioms; one idiom with the tropes anchored on it |
 | `/techniques`, `/techniques/:id` | techniques; one with its archetypes and anchors |
@@ -40,16 +40,18 @@ The source tables are `palette/kb/data/*.json` in the project files, built by
 table keeps the columns pages filter on, plus the whole source row as JSON in `body`, so a new field
 in the knowledge base reaches the pages without a migration.
 
-**Proof marks** are QR stickers printed in bulk (`palette/proof_stamp/qr/`, `make_sheet.py`). Each
-encodes `HTTPS://ART.JONASHW.DEV/P/<CODE>` with a random five-character Crockford base32 code, so no
-two look alike and none counts up. A code names a proof, not a work. `npm run seed` also writes
-`seed/codes.sql` from `codes.csv`; it only adds codes, so registrations survive a reload.
+**Proof marks** are five-character codes Jon writes by hand on the front of each proof with an
+archival pigment pen, taken from a printed desk card of fresh random codes (Crockford base32, so no
+I, L, O or U) and crossed off as used. A code names a proof, not a work; it is random, so no two look
+alike and none counts up. `npm run seed` also writes `seed/codes.sql` from the issued codes'
+`codes.csv` (header `code,...`); it only adds codes, so registrations survive a reload.
 
-- Scanning an unused code signed in (`/studio/p/<code>`) asks which work the proof belongs to; the
+- Entering an unused code signed in (`/studio/p/<code>`, or the box on the studio home page) asks which work the proof belongs to; the
   choice is saved and never moves.
-- Anyone else scanning an unused code sees "Not registered yet"; a registered code goes to the
+- Anyone else entering an unused code sees "Not registered yet"; a registered code goes to the
   work's page, or says "Not published yet" while the work is a draft.
-- Any spelling reaches the code: lower case, and I, L and O read as 1, 1 and 0.
+- Any spelling reaches the code: lower case, and I, L and O read as 1, 1 and 0, which forgives
+  handwriting.
 
 ## Commands
 
@@ -66,7 +68,7 @@ npx tsx scripts/snapshot.ts > snapshot.html                       # one-file pre
 
 1. `npx wrangler d1 create kb`, and put the id in `wrangler.toml`.
 2. `npm run db:migrate && npm run seed && npm run db:seed`, then
-   `npx wrangler d1 execute kb --remote --file seed/codes.sql` (again after each new sheet of stickers).
+   `npx wrangler d1 execute kb --remote --file seed/codes.sql` (again after each new desk card).
 3. Upload own works' documentation images to R2 under `kb/own/doc/<file>`.
 4. `npm run deploy`. The Worker answers at its `workers.dev` address.
 5. Once jonashw.dev's DNS is on Cloudflare: uncomment `routes` in `wrangler.toml`, create the Access

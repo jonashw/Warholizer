@@ -51,6 +51,7 @@ for (const p of paths) {
   let main = body.match(/<main>([\s\S]*)<\/main>/)![1]
   main = main
     .replace(/src="\/img\/kb\/own\/doc\/([^"]+)"/g, (_m: string, f: string) => `src="${thumb(decodeURIComponent(f))}"`)
+    .replace(/<form class="codebox" method="get" action="[^"]*"/g, `<form class="codebox" onsubmit="location.hash='#/studio/p/${firstCode}';return false"`)
     .replace(/<form method="post" action="[^"]*">/g, '<form onsubmit="alert(\'In the live site this registers the proof.\');return false">')
     .replace(/href="(\/[^"]*)"/g, (_m: string, h: string) => `href="#${h.replace(/&amp;/g, '&')}"`)
   const studio = p.startsWith('/studio')

@@ -1,6 +1,6 @@
 // Routes a request to a page. Public pages live at /; the same pages under /studio show Jon's drafts,
 // private items and in-copyright images once Cloudflare Access has signed him in. /p/<code> is where
-// a proof's QR sticker points.
+// the proof code Jon writes by hand on a proof leads; /p?code= is the box for typing one in.
 
 import type { Html } from './html'
 import { Kb, type Db } from './db'
@@ -41,6 +41,10 @@ export async function handle(db: Db, req: Request, email: string | null): Promis
   const kb = new Kb(db, { signedIn: studio && !!email })
   const c: pages.Ctx = { kb, base, path }
 
+  if (path === '/p') {
+    const typed = url.searchParams.get('code')?.trim() ?? ''
+    return typed ? redirect(`${base}/p/${encodeURIComponent(normalizeCode(typed) ?? typed)}`) : redirect(base || '/')
+  }
   const proofMatch = path.match(/^\/p\/([^/]+)$/)
   if (proofMatch) return proof(c, req, decodeURIComponent(proofMatch[1]), email)
   if (req.method !== 'GET' && req.method !== 'HEAD') return new Response('Method not allowed', { status: 405 })

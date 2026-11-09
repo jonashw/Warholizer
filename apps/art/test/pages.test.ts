@@ -174,3 +174,12 @@ describe('proof marks', () => {
     expect((await get('/p/NBEM7')).location).toBe('/w/monalisa')
   })
 })
+
+describe('typing a proof code', () => {
+  it('sends the box on the home page to the code, forgiving handwriting', async () => {
+    expect((await get('/')).body).toContain('action="/p"')
+    expect((await get('/p?code=%20v2pIb%20')).location).toBe('/p/V2P1B')
+    expect((await get('/studio/p?code=nbem7', true)).location).toBe('/studio/p/NBEM7')
+    expect((await get('/p?code=')).location).toBe('/')
+  })
+})

@@ -50,6 +50,10 @@ export async function home(c: Ctx): Promise<Html> {
   return layout(c, 'Knowledge base', html`
 <h1>Knowledge base</h1>
 <p class="lede">Works of art, one or more readings of each, and the tropes, idioms and techniques that make them land. Every interpretive field is a reading with a named viewer.</p>
+<form class="codebox" method="get" action="${c.base}/p" role="search">
+<label for="code">Proof code, as written on the front of a proof</label>
+<span><input id="code" name="code" maxlength="8" autocomplete="off" autocapitalize="characters" spellcheck="false" placeholder="V2P1B" required><button type="submit">Go</button></span>
+</form>
 <div class="stats">
 ${tile('/works', n.works, 'works')}${tile('/tropes', n.tropes, 'tropes')}${tile('/idioms', n.idioms, 'idioms')}
 ${tile('/techniques', n.techniques, 'techniques')}${tile('/archetypes', n.archetypes, 'archetypes')}
@@ -251,7 +255,8 @@ export function notFound(c: Ctx): Html {
   return layout(c, 'Not found', html`<h1>Not found</h1><p class="lede">Nothing here${c.kb.viewer.signedIn ? '' : ', or it is not published yet'}. <a href="${c.base || '/'}">Back to the knowledge base</a>.</p>`)
 }
 
-// Proof marks: /p/<code> is what a QR sticker on a proof points at.
+// Proof marks: a five-character code Jon writes by hand on the front of a proof, taken from a desk
+// card of fresh random codes. /p/<code> is that proof's address.
 
 const proofPage = (c: Ctx, code: string, title: string, body: Html) =>
   layout(c, title, html`<p class="meta">Proof mark <code>${code}</code></p><h1>${title}</h1>${body}`)
@@ -263,7 +268,7 @@ export function proofUnknown(c: Ctx, raw: string): Html {
 
 export function proofUnregistered(c: Ctx, code: string): Html {
   return proofPage(c, code, 'Not registered yet', html`
-<p class="lede">This sticker hasn't been put on a proof yet, or the proof it's on hasn't been recorded.</p>
+<p class="lede">This code hasn't been written on a proof yet, or the proof hasn't been recorded.</p>
 <p><a href="/studio/p/${code}">Jon: sign in to register it</a></p>`)
 }
 
@@ -286,7 +291,7 @@ ${error ? html`<p class="error" role="alert">${error}</p>` : ''}
 <h2>Your works</h2><div class="grid">${own.map(pick)}</div>
 <details><summary>Someone else's work</summary><div class="grid">${all.filter(w => w.origin !== 'own').map(pick)}</div></details>
 </form>
-<p class="meta">Not listed? Record the work in the knowledge base first, then scan the sticker again.</p>`)
+<p class="meta">Not listed? Record the work in the knowledge base first, then enter the code again.</p>`)
 }
 
 export type { Proof }
