@@ -14,6 +14,10 @@ const insert = (table, row) =>
 // non-free files alike, until they are copied into R2.
 export function imageUrl(work) {
   if (!work.image) return null
+  // thumb.wikimedia.org is not a real host; the same path is served by upload.wikimedia.org.
+  if (/^https:\/\//.test(work.image)) return work.image.replace('://thumb.wikimedia.org/', '://upload.wikimedia.org/')
+  // A note in place of a file name (an image Jon supplied that isn't in the tables yet).
+  if (!/\.(jpe?g|png|gif|webp|svg|tiff?)$/i.test(work.image)) return null
   if (work.origin === 'own') return `/img/kb/own/doc/${encodeURIComponent(work.image)}`
   return `https://en.wikipedia.org/wiki/Special:FilePath/${encodeURIComponent(work.image.replace(/ /g, '_'))}?width=800`
 }

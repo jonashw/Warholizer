@@ -90,3 +90,12 @@ describe('reading text', () => {
     expect(own.body).not.toContain('<code>bands of glyphs</code>')
   })
 })
+
+describe('image addresses', async () => {
+  const { imageUrl } = await import('../scripts/seed-lib.mjs')
+  it('use a full address as given, skip a note in place of a file, and keep apostrophes', () => {
+    expect(imageUrl({ origin: 'received', image: 'https://upload.wikimedia.org/a.jpg' })).toBe('https://upload.wikimedia.org/a.jpg')
+    expect(imageUrl({ origin: 'received', image: 'supplied by Jon' })).toBeNull()
+    expect(imageUrl({ origin: 'received', image: "Stag at Sharkey's.jpg" })).toContain("Stag_at_Sharkey's.jpg")
+  })
+})
