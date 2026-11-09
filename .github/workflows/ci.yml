@@ -30,3 +30,23 @@ jobs:
         run: npx vitest run
       - name: Build (type-check and bundle)
         run: npm run build
+
+  art-site:
+    # The knowledge base site (apps/art): its own package, type-check and Node tests.
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    defaults:
+      run:
+        working-directory: apps/art
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+          cache-dependency-path: apps/art/package-lock.json
+      - run: npm ci
+      - name: Type-check
+        run: npm run check
+      - name: Tests
+        run: npm test
