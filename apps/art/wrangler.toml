@@ -1,0 +1,23 @@
+# The art knowledge base at art.jonashw.dev (AA "Knowledge Base Forms", Decisions 2, 3 and 6).
+name = "art-jonashw"
+main = "src/index.ts"
+compatibility_date = "2026-10-01"
+
+# The custom domain is attached once jonashw.dev's DNS is on Cloudflare (see README).
+# routes = [{ pattern = "art.jonashw.dev", custom_domain = true }]
+
+[[d1_databases]]
+binding = "KB"
+database_name = "kb"
+database_id = "00000000-0000-0000-0000-000000000000" # replaced by `wrangler d1 create kb`
+migrations_dir = "migrations"
+
+[[r2_buckets]]
+binding = "IMAGES"
+bucket_name = "warholizer-images"
+
+[vars]
+# Cloudflare Access application guarding art.jonashw.dev/studio*. Fill in once it exists.
+ACCESS_TEAM_DOMAIN = ""
+ACCESS_AUD = ""
+STUDIO_EMAILS = ""
