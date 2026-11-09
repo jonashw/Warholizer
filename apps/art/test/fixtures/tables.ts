@@ -12,8 +12,8 @@ const reading = (o: Record<string, unknown>) => ({
 
 export const tables = {
   works: [
-    work({ id: 'monalisa', title: 'Mona Lisa', who: 'Leonardo da Vinci, about 1503–1519', recognition: 4, image: 'Mona Lisa.jpg' }),
-    work({ id: 'marilyn', title: 'Marilyn Diptych', who: 'Andy Warhol, 1962', inCopyright: true, image: 'Marilyn diptych.jpg' }),
+    work({ id: 'monalisa', title: 'Mona Lisa', who: 'Leonardo da Vinci, about 1503–1519', recognition: 4, image: 'Mona Lisa.jpg', materials: 'Sand skin, Black hole dress' }),
+    work({ id: 'marilyn', title: 'Marilyn Diptych', who: 'Andy Warhol, 1962 · fifty faces', inCopyright: true, image: 'Marilyn diptych.jpg', materials: 'Blood lips, Sandy ground' }),
     work({ id: 'glyphBands', who: 'Jon Wilson', origin: 'own', image: 'glyphBands-1.jpg', words: ['EYEYEYE'] }),
     work({ id: 'secret', title: 'Secret <b>', who: 'Jon Wilson', origin: 'own', private: true }),
   ],
@@ -32,6 +32,7 @@ export const tables = {
   techniques: [
     { id: 'lastNodeIsMeaning', name: 'The last node is the meaning', what: 'Put the key part last.', how: 'setAttention(keyPart, 1)', archetypes: ['icon'], anchors: ['monalisa'], origin: 'received' },
   ],
+  colors: [{ material: 'Sand' }, { material: 'Black hole' }, { material: 'Blood' }],
   archetypes: [
     { id: 'icon', name: 'Icon', example: 'soupCan.repeat(32)', recipe: 'One node, repeated.', anchors: ['monalisa', 'marilyn'] },
   ],

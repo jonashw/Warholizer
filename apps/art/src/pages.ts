@@ -1,7 +1,7 @@
 // Server-rendered pages. Every page takes the knowledge base as the viewer sees it.
 
 import { html, raw, type Html } from './html'
-import { Kb, fairUseUrl, showImage, type Backlink, type Proof, type Reading, type Work } from './db'
+import { FACETS, Kb, fairUseUrl, showImage, type Backlink, type Facet, type FacetValue, type Proof, type Reading, type Work } from './db'
 import { css } from './style'
 
 export interface Ctx { kb: Kb; base: string; path: string }
@@ -61,25 +61,39 @@ ${tile('/techniques', n.techniques, 'techniques')}${tile('/archetypes', n.archet
 }
 
 export async function works(c: Ctx, q: URLSearchParams): Promise<Html> {
-  const form = q.get('form') ?? undefined
-  const archetype = q.get('archetype') ?? undefined
-  const origin = q.get('origin') ?? undefined
-  const [list, archetypes] = await Promise.all([c.kb.works({ form, archetype, origin }), c.kb.archetypes()])
-  const chip = (key: string, value: string | undefined, label: string) => {
-    const p = new URLSearchParams(q)
-    if (value) p.set(key, value); else p.delete(key)
-    const on = (q.get(key) ?? undefined) === value
-    const s = p.toString()
-    return html`<a href="${c.base}/works${s ? '?' + s : ''}"${on ? raw(' aria-current="true"') : ''}>${label}</a>`
+  const selected = new Map(FACETS.map(([key]) => [key, q.getAll(key)]))
+  const { works: list, facets } = await c.kb.facetedWorks(selected)
+  const href = (p: URLSearchParams) => { const s = p.toString(); return `${c.base}/works${s ? '?' + s : ''}` }
+  const toggle = (key: string, value: string) => {
+    const p = new URLSearchParams()
+    for (const [k, v] of q) if (!(k === key && v === value)) p.append(k, v)
+    if (!q.getAll(key).includes(value)) p.append(key, value)
+    return href(p)
   }
-  const forms = ['picture', 'poem', 'film']
+  const chosen = facets.flatMap(f => f.values.filter(v => v.selected).map(v => ({ f, v })))
+  // A facet with one value tells nothing, unless something in it is chosen.
+  const shown = facets.filter(f => f.values.length > 1 || f.values.some(v => v.selected))
+  const SHOW = 8
+  const item = (f: Facet, v: FacetValue) => html`<li><a href="${toggle(f.key, v.value)}"${v.selected ? raw(' aria-current="true"') : ''}>
+<span class="box" aria-hidden="true"></span><span class="lab">${v.label}</span><span class="n">${v.count}</span></a></li>`
+  const facetBlock = (f: Facet, i: number) => {
+    const open = i < 3 || f.values.some(v => v.selected)
+    const head = f.values.slice(0, SHOW), rest = f.values.slice(SHOW)
+    return html`<details class="facet"${open ? raw(' open') : ''}><summary>${f.name}</summary>
+<ul>${head.map(v => item(f, v))}</ul>
+${rest.length ? html`<details class="more"><summary>${rest.length} more</summary><ul>${rest.map(v => item(f, v))}</ul></details>` : ''}
+</details>`
+  }
   return layout(c, 'Works', html`
 <h1>Works</h1>
-<p class="lede">${plural(list.length, 'work')}${form || archetype || origin ? ' match' : ''}. Pictures, poems and films, received from others${c.kb.viewer.signedIn ? ' and made by Jon' : ''}.</p>
-<nav class="chips" aria-label="Form">${chip('form', undefined, 'Every form')}${forms.map(f => chip('form', f, f))}</nav>
-${c.kb.viewer.signedIn ? html`<nav class="chips" aria-label="Origin">${chip('origin', undefined, 'Everyone’s')}${chip('origin', 'received', 'Received')}${chip('origin', 'own', 'Own')}</nav>` : ''}
-<nav class="chips" aria-label="Archetype">${chip('archetype', undefined, 'Every archetype')}${archetypes.map(a => chip('archetype', a.id, a.name))}</nav>
-<div class="grid">${list.map(w => workCard(c, w))}</div>`)
+<p class="lede">${plural(list.length, 'work')}${chosen.length ? ' match' : ''}. Pictures, poems and films, received from others${c.kb.viewer.signedIn ? ' and made by Jon' : ''}.</p>
+${chosen.length ? html`<nav class="chips" aria-label="Chosen filters">${chosen.map(({ f, v }) =>
+    html`<a href="${toggle(f.key, v.value)}" aria-current="true">${f.name}: ${v.label} <span aria-hidden="true">×</span><span class="sr">remove</span></a>`)}
+<a href="${c.base}/works">Clear all</a></nav>` : ''}
+<div class="faceted">
+<div class="filters"><input type="checkbox" id="ftoggle" class="sr"${chosen.length ? raw(' checked') : ''}><label for="ftoggle">Filter${chosen.length ? ` (${chosen.length})` : ''}</label><div class="fbody">${shown.map(facetBlock)}</div></div>
+<div class="grid">${list.map(w => workCard(c, w))}</div>
+</div>`)
 }
 
 /** A rewrite chain in code (`portrait.setDegree(smiles, 1)`), as opposed to a sentence in prose. */

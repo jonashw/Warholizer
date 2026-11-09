@@ -183,3 +183,42 @@ describe('typing a proof code', () => {
     expect((await get('/p?code=')).location).toBe('/')
   })
 })
+
+describe('faceted search on works', () => {
+  const count = (body: string) => body.match(/(\d+) works?/)?.[1]
+  it('offers artist, century and palette color facets with counts, and hides own works publicly', async () => {
+    const { body } = await get('/works')
+    expect(body).toContain('Leonardo da Vinci')
+    expect(body).toContain('16th century')
+    expect(body).toContain('20th century')
+    expect(body).toContain('Black hole')
+    expect(body).not.toContain('>Jon Wilson</span>')
+    expect(body).not.toMatch(/>Origin</) // one value publicly, so the facet is left out
+  })
+
+  it('combine values within a facet with OR and facets with AND', async () => {
+    expect(count((await get('/works?artist=Andy%20Warhol&artist=Leonardo%20da%20Vinci')).body)).toBe('2')
+    expect(count((await get('/works?artist=Andy%20Warhol&color=Sand')).body)).toBe('0')
+    expect(count((await get('/works?color=Blood')).body)).toBe('1')
+  })
+
+  it('match whole color names only (Sandy is not Sand)', async () => {
+    const { body } = await get('/works?color=Sand')
+    expect(count(body)).toBe('1')
+    expect(body).toContain('Mona Lisa')
+  })
+
+  it('keep a chosen value’s siblings countable, and offer a way to remove each choice', async () => {
+    const { body } = await get('/works?artist=Andy%20Warhol')
+    expect(body).toMatch(/Leonardo da Vinci<\/span><span class="n">1</)
+    expect(body).toContain('href="/works"') // removing the only choice
+    expect(body).toContain('Clear all')
+  })
+
+  it('show own works and the Origin facet signed in', async () => {
+    const { body } = await get('/studio/works?origin=own', true)
+    expect(body).toMatch(/>Origin</)
+    expect(body).toContain('>Jon Wilson</span>')
+    expect(count(body)).toBe('2')
+  })
+})

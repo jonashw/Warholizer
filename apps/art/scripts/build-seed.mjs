@@ -15,7 +15,7 @@ const [dataDir = '/mnt/project-files/palette/kb/data', codesCsv = '/mnt/project-
 
 const read = name => JSON.parse(readFileSync(join(dataDir, `${name}.json`), 'utf8'))
 const tables = Object.fromEntries(
-  ['works', 'readings', 'tropes', 'idioms', 'techniques', 'archetypes'].map(n => [n, read(n)]),
+  ['works', 'readings', 'tropes', 'idioms', 'techniques', 'archetypes', 'colors'].map(n => [n, read(n)]),
 )
 const seed = buildSeed(tables)
 const codes = existsSync(codesCsv) ? buildProofCodes(readFileSync(codesCsv, 'utf8')) : { sql: '', problems: [`no ${codesCsv}`] }

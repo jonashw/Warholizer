@@ -60,6 +60,23 @@ details{margin:24px 0}summary{cursor:pointer;color:var(--accent);min-height:44px
 .codebox{display:flex;flex-direction:column;gap:6px;margin:0 0 8px;max-width:360px}.codebox label{color:var(--muted);font-size:14px}
 .codebox span{display:flex;gap:8px}.codebox input{flex:1;min-height:44px;font:600 1.2rem ui-monospace,Menlo,monospace;letter-spacing:.15em;text-transform:uppercase;padding:0 12px;border:1px solid var(--line);border-radius:4px;background:var(--card);color:var(--ink)}
 .codebox button{min-height:44px;padding:0 18px;font:inherit;border:0;border-radius:4px;background:var(--ink);color:var(--paper);cursor:pointer}
+.faceted{display:grid;grid-template-columns:230px minmax(0,1fr);gap:28px;align-items:start}
+@media (max-width:760px){.faceted{grid-template-columns:1fr;gap:16px}}
+.filters>label{display:none}
+@media (max-width:760px){.filters>label{display:flex;align-items:center;min-height:44px;font-weight:600;border:1px solid var(--line);border-radius:4px;padding:0 12px;cursor:pointer}
+.filters .fbody{display:none;margin-top:8px}.filters #ftoggle:checked~.fbody{display:block}.filters #ftoggle:focus-visible+label{outline:2px solid var(--accent)}}
+.chips a span[aria-hidden]{margin-left:6px}
+.facet{border-top:1px solid var(--line);padding:6px 0}
+.facet>summary{font-weight:600;min-height:36px;color:var(--ink)}
+.facet ul{list-style:none;margin:0;padding:0}
+.facet li a{display:flex;align-items:center;gap:8px;min-height:32px;color:var(--ink);text-decoration:none;font-size:14px}
+.facet li a:hover .lab{text-decoration:underline}
+.facet .box{width:14px;height:14px;border:1.5px solid var(--muted);border-radius:3px;flex:none}
+.facet a[aria-current] .box{background:var(--accent);border-color:var(--accent);box-shadow:inset 0 0 0 2px var(--paper)}
+.facet .lab{flex:1;min-width:0;overflow-wrap:anywhere}
+.facet .n{color:var(--muted);font-size:13px;font-variant-numeric:tabular-nums}
+.facet .more>summary{font-size:14px;min-height:32px;margin:0}
+.sr{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0)}
 footer.site{border-top:1px solid var(--line);color:var(--muted);font-size:14px}
 footer.site .in{max-width:1080px;margin:0 auto;padding:16px}
 `

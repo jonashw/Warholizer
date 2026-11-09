@@ -95,6 +95,15 @@ export const fairUseUrl = (url: string) => url.replace(/([?&])width=\d+/, '$1wid
 
 const bodies = <T>(rows: { body: string }[]): T[] => rows.map(r => JSON.parse(r.body) as T)
 
+/** The works page's facets, in the order shown. */
+export const FACETS: [string, string][] = [
+  ['origin', 'Origin'], ['artist', 'Artist'], ['form', 'Form'], ['century', 'Century'],
+  ['trope', 'Trope'], ['archetype', 'Archetype'], ['technique', 'Technique'], ['domain', 'Domain'],
+  ['stance', 'Stance'], ['rewrite', 'Rewrite'], ['color', 'Palette color'],
+]
+export interface FacetValue { value: string; label: string; count: number; selected: boolean }
+export interface Facet { key: string; name: string; values: FacetValue[] }
+
 export class Kb {
   constructor(private db: Db, readonly viewer: Viewer) {}
 
@@ -116,6 +125,50 @@ export class Kb {
     const row = await this.db
       .prepare(`SELECT * FROM works WHERE id = ? AND ${visibleSql(this.viewer)}`).bind(id).first<WorkRow>()
     return row ? toWork(row) : null
+  }
+
+  /**
+   * Faceted search (Hearst's design): values within a facet combine with OR, facets with AND. Each
+   * facet's counts are taken over the works that match every other facet's selection, so choosing a
+   * value never hides its siblings.
+   */
+  async facetedWorks(selected: Map<string, string[]>): Promise<{ works: Work[]; facets: Facet[] }> {
+    const [all, rows] = await Promise.all([
+      this.works(),
+      this.db.prepare(
+        `SELECT f.work, f.facet, f.value, f.label FROM facets f JOIN works ON works.id = f.work WHERE ${visibleSql(this.viewer).replace('visibility', 'works.visibility')}`,
+      ).all<{ work: string; facet: string; value: string; label: string }>().then(r => r.results),
+    ])
+    const has = new Map<string, Map<string, Set<string>>>()
+    const labels = new Map<string, string>()
+    for (const r of rows) {
+      const byFacet = has.get(r.work) ?? new Map<string, Set<string>>()
+      has.set(r.work, byFacet)
+      const values = byFacet.get(r.facet) ?? new Set<string>()
+      byFacet.set(r.facet, values)
+      values.add(r.value)
+      labels.set(`${r.facet}\u0000${r.value}`, r.label)
+    }
+    const active = [...selected].filter(([, v]) => v.length)
+    const matches = (w: Work, except?: string) => active.every(([f, vals]) =>
+      f === except || vals.some(v => has.get(w.id)?.get(f)?.has(v)))
+    const facets = FACETS.map(([key, name]) => {
+      const counts = new Map<string, number>()
+      for (const w of all) {
+        if (!matches(w, key)) continue
+        for (const v of has.get(w.id)?.get(key) ?? []) counts.set(v, (counts.get(v) ?? 0) + 1)
+      }
+      const chosen = selected.get(key) ?? []
+      for (const v of chosen) if (!counts.has(v)) counts.set(v, 0)
+      const values = [...counts].map(([value, count]) => ({
+        value, count, label: labels.get(`${key}\u0000${value}`) ?? value, selected: chosen.includes(value),
+      }))
+      values.sort(key === 'century'
+        ? (a, b) => a.value.localeCompare(b.value)
+        : (a, b) => b.count - a.count || a.label.localeCompare(b.label))
+      return { key, name, values }
+    })
+    return { works: all.filter(w => matches(w)), facets }
   }
 
   /** A work whatever the viewer may see, to tell "not published yet" from "not found". */

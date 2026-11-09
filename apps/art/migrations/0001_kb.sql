@@ -84,3 +84,15 @@ CREATE TABLE proofs (
   registered_by  TEXT
 );
 CREATE INDEX proofs_work ON proofs(work);
+
+-- Facets for the works page's faceted search: one row per (work, facet, value), worked out by the
+-- seed from the works, their readings and the links (artist, origin, form, trope, archetype,
+-- technique, domain, stance, rewrite, palette color, century).
+CREATE TABLE facets (
+  work   TEXT NOT NULL,
+  facet  TEXT NOT NULL,
+  value  TEXT NOT NULL,
+  label  TEXT NOT NULL,
+  PRIMARY KEY (work, facet, value)
+);
+CREATE INDEX facets_value ON facets(facet, value);
