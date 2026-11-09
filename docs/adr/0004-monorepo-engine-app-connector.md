@@ -23,6 +23,7 @@ warholizer/
   package.json              # workspace root: scripts that run every package's lint, tests and build
   apps/
     web/                    # today's SPA, Netlify functions (api/), Drizzle schema (db/) and migrations/
+    art/                    # knowledge base site (PR #2): its own Worker at art.jonashw.dev, D1 "kb", R2 kb/own/doc/
   packages/
     engine/                 # operations, kernels, registry, worker and GPU engines, Composer's model
                             # (suite, evaluate, recipes, formats, migrations of saved documents); no React
@@ -58,7 +59,7 @@ Decisions 1a and 1b answer different questions and are not alternatives to each 
 | Fewest new tools and config files | 0.20 | **5** | 4 | 3 | 1 |
 | **Weighted total** | 1.00 | **4.60** | 3.70 | 4.10 | 2.90 |
 
-**Choose npm workspaces.** Four packages don't need a build orchestrator; `npm run test --workspace packages/engine` covers running one package alone. Turborepo can be added later on top of npm workspaces without moving anything, if CI gets slow.
+**Choose npm workspaces.** `apps/art` (PR #2) starts as a standalone package with its own lockfile and CI job; the workspaces move brings it in as it is. Five packages don't need a build orchestrator; `npm run test --workspace packages/engine` covers running one package alone. Turborepo can be added later on top of npm workspaces without moving anything, if CI gets slow.
 
 ### Decision 1b: where Composer's model lives
 
@@ -108,7 +109,7 @@ Approved: on Cloudflare, with WebGL drawn in software. Open: the mechanism.
 | Fewest platforms | 0.10 | 3 | 4 | 4 |
 | **Weighted total** | 1.00 | **4.40** | 3.40 | 3.80 |
 
-**Choose two databases for now.** Proofs stay in Neon, where the app writes them today; the Worker reads them through Hyperdrive, Cloudflare's Postgres connection pool. Moving the app's tables to D1 is worth revisiting once the app's API moves behind the Worker, which this ADR doesn't propose.
+**Choose two databases for now.** Proofs stay in Neon, where the app writes them today; the Worker reads them through Hyperdrive, Cloudflare's Postgres connection pool. The knowledge base is the D1 database `kb` that `apps/art` already uses (schema `apps/art/migrations/0001_kb.sql`); the connector binds the same database rather than a copy. Moving the app's tables to D1 is worth revisiting once the app's API moves behind the Worker, which this ADR doesn't propose.
 
 ## Decision 5: web app hosting
 
@@ -126,8 +127,8 @@ Approved: on Cloudflare, with WebGL drawn in software. Open: the mechanism.
 
 Each step is its own pull request, with CI green and no change in what the app does unless the step says so.
 
-1. **WebGL2 spike** (needs a Cloudflare API token): bundle `engine-host` from today's code, open it in Browser Rendering, run the GPU kernels and the full test sample, and record speed at 1024² and 2048² next to [docs/benchmarks](../benchmarks). Settles Decision 3 before anything moves.
-2. **Workspaces move**: `git mv` into the layout above, npm workspaces, CI and Netlify pointed at `apps/web`. Same app, same tests, same deploy preview.
+1. **WebGL2 spike** (needs a Cloudflare API token with Workers, Browser Rendering, D1 Edit and R2 Edit): bundle `engine-host` from today's code, open it in Browser Rendering, run the GPU kernels and the full test sample, and record speed at 1024² and 2048² next to [docs/benchmarks](../benchmarks). Settles Decision 3 before anything moves.
+2. **Workspaces move**: `git mv` into the layout above, npm workspaces (including `apps/art` as it is), CI and Netlify pointed at `apps/web`. Same app, same tests, same deploy preview.
 3. **Suite vocabulary**: cube → suite, member → variant, cell → variation, Variations → Vary, in code, UI and ADR 0003 (marked superseded in wording). Saved compositions use `kind: 'variations'`, so `migrate.ts` gains a version that renames it; old public links keep opening.
 4. **Run hints**: add `remote` to `ExecutionHint` as in Decision 2; the engine refuses to run a `remote` operation locally and asks the caller for a job instead.
 5. **Connector skeleton**: Worker with Cloudflare's MCP server kit and OAuth provider (Google sign-in); tools `list_operations` (from the registry), `apply` and `evaluate` (through `engine-host`); proofs written as lineage records; the proof cache.
